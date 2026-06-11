@@ -11,11 +11,20 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
-import { budgets, monthlySummary, paymentMethods, reminders } from "@/data/mock-data";
+import { budgets, paymentMethods } from "@/data/mock-data";
 import { exportDataJson, exportEntriesCsv, exportReportPdf } from "@/lib/export-data";
-import { buildCategoryExpense, buildExpenseTrend, filterEntries, summarizeEntries } from "@/lib/finance";
+import {
+  buildCategoryExpense,
+  buildExpenseTrend,
+  buildSummaryRowsFromEntries,
+  filterEntries,
+  filterEntriesByReportPeriod,
+  summarizeEntries,
+  type ReportPeriod,
+  type SummaryRow,
+} from "@/lib/finance";
 import { displayDate, getTodayIso, taka, takaShort } from "@/lib/utils";
-import type { Entry, EntryType, PaymentMethod } from "@/types";
+import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from "@/types";
 
 type EntryFormMode = "expense" | "income";
 
@@ -30,12 +39,10 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
     const form = new FormData(event.currentTarget);
     const amount = Number(form.get("amount"));
 
-    if (!amount || amount <= 0) {
-      return;
-    }
+    if (!amount || amount <= 0) return;
 
     addEntry({
-      date: String(form.get("date")),
+      date: String(form.get("date") || today),
       category: isExpense ? String(form.get("category")) : String(form.get("source") || "আয়"),
       description: isExpense ? String(form.get("description") || "খরচ") : String(form.get("source") || "আয়"),
       amount,
@@ -69,29 +76,16 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
   );
 }
 
-function buildSummaryRows(today: ReturnType<typeof summarizeEntries>, todayIso: string, hiddenSummaryDates: string[]) {
-  return [
-    { date: `${displayDate(todayIso)} (Today)`, income: today.income, expense: today.expense, entries: today.entries, balance: today.balance },
-    ...monthlySummary.slice(1),
-  ].filter((row) => !hiddenSummaryDates.includes(row.date));
+function buildSummaryRows(entries: Entry[], hiddenSummaryDates: string[]) {
+  return buildSummaryRowsFromEntries(entries, hiddenSummaryDates);
 }
 
 export function ExpensePage() {
-  return (
-    <AppShell>
-      <PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" />
-      <Card className="max-w-5xl p-6"><EntryForm mode="expense" /></Card>
-    </AppShell>
-  );
+  return <AppShell><PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" /><Card className="max-w-5xl p-6"><EntryForm mode="expense" /></Card></AppShell>;
 }
 
 export function IncomePage() {
-  return (
-    <AppShell>
-      <PageTitle title="Add Income" subtitle="আজকের আয় যোগ করুন" />
-      <Card className="max-w-4xl p-6"><EntryForm mode="income" /></Card>
-    </AppShell>
-  );
+  return <AppShell><PageTitle title="Add Income" subtitle="আজকের আয় যোগ করুন" /><Card className="max-w-4xl p-6"><EntryForm mode="income" /></Card></AppShell>;
 }
 
 export function EntriesPage() {
@@ -123,7 +117,7 @@ export function EntriesPage() {
 export function IncomeExpensePage() {
   const { entries, hiddenSummaryDates } = useFinance();
   const summary = summarizeEntries(entries);
-  const today = getTodayIso();
+  const rows = buildSummaryRows(entries, hiddenSummaryDates);
 
   return (
     <AppShell>
@@ -133,14 +127,8 @@ export function IncomeExpensePage() {
         <Metric label="Total expense" value={taka(summary.expense)} tone="text-[#EF4444]" />
         <Metric label="Balance" value={taka(summary.balance)} tone={summary.balance >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"} />
       </div>
-      <Card className="mt-5 p-5">
-        <h2 className="mb-4 text-lg font-bold">Recent transactions</h2>
-        <ResponsiveEntries entries={entries.slice(0, 8)} editable />
-      </Card>
-      <Card className="mt-5 p-5">
-        <h2 className="mb-4 text-lg font-bold">Monthly summary table</h2>
-        <SummaryTable rows={buildSummaryRows(summarizeEntries(entries, today), today, hiddenSummaryDates)} />
-      </Card>
+      <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">Recent transactions</h2><ResponsiveEntries entries={entries.slice(0, 8)} editable /></Card>
+      <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">Monthly summary table</h2><SummaryTable rows={rows} /></Card>
     </AppShell>
   );
 }
@@ -156,14 +144,11 @@ export function BudgetPage() {
         {budgets.map((budget) => {
           const dynamicSpent = spentByCategory.find((item) => budget.category.includes(item.name) || item.name.includes(budget.category))?.value;
           const spent = dynamicSpent ?? budget.spent;
-          const percent = Math.round((spent / budget.limit) * 100);
+          const percent = budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0;
           const status = percent > 100 ? "Over Budget" : percent > 80 ? "Warning" : "Good";
           return (
             <Card key={budget.category} className="p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold">{budget.category}</h2>
-                <span className={percent > 100 ? "text-[#EF4444]" : percent > 80 ? "text-[#F59E0B]" : "text-[#22C55E]"}>{status}</span>
-              </div>
+              <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-bold">{budget.category}</h2><span className={percent > 100 ? "text-[#EF4444]" : percent > 80 ? "text-[#F59E0B]" : "text-[#22C55E]"}>{status}</span></div>
               <div className="mb-2 flex justify-between text-sm"><span>Spent {takaShort(spent)}</span><span>Limit {takaShort(budget.limit)}</span></div>
               <div className="h-3 rounded-full bg-[#eeeafb]"><div className="h-full rounded-full" style={{ width: `${Math.min(percent, 100)}%`, background: budget.color }} /></div>
             </Card>
@@ -186,33 +171,17 @@ export function CategoriesPage() {
           <h2 className="mb-4 text-lg font-bold">Expense Categories</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {categories.map((category) => {
-              const item = categoryData.find((data) => data.name === category);
-              const spent = item?.value ?? 0;
-
+              const spent = categoryData.find((data) => data.name === category)?.value ?? 0;
               return (
                 <div key={category} className="rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-4">
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="grid size-10 place-items-center rounded-lg bg-[#efeaff] text-[#6C4CF1]">
-                      <Receipt size={18} />
-                    </span>
-                    <div>
-                      <h3 className="font-bold">{category}</h3>
-                      <p className="text-sm text-[#746d86]">Monthly spent {takaShort(spent)}</p>
-                    </div>
-                  </div>
-                  <div className="h-2 rounded-full bg-[#eeeafb]">
-                    <div className="h-full rounded-full bg-[#6C4CF1]" style={{ width: `${Math.min((spent / 5000) * 100, 100)}%` }} />
-                  </div>
+                  <div className="mb-3 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-[#efeaff] text-[#6C4CF1]"><Receipt size={18} /></span><div><h3 className="font-bold">{category}</h3><p className="text-sm text-[#746d86]">Monthly spent {takaShort(spent)}</p></div></div>
+                  <div className="h-2 rounded-full bg-[#eeeafb]"><div className="h-full rounded-full bg-[#6C4CF1]" style={{ width: `${Math.min((spent / 5000) * 100, 100)}%` }} /></div>
                 </div>
               );
             })}
           </div>
         </Card>
-
-        <Card className="p-5">
-          <h2 className="mb-4 text-lg font-bold">Category Chart</h2>
-          <CategoryPieChart data={categoryData} />
-        </Card>
+        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category Chart</h2><CategoryPieChart data={categoryData} /></Card>
       </div>
     </AppShell>
   );
@@ -222,10 +191,13 @@ export function ReportsPage() {
   const { categories, entries, hiddenSummaryDates } = useFinance();
   const { notify } = useToast();
   const today = getTodayIso();
-  const summaryRows = buildSummaryRows(summarizeEntries(entries, today), today, hiddenSummaryDates);
+  const [period, setPeriod] = useState<ReportPeriod>("daily");
+  const reportEntries = useMemo(() => filterEntriesByReportPeriod(entries, period, today), [entries, period, today]);
+  const summaryRows = useMemo(() => buildSummaryRows(reportEntries, hiddenSummaryDates), [hiddenSummaryDates, reportEntries]);
+  const labels: Record<ReportPeriod, string> = { daily: "Daily report", weekly: "Weekly report", monthly: "Monthly report", yearly: "Yearly report" };
 
   function handlePdfExport() {
-    const exported = exportReportPdf(entries, summaryRows);
+    const exported = exportReportPdf(reportEntries, summaryRows);
     notify(exported ? "PDF export opened" : "Popup blocked. Allow popups to export PDF.", exported ? "success" : "danger");
   }
 
@@ -233,15 +205,15 @@ export function ReportsPage() {
     <AppShell>
       <PageTitle title="Reports" subtitle="Daily, weekly, monthly and yearly report" />
       <div className="mb-5 flex flex-wrap gap-3">
-        {["Daily report", "Weekly report", "Monthly report", "Yearly report"].map((item) => <Button key={item} variant="outline">{item}</Button>)}
+        {(Object.keys(labels) as ReportPeriod[]).map((item) => <Button key={item} variant={period === item ? "primary" : "outline"} onClick={() => setPeriod(item)}>{labels[item]}</Button>)}
         <Button onClick={handlePdfExport}><Download size={16} /> Export PDF</Button>
-        <Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
+        <Button variant="outline" onClick={() => { exportEntriesCsv(reportEntries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
-        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(entries)} /></Card>
-        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(entries, categories)} /></Card>
+        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(reportEntries)} /></Card>
+        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(reportEntries, categories)} /></Card>
       </div>
-      <Card className="mt-5 p-5"><SummaryTable rows={summaryRows} /></Card>
+      <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">{labels[period]} summary</h2><SummaryTable rows={summaryRows} /></Card>
     </AppShell>
   );
 }
@@ -265,23 +237,126 @@ export function CalendarPage() {
 }
 
 export function RecurringPage() {
+  const { addRecurringExpense, deleteRecurringExpense, recurringExpenses, updateRecurringExpense } = useFinance();
+  const { notify } = useToast();
+  const today = getTodayIso();
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  function saveRecurring(formData: FormData, id?: number) {
+    const amount = Number(formData.get("amount"));
+    const item: Omit<RecurringExpense, "id"> = {
+      title: String(formData.get("title") || "Recurring expense"),
+      amount: amount > 0 ? amount : 0,
+      frequency: String(formData.get("frequency")) as RecurringExpense["frequency"],
+      nextDueDate: String(formData.get("nextDueDate") || today),
+      method: String(formData.get("method")) as PaymentMethod,
+    };
+
+    if (id) {
+      updateRecurringExpense(id, item);
+      setEditingId(null);
+      notify("Recurring expense updated", "info");
+      return;
+    }
+
+    addRecurringExpense(item);
+    notify("Recurring expense added", "success");
+  }
+
   return (
     <AppShell>
       <PageTitle title="Recurring Expenses" subtitle="Rent, internet bill and mobile recharge" />
       <Card className="mb-5 p-5">
-        <div className="grid gap-4 md:grid-cols-4"><input className={inputClass} placeholder="Rent" /><select className={inputClass}><option>Daily</option><option>Weekly</option><option>Monthly</option></select><input type="date" className={inputClass} /><Button><Plus size={16} /> Add recurring item</Button></div>
+        <form action={(formData) => saveRecurring(formData)} className="grid gap-4 md:grid-cols-5">
+          <input name="title" className={inputClass} placeholder="বাসা ভাড়া" required />
+          <input name="amount" className={inputClass} placeholder="৳ 0.00" inputMode="decimal" required />
+          <select name="frequency" className={inputClass} defaultValue="Monthly"><option>Daily</option><option>Weekly</option><option>Monthly</option></select>
+          <input name="nextDueDate" type="date" className={inputClass} defaultValue={today} required />
+          <Button type="submit"><Plus size={16} /> Add recurring item</Button>
+          <select name="method" className={`${inputClass} md:col-span-2`} defaultValue="Cash">{paymentMethods.map((method) => <option key={method}>{method}</option>)}</select>
+        </form>
       </Card>
-      <ListCards items={["বাসা ভাড়া - Monthly - 25 May", "ইন্টারনেট বিল - Monthly - 26 May", "মোবাইল রিচার্জ - Weekly - 27 May"]} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        {recurringExpenses.map((item) => (
+          <Card key={item.id} className="p-5">
+            {editingId === item.id ? (
+              <form action={(formData) => saveRecurring(formData, item.id)} className="grid gap-3">
+                <input name="title" className={inputClass} defaultValue={item.title} />
+                <input name="amount" className={inputClass} defaultValue={item.amount} inputMode="decimal" />
+                <select name="frequency" className={inputClass} defaultValue={item.frequency}><option>Daily</option><option>Weekly</option><option>Monthly</option></select>
+                <input name="nextDueDate" type="date" className={inputClass} defaultValue={item.nextDueDate} />
+                <select name="method" className={inputClass} defaultValue={item.method}>{paymentMethods.map((method) => <option key={method}>{method}</option>)}</select>
+                <div className="flex gap-2"><Button type="submit">Save</Button><Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button></div>
+              </form>
+            ) : (
+              <>
+                <CheckCircle2 className="mb-4 text-[#22C55E]" />
+                <h2 className="font-bold">{item.title}</h2>
+                <p className="text-sm text-[#746d86]">{item.frequency} · Next {displayDate(item.nextDueDate)}</p>
+                <p className="mt-3 text-xl font-bold">{taka(item.amount)}</p>
+                <p className="text-sm text-[#746d86]">{item.method}</p>
+                <div className="mt-4 flex gap-3 text-[#6C4CF1]"><button type="button" onClick={() => setEditingId(item.id)}><Edit2 size={17} /></button><ConfirmDeleteButton onConfirm={() => { deleteRecurringExpense(item.id); notify("Recurring expense deleted", "danger"); }} /></div>
+              </>
+            )}
+          </Card>
+        ))}
+      </div>
     </AppShell>
   );
 }
 
 export function RemindersPage() {
+  const { addReminder, deleteReminder, reminders, toggleReminder, updateReminder } = useFinance();
+  const { notify } = useToast();
+  const today = getTodayIso();
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  function saveReminder(formData: FormData, id?: number) {
+    const item: Omit<Reminder, "id"> = {
+      title: String(formData.get("title") || "Reminder"),
+      date: String(formData.get("date") || today),
+      time: String(formData.get("time") || "09:00"),
+      completed: formData.get("completed") === "on",
+    };
+
+    if (id) {
+      updateReminder(id, item);
+      setEditingId(null);
+      notify("Reminder updated", "info");
+      return;
+    }
+
+    addReminder(item);
+    notify("Reminder added", "success");
+  }
+
   return (
     <AppShell>
       <PageTitle title="Reminders" subtitle="Completed and upcoming status" />
-      <Card className="mb-5 p-5"><div className="grid gap-4 md:grid-cols-4"><input className={inputClass} placeholder="Add reminder" /><input type="date" className={inputClass} /><input type="time" className={inputClass} /><Button><Bell size={16} /> Add reminder</Button></div></Card>
-      <div className="grid gap-4 lg:grid-cols-3">{reminders.map((r, i) => <Card key={r.title} className="p-5"><Bell className="mb-4 text-[#6C4CF1]" /><h2 className="font-bold">{r.title}</h2><p className="text-sm text-[#746d86]">{r.date} · {r.time}</p><p className={i === 0 ? "mt-4 text-[#F59E0B]" : "mt-4 text-[#22C55E]"}>{i === 0 ? "Upcoming" : "Completed"}</p></Card>)}</div>
+      <Card className="mb-5 p-5"><form action={(formData) => saveReminder(formData)} className="grid gap-4 md:grid-cols-4"><input name="title" className={inputClass} placeholder="নতুন রিমাইন্ডার" required /><input name="date" type="date" className={inputClass} defaultValue={today} required /><input name="time" type="time" className={inputClass} defaultValue="09:00" required /><Button type="submit"><Bell size={16} /> Add reminder</Button></form></Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {reminders.map((reminder) => (
+          <Card key={reminder.id} className="p-5">
+            {editingId === reminder.id ? (
+              <form action={(formData) => saveReminder(formData, reminder.id)} className="grid gap-3">
+                <input name="title" className={inputClass} defaultValue={reminder.title} />
+                <input name="date" type="date" className={inputClass} defaultValue={reminder.date} />
+                <input name="time" type="time" className={inputClass} defaultValue={reminder.time} />
+                <label className="flex items-center gap-2 text-sm"><input name="completed" type="checkbox" defaultChecked={reminder.completed} /> Completed</label>
+                <div className="flex gap-2"><Button type="submit">Save</Button><Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button></div>
+              </form>
+            ) : (
+              <>
+                <Bell className="mb-4 text-[#6C4CF1]" />
+                <h2 className="font-bold">{reminder.title}</h2>
+                <p className="text-sm text-[#746d86]">{displayDate(reminder.date)} · {reminder.time}</p>
+                <button type="button" onClick={() => toggleReminder(reminder.id)} className={reminder.completed ? "mt-4 text-[#22C55E]" : "mt-4 text-[#F59E0B]"}>{reminder.completed ? "Completed" : "Upcoming"}</button>
+                <div className="mt-4 flex gap-3 text-[#6C4CF1]"><button type="button" onClick={() => setEditingId(reminder.id)}><Edit2 size={17} /></button><ConfirmDeleteButton onConfirm={() => { deleteReminder(reminder.id); notify("Reminder deleted", "danger"); }} /></div>
+              </>
+            )}
+          </Card>
+        ))}
+      </div>
     </AppShell>
   );
 }
@@ -309,10 +384,9 @@ export function NotesPage() {
 }
 
 export function SettingsPage() {
-  const { categories, entries, hiddenSummaryDates, resetAllData } = useFinance();
+  const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData } = useFinance();
   const { notify } = useToast();
-  const today = getTodayIso();
-  const summaryRows = buildSummaryRows(summarizeEntries(entries, today), today, hiddenSummaryDates);
+  const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
 
   return (
     <AppShell>
@@ -321,24 +395,8 @@ export function SettingsPage() {
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Profile: Tanvir Ahmed</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT ৳</span><Button variant="outline">Manage</Button></Card>
-        <Card className="flex items-center justify-between p-5">
-          <span className="font-semibold">Export data</span>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows }); notify("Data exported", "success"); }}>JSON</Button>
-            <Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button>
-          </div>
-        </Card>
-        <Card className="flex items-center justify-between p-5">
-          <span className="font-semibold">Reset all data</span>
-          <ConfirmDeleteButton
-            label="Reset all data"
-            triggerText="Reset"
-            onConfirm={() => {
-              resetAllData();
-              notify("Data reset successfully", "info");
-            }}
-          />
-        </Card>
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Export data</span><div className="flex gap-2"><Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>JSON</Button><Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button></div></Card>
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Reset all data</span><ConfirmDeleteButton label="Reset all data" triggerText="Reset" onConfirm={() => { resetAllData(); notify("Data reset successfully", "info"); }} /></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Logout</span><Button variant="outline">Manage</Button></Card>
       </div>
     </AppShell>
@@ -377,9 +435,7 @@ function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; e
     notify("Entry deleted", "danger");
   }
 
-  if (entries.length === 0) {
-    return <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86]">No entries found.</div>;
-  }
+  if (entries.length === 0) return <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86]">No entries found.</div>;
 
   return (
     <>
@@ -420,11 +476,13 @@ function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; e
   );
 }
 
-function SummaryTable({ rows }: Readonly<{ rows: ReturnType<typeof buildSummaryRows> }>) {
+function SummaryTable({ rows }: Readonly<{ rows: SummaryRow[] }>) {
   const { deleteSummaryRow } = useFinance();
   const { notify } = useToast();
 
-  return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-[#fbfaff] text-xs text-[#746d86]"><tr>{["Date", "Income", "Expense", "Entries", "Balance", "Action"].map((h) => <th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.date} className="border-b border-[#f0ecff]"><td className="px-4 py-3">{row.date}</td><td className="px-4 py-3 text-[#22C55E]">{takaShort(row.income)}</td><td className="px-4 py-3 text-[#EF4444]">{takaShort(row.expense)}</td><td className="px-4 py-3">{row.entries}</td><td className="px-4 py-3 font-bold">{takaShort(row.balance)}</td><td className="px-4 py-3"><ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.date); notify("Monthly summary row deleted", "danger"); }} /></td></tr>)}</tbody></table></div>;
+  if (rows.length === 0) return <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86]">No summary data found.</div>;
+
+  return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-[#fbfaff] text-xs text-[#746d86]"><tr>{["Date", "Income", "Expense", "Entries", "Balance", "Action"].map((h) => <th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.dateKey} className="border-b border-[#f0ecff]"><td className="px-4 py-3">{row.date}</td><td className="px-4 py-3 text-[#22C55E]">{takaShort(row.income)}</td><td className="px-4 py-3 text-[#EF4444]">{takaShort(row.expense)}</td><td className="px-4 py-3">{row.entries}</td><td className="px-4 py-3 font-bold">{takaShort(row.balance)}</td><td className="px-4 py-3"><ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.dateKey); notify("Monthly summary row deleted", "danger"); }} /></td></tr>)}</tbody></table></div>;
 }
 
 function ListCards({ items, editable }: Readonly<{ items: string[]; editable?: boolean }>) {

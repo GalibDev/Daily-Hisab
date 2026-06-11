@@ -22,10 +22,20 @@ export type Budget = {
 };
 
 export type Reminder = {
+  id: number;
   title: string;
   date: string;
   time: string;
   completed?: boolean;
+};
+
+export type RecurringExpense = {
+  id: number;
+  title: string;
+  amount: number;
+  frequency: "Daily" | "Weekly" | "Monthly";
+  nextDueDate: string;
+  method: PaymentMethod;
 };
 
 export type Note = {

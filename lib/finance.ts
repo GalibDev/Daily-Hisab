@@ -1,4 +1,5 @@
 import { categories as defaultCategories, trend } from "@/data/mock-data";
+import { displayDate, getTodayIso } from "@/lib/utils";
 import type { Entry } from "@/types";
 
 const chartColors = ["#3b82f6", "#fb923c", "#8b5cf6", "#22c55e", "#ec4899", "#14b8a6", "#f43f5e", "#f59e0b"];
@@ -27,7 +28,7 @@ export function buildCategoryExpense(entries: Entry[], categories = defaultCateg
 
   const visible = totals.filter((item) => item.value > 0);
 
-  return visible.length > 0 ? visible : totals.slice(0, 4).map((item, index) => ({ ...item, value: [120, 200, 40, 30][index] }));
+  return visible.length > 0 ? visible : totals.slice(0, 4);
 }
 
 export function buildExpenseTrend(entries: Entry[]) {
@@ -46,6 +47,69 @@ export function buildExpenseTrend(entries: Entry[]) {
     });
 
   return totals.some((item) => item.expense > 0) ? totals : trend;
+}
+
+export type SummaryRow = {
+  date: string;
+  dateKey: string;
+  income: number;
+  expense: number;
+  entries: number;
+  balance: number;
+};
+
+export type ReportPeriod = "daily" | "weekly" | "monthly" | "yearly";
+
+export function buildSummaryRowsFromEntries(entries: Entry[], hiddenSummaryDates: string[] = [], todayIso = getTodayIso()) {
+  const grouped = entries.reduce<Record<string, Entry[]>>((acc, entry) => {
+    acc[entry.date] = acc[entry.date] ? [...acc[entry.date], entry] : [entry];
+    return acc;
+  }, {});
+
+  return Object.entries(grouped)
+    .map(([dateKey, dayEntries]) => {
+      const summary = summarizeEntries(dayEntries);
+      const date = `${displayDate(dateKey)}${dateKey === todayIso ? " (Today)" : ""}`;
+
+      return {
+        date,
+        dateKey,
+        income: summary.income,
+        expense: summary.expense,
+        entries: summary.entries,
+        balance: summary.balance,
+      };
+    })
+    .filter((row) => !hiddenSummaryDates.includes(row.date) && !hiddenSummaryDates.includes(row.dateKey))
+    .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+}
+
+export function filterEntriesByReportPeriod(entries: Entry[], period: ReportPeriod, todayIso = getTodayIso()) {
+  const today = new Date(`${todayIso}T00:00:00`);
+  const start = new Date(today);
+  const end = new Date(today);
+
+  if (period === "weekly") {
+    start.setDate(today.getDate() - 6);
+  }
+
+  if (period === "monthly") {
+    start.setDate(1);
+  }
+
+  if (period === "yearly") {
+    start.setMonth(0, 1);
+  }
+
+  return entries.filter((entry) => {
+    const entryDate = new Date(`${entry.date}T00:00:00`);
+
+    if (period === "daily") {
+      return entry.date === todayIso;
+    }
+
+    return entryDate >= start && entryDate <= end;
+  });
 }
 
 export function filterEntries(entries: Entry[], filters: { date?: string; category?: string; search?: string }) {

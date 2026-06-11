@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowRight,
   Banknote,
@@ -27,10 +27,10 @@ import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useFinance } from "@/components/state/finance-store";
-import { budgets, monthlySummary, notes, paymentMethods, reminders } from "@/data/mock-data";
-import { buildCategoryExpense, buildExpenseTrend, summarizeEntries } from "@/lib/finance";
+import { budgets, notes, paymentMethods } from "@/data/mock-data";
+import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, summarizeEntries } from "@/lib/finance";
 import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
-import type { Entry, PaymentMethod } from "@/types";
+import type { Entry, EntryType, PaymentMethod, Reminder } from "@/types";
 import { CategoryPieChart, ExpenseTrendChart } from "./charts";
 
 function StatCard({
@@ -131,9 +131,25 @@ function ExpenseForm() {
 }
 
 function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: string }>) {
-  const { deleteEntry } = useFinance();
+  const { deleteEntry, updateEntry } = useFinance();
   const { notify } = useToast();
+  const [editingId, setEditingId] = useState<number | null>(null);
   const todayEntries = entries.filter((entry) => entry.date === today);
+
+  function saveEdit(entry: Entry, formData: FormData) {
+    updateEntry(entry.id, {
+      date: String(formData.get("date")),
+      category: String(formData.get("category")),
+      description: String(formData.get("description")),
+      amount: Number(formData.get("amount")),
+      method: String(formData.get("method")) as PaymentMethod,
+      type: String(formData.get("type")) as EntryType,
+      note: entry.note,
+    });
+    setEditingId(null);
+    notify("Entry updated successfully", "info");
+  }
+
   const handleDelete = (id: number) => {
     deleteEntry(id);
     notify("Entry deleted", "danger");
@@ -154,15 +170,31 @@ function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: st
           <tbody>
             {todayEntries.map((entry, index) => (
               <tr className="border-b border-[#f0ecff]" key={entry.id}>
-                <td className="px-4 py-3">{index + 1}.</td>
-                <td className="px-4 py-3">{entry.category}</td>
-                <td className="px-4 py-3">{entry.description}</td>
-                <td className={entry.type === "income" ? "px-4 py-3 font-semibold text-[#22C55E]" : "px-4 py-3 font-semibold text-[#EF4444]"}>{entry.amount.toFixed(2)}</td>
-                <td className="px-4 py-3">{entry.time}</td>
-                <td className="px-4 py-3">{entry.method}</td>
-                <td className="px-4 py-3">
-                  <span className="flex gap-3 text-[#6C4CF1]"><Edit2 size={16} /><ConfirmDeleteButton onConfirm={() => handleDelete(entry.id)} /></span>
-                </td>
+                {editingId === entry.id ? (
+                  <td colSpan={7} className="px-4 py-3">
+                    <form action={(formData) => saveEdit(entry, formData)} className="grid gap-3 md:grid-cols-7">
+                      <input name="date" type="date" className={inputClass} defaultValue={entry.date} />
+                      <input name="category" className={inputClass} defaultValue={entry.category} />
+                      <input name="description" className={inputClass} defaultValue={entry.description} />
+                      <input name="amount" className={inputClass} defaultValue={entry.amount} inputMode="decimal" />
+                      <select name="method" className={inputClass} defaultValue={entry.method}>{paymentMethods.map((method) => <option key={method}>{method}</option>)}</select>
+                      <select name="type" className={inputClass} defaultValue={entry.type}><option value="expense">expense</option><option value="income">income</option></select>
+                      <div className="flex gap-2"><Button type="submit">Save</Button><Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button></div>
+                    </form>
+                  </td>
+                ) : (
+                  <>
+                    <td className="px-4 py-3">{index + 1}.</td>
+                    <td className="px-4 py-3">{entry.category}</td>
+                    <td className="px-4 py-3">{entry.description}</td>
+                    <td className={entry.type === "income" ? "px-4 py-3 font-semibold text-[#22C55E]" : "px-4 py-3 font-semibold text-[#EF4444]"}>{entry.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3">{entry.time}</td>
+                    <td className="px-4 py-3">{entry.method}</td>
+                    <td className="px-4 py-3">
+                      <span className="flex gap-3 text-[#6C4CF1]"><button type="button" onClick={() => setEditingId(entry.id)}><Edit2 size={16} /></button><ConfirmDeleteButton onConfirm={() => handleDelete(entry.id)} /></span>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>
@@ -181,7 +213,9 @@ function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: st
           </div>
         ))}
       </div>
-      <Button variant="outline" className="mt-4 w-full border-dashed"><Plus size={16} /> Add New Entry</Button>
+      <Link href="/add-expense" className="mt-4 block">
+        <Button variant="outline" className="w-full border-dashed"><Plus size={16} /> Add New Entry</Button>
+      </Link>
     </Card>
   );
 }
@@ -225,15 +259,20 @@ function DailySummaryCard({ summary, today }: Readonly<{ summary: ReturnType<typ
 }
 
 function BudgetOverviewCard() {
+  const { categories, entries } = useFinance();
+  const spentByCategory = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
+
   return (
     <PanelList title="Budget Overview" action="This Month">
       {budgets.map((budget) => {
-        const percent = Math.round((budget.spent / budget.limit) * 100);
+        const dynamicSpent = spentByCategory.find((item) => budget.category.includes(item.name) || item.name.includes(budget.category))?.value;
+        const spent = dynamicSpent ?? budget.spent;
+        const percent = Math.round((spent / budget.limit) * 100);
         return (
           <div key={budget.category}>
             <div className="mb-2 flex items-center justify-between gap-3 text-sm">
               <span className="font-semibold">{budget.category}</span>
-              <span className="text-right">{takaShort(budget.spent)} / {budget.limit.toLocaleString()} <b className="ml-2">{percent}%</b></span>
+              <span className="text-right">{takaShort(spent)} / {budget.limit.toLocaleString()} <b className="ml-2">{percent}%</b></span>
             </div>
             <div className="h-2 rounded-full bg-[#eeeafb]"><div className="h-full rounded-full" style={{ width: `${percent}%`, background: budget.color }} /></div>
           </div>
@@ -247,15 +286,19 @@ function BudgetOverviewCard() {
 }
 
 function UpcomingRemindersCard() {
+  const { reminders } = useFinance();
+  const upcoming = reminders.filter((reminder) => !reminder.completed).slice(0, 4);
+
   return (
     <PanelList title="Upcoming Reminders">
-      {reminders.map((reminder) => (
-        <div key={reminder.title} className="flex items-center gap-3 rounded-xl bg-[#fbfaff] p-3 text-sm">
+      {upcoming.map((reminder: Reminder) => (
+        <div key={reminder.id} className="flex items-center gap-3 rounded-xl bg-[#fbfaff] p-3 text-sm">
           <CalendarCheck className="text-[#6C4CF1]" size={18} />
-          <span className="mr-auto"><b className="block">{reminder.title}</b><small>{reminder.date}</small></span>
+          <span className="mr-auto"><b className="block">{reminder.title}</b><small>{displayDate(reminder.date)}</small></span>
           <span className="rounded-lg bg-[#efeaff] px-2 py-1 text-xs font-bold text-[#6C4CF1]">{reminder.time}</span>
         </div>
       ))}
+      {upcoming.length === 0 && <p className="rounded-xl border border-dashed border-[#d8d1ff] p-4 text-sm text-[#746d86]">No upcoming reminders.</p>}
       <Link href="/reminders" className="block">
         <Button variant="outline" className="w-full">View All Reminders <ArrowRight size={16} /></Button>
       </Link>
@@ -321,6 +364,7 @@ export function DashboardPage() {
   const allSummary = useMemo(() => summarizeEntries(entries), [entries]);
   const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
   const trendData = useMemo(() => buildExpenseTrend(entries), [entries]);
+  const summaryRows = useMemo(() => buildSummaryRowsFromEntries(entries, hiddenSummaryDates, today), [entries, hiddenSummaryDates, today]);
   const monthExpense = allSummary.expense;
 
   return (
@@ -385,11 +429,8 @@ export function DashboardPage() {
                   <tr>{["Date", "Total Income (৳)", "Total Expense (৳)", "Entries", "Balance (৳)", "Action"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {[
-                    { date: `${displayDate(today)} (Today)`, income: todaySummary.income, expense: todaySummary.expense, entries: todaySummary.entries, balance: todaySummary.balance },
-                    ...monthlySummary.slice(1),
-                  ].filter((row) => !hiddenSummaryDates.includes(row.date)).map((row) => (
-                    <tr className="border-b border-[#f0ecff]" key={row.date}>
+                  {summaryRows.map((row) => (
+                    <tr className="border-b border-[#f0ecff]" key={row.dateKey}>
                       <td className="px-4 py-3">{row.date}</td>
                       <td className="px-4 py-3">{row.income.toFixed(2)}</td>
                       <td className="px-4 py-3">{row.expense.toFixed(2)}</td>
@@ -398,7 +439,7 @@ export function DashboardPage() {
                       <td className="px-4 py-3 text-[#6C4CF1]">
                         <span className="flex items-center gap-3">
                           <Eye size={16} />
-                          <ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.date); notify("Monthly summary row deleted", "danger"); }} />
+                          <ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.dateKey); notify("Monthly summary row deleted", "danger"); }} />
                         </span>
                       </td>
                     </tr>

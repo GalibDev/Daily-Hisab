@@ -49,7 +49,7 @@ export function exportEntriesCsv(entries: Entry[], summaryRows: SummaryRow[]) {
   downloadFile("daily-hisab-report.csv", csv, "text/csv;charset=utf-8");
 }
 
-export function exportDataJson(data: { entries: Entry[]; categories: string[]; summaryRows: SummaryRow[] }) {
+export function exportDataJson(data: { entries: Entry[]; categories: string[]; summaryRows: SummaryRow[]; [key: string]: unknown }) {
   downloadFile("daily-hisab-data.json", JSON.stringify(data, null, 2), "application/json;charset=utf-8");
 }
 

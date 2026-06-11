@@ -1,4 +1,4 @@
-import type { Budget, Entry, Note, PaymentMethod, Reminder } from "@/types";
+import type { Budget, Entry, Note, PaymentMethod, RecurringExpense, Reminder } from "@/types";
 
 export const todayIso = "2024-05-20";
 
@@ -28,43 +28,41 @@ export const entries: Entry[] = [
 
 export const trend = Array.from({ length: 30 }, (_, index) => ({
   day: index + 1,
-  expense: [900, 620, 1100, 850, 1580, 720, 1320, 980, 560, 1420, 1210, 760, 1690, 640, 1820, 1510, 1720, 580, 930, 1250, 700, 1160, 810, 1390, 980, 1190, 720, 1050, 880, 1220][index],
+  expense: 0,
 }));
 
 export const categoryExpense = [
-  { name: "সকালের নাস্তা", value: 1850, fill: "#3b82f6" },
-  { name: "দুপুরের খাবার", value: 3200, fill: "#fb923c" },
-  { name: "যাতায়াত ভাড়া", value: 2450, fill: "#8b5cf6" },
-  { name: "বিকালের নাস্তা", value: 1250, fill: "#22c55e" },
-  { name: "রাতের খাবার", value: 1900, fill: "#ec4899" },
-  { name: "মোবাইল / রিচার্জ", value: 2100, fill: "#14b8a6" },
-  { name: "বাজার খরচ", value: 3900, fill: "#f43f5e" },
+  { name: "সকালের নাস্তা", value: 120, fill: "#3b82f6" },
+  { name: "দুপুরের খাবার", value: 200, fill: "#fb923c" },
+  { name: "যাতায়াত ভাড়া", value: 40, fill: "#8b5cf6" },
+  { name: "বিকালের নাস্তা", value: 30, fill: "#22c55e" },
+  { name: "মোবাইল / রিচার্জ", value: 100, fill: "#ec4899" },
+  { name: "বাজার খরচ", value: 300, fill: "#14b8a6" },
+  { name: "রাতের খাবার", value: 210, fill: "#f43f5e" },
 ];
 
 export const budgets: Budget[] = [
-  { category: "খাবার খরচ", spent: 3650, limit: 5000, color: "#22c55e" },
-  { category: "যাতায়াত", spent: 1450, limit: 2000, color: "#38bdf8" },
-  { category: "বাজার খরচ", spent: 3900, limit: 6000, color: "#f97316" },
-  { category: "বিনোদন", spent: 800, limit: 2000, color: "#8b5cf6" },
-  { category: "মোবাইল / বিল", spent: 1250, limit: 1500, color: "#ec4899" },
+  { category: "খাবার খরচ", spent: 0, limit: 5000, color: "#22c55e" },
+  { category: "যাতায়াত", spent: 0, limit: 2000, color: "#38bdf8" },
+  { category: "বাজার খরচ", spent: 0, limit: 6000, color: "#f97316" },
+  { category: "বিনোদন", spent: 0, limit: 2000, color: "#8b5cf6" },
+  { category: "মোবাইল / বিল", spent: 0, limit: 1500, color: "#ec4899" },
 ];
 
 export const reminders: Reminder[] = [
-  { title: "এই মাসের বাসা ভাড়া", date: "25 May 2024", time: "09:00 AM" },
-  { title: "ইন্টারনেট বিল", date: "26 May 2024", time: "10:00 AM" },
-  { title: "মোবাইল রিচার্জ", date: "27 May 2024", time: "08:00 PM" },
+  { id: 1, title: "এই মাসের বাসা ভাড়া", date: "2026-06-25", time: "09:00", completed: false },
+  { id: 2, title: "ইন্টারনেট বিল", date: "2026-06-26", time: "10:00", completed: false },
+  { id: 3, title: "মোবাইল রিচার্জ", date: "2026-06-27", time: "20:00", completed: true },
+];
+
+export const recurringExpenses: RecurringExpense[] = [
+  { id: 1, title: "বাসা ভাড়া", amount: 12000, frequency: "Monthly", nextDueDate: "2026-06-25", method: "Bank" },
+  { id: 2, title: "ইন্টারনেট বিল", amount: 1000, frequency: "Monthly", nextDueDate: "2026-06-26", method: "bKash" },
+  { id: 3, title: "মোবাইল রিচার্জ", amount: 350, frequency: "Weekly", nextDueDate: "2026-06-27", method: "Nagad" },
 ];
 
 export const notes: Note[] = [
-  { title: "আজ বাজার বেশি হয়েছে", date: "20 May 2024", tone: "orange" },
-  { title: "অফিস যাতায়াত সময় বাস পরিবর্তন করেছি", date: "19 May 2024", tone: "purple" },
-  { title: "মাসের শেষে কিছু টাকা সেভ করতে হবে", date: "18 May 2024", tone: "pink" },
-];
-
-export const monthlySummary = [
-  { date: "20 May 2024 (Mon)", income: 1250, expense: 850, entries: 12, balance: 400 },
-  { date: "19 May 2024 (Sun)", income: 1000, expense: 620, entries: 9, balance: 380 },
-  { date: "18 May 2024 (Sat)", income: 1300, expense: 910, entries: 11, balance: 390 },
-  { date: "17 May 2024 (Fri)", income: 900, expense: 530, entries: 7, balance: 370 },
-  { date: "16 May 2024 (Thu)", income: 1100, expense: 740, entries: 10, balance: 360 },
+  { title: "আজ বাজার বেশি হয়েছে", date: "2026-06-11", tone: "orange" },
+  { title: "অফিস যাতায়াত সময় বাস পরিবর্তন করেছি", date: "2026-06-10", tone: "purple" },
+  { title: "মাসের শেষে কিছু টাকা সেভ করতে হবে", date: "2026-06-09", tone: "pink" },
 ];
