@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Bell, CalendarDays, CheckCircle2, Download, Edit2, FileSpreadsheet, Plus, Receipt, Trash2, Upload } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { CategorySelect } from "@/components/entries/category-select";
 import { useFinance } from "@/components/state/finance-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
-import { budgets, categories, monthlySummary, paymentMethods, reminders } from "@/data/mock-data";
+import { budgets, monthlySummary, paymentMethods, reminders } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, filterEntries, summarizeEntries } from "@/lib/finance";
 import { displayDate, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod } from "@/types";
@@ -18,7 +19,7 @@ import type { Entry, EntryType, PaymentMethod } from "@/types";
 type EntryFormMode = "expense" | "income";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
-  const { addEntry } = useFinance();
+  const { addEntry, categories } = useFinance();
   const { notify } = useToast();
   const isExpense = mode === "expense";
   const today = getTodayIso();
@@ -52,7 +53,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
       <Field label="Date"><input name="date" type="date" className={inputClass} defaultValue={today} /></Field>
       {isExpense ? (
         <>
-          <Field label="Category"><select name="category" className={inputClass}>{categories.map((c) => <option key={c}>{c}</option>)}</select></Field>
+          <Field label="Category"><CategorySelect defaultValue={categories[0]} /></Field>
           <Field label="Description"><input name="description" className={inputClass} placeholder="যেমন: চা, বিস্কুট" /></Field>
         </>
       ) : (
@@ -86,7 +87,7 @@ export function IncomePage() {
 }
 
 export function EntriesPage() {
-  const { entries } = useFinance();
+  const { categories, entries } = useFinance();
   const [date, setDate] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [search, setSearch] = useState("");
@@ -137,8 +138,8 @@ export function IncomeExpensePage() {
 }
 
 export function BudgetPage() {
-  const { entries } = useFinance();
-  const spentByCategory = useMemo(() => buildCategoryExpense(entries), [entries]);
+  const { categories, entries } = useFinance();
+  const spentByCategory = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
 
   return (
     <AppShell>
@@ -166,8 +167,8 @@ export function BudgetPage() {
 }
 
 export function CategoriesPage() {
-  const { entries } = useFinance();
-  const categoryData = useMemo(() => buildCategoryExpense(entries), [entries]);
+  const { categories, entries } = useFinance();
+  const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
 
   return (
     <AppShell>
@@ -210,7 +211,7 @@ export function CategoriesPage() {
 }
 
 export function ReportsPage() {
-  const { entries } = useFinance();
+  const { categories, entries } = useFinance();
   const today = getTodayIso();
 
   return (
@@ -223,7 +224,7 @@ export function ReportsPage() {
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(entries)} /></Card>
-        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(entries)} /></Card>
+        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(entries, categories)} /></Card>
       </div>
       <Card className="mt-5 p-5"><SummaryTable today={summarizeEntries(entries, today)} todayIso={today} /></Card>
     </AppShell>

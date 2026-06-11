@@ -1,11 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { entries as initialEntries, todayIso as seedIso } from "@/data/mock-data";
+import { categories as initialCategories, entries as initialEntries, todayIso as seedIso } from "@/data/mock-data";
 import { getTodayIso } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod } from "@/types";
 
 const STORAGE_KEY = "daily-hisab.entries.v1";
+const CATEGORY_STORAGE_KEY = "daily-hisab.categories.v1";
 
 type EntryInput = {
   date: string;
@@ -19,7 +20,9 @@ type EntryInput = {
 
 type FinanceStore = {
   entries: Entry[];
+  categories: string[];
   addEntry: (entry: EntryInput) => void;
+  addCategory: (category: string) => boolean;
   updateEntry: (id: number, entry: EntryInput) => void;
   deleteEntry: (id: number) => void;
   resetEntries: () => void;
@@ -45,6 +48,7 @@ function moveDemoEntriesToToday(entries: Entry[]) {
 
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [entries, setEntries] = useState<Entry[]>(() => moveDemoEntriesToToday(initialEntries));
+  const [categories, setCategories] = useState<string[]>(initialCategories);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -52,6 +56,10 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
         setEntries(moveDemoEntriesToToday(JSON.parse(saved) as Entry[]));
+      }
+      const savedCategories = window.localStorage.getItem(CATEGORY_STORAGE_KEY);
+      if (savedCategories) {
+        setCategories(JSON.parse(savedCategories) as string[]);
       }
     } finally {
       setHydrated(true);
@@ -61,12 +69,14 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
   useEffect(() => {
     if (hydrated) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      window.localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
     }
-  }, [entries, hydrated]);
+  }, [categories, entries, hydrated]);
 
   const value = useMemo<FinanceStore>(
     () => ({
       entries,
+      categories,
       addEntry: (entry) => {
         setEntries((current) => [
           {
@@ -76,6 +86,14 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
           },
           ...current,
         ]);
+      },
+      addCategory: (category) => {
+        const nextCategory = category.trim();
+        if (!nextCategory || categories.some((item) => item.toLowerCase() === nextCategory.toLowerCase())) {
+          return false;
+        }
+        setCategories((current) => [...current, nextCategory]);
+        return true;
       },
       updateEntry: (id, entry) => {
         setEntries((current) =>
@@ -96,7 +114,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         setEntries(moveDemoEntriesToToday(initialEntries));
       },
     }),
-    [entries],
+    [categories, entries],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

@@ -1,4 +1,4 @@
-import { categories, trend } from "@/data/mock-data";
+import { categories as defaultCategories, trend } from "@/data/mock-data";
 import type { Entry } from "@/types";
 
 const chartColors = ["#3b82f6", "#fb923c", "#8b5cf6", "#22c55e", "#ec4899", "#14b8a6", "#f43f5e", "#f59e0b"];
@@ -16,7 +16,7 @@ export function summarizeEntries(entries: Entry[], date?: string) {
   };
 }
 
-export function buildCategoryExpense(entries: Entry[]) {
+export function buildCategoryExpense(entries: Entry[], categories = defaultCategories) {
   const totals = categories.map((category, index) => ({
     name: category,
     value: entries

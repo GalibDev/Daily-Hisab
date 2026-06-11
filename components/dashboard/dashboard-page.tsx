@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { FormEvent } from "react";
 import { useMemo } from "react";
 import {
@@ -19,13 +20,14 @@ import {
   Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { CategorySelect } from "@/components/entries/category-select";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useFinance } from "@/components/state/finance-store";
-import { budgets, categories, monthlySummary, notes, paymentMethods, reminders } from "@/data/mock-data";
+import { budgets, monthlySummary, notes, paymentMethods, reminders } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, summarizeEntries } from "@/lib/finance";
 import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, PaymentMethod } from "@/types";
@@ -61,7 +63,7 @@ function StatCard({
 }
 
 function ExpenseForm() {
-  const { addEntry } = useFinance();
+  const { addEntry, categories } = useFinance();
   const { notify } = useToast();
   const today = getTodayIso();
 
@@ -98,9 +100,7 @@ function ExpenseForm() {
             <input name="date" type="date" className={inputClass} defaultValue={today} />
           </Field>
           <Field label="Category">
-            <select name="category" className={inputClass} defaultValue={categories[0]}>
-              {categories.map((category) => <option key={category}>{category}</option>)}
-            </select>
+            <CategorySelect defaultValue={categories[0]} />
           </Field>
           <Field label="Amount (৳)">
             <input name="amount" className={inputClass} defaultValue="120.00" inputMode="decimal" />
@@ -215,7 +215,9 @@ function DailySummaryCard({ summary, today }: Readonly<{ summary: ReturnType<typ
             <p className="text-sm text-[#746d86]">Balance</p>
             <strong className={summary.balance >= 0 ? "text-xl text-[#22C55E]" : "text-xl text-[#EF4444]"}>{taka(summary.balance)}</strong>
           </div>
-          <Button variant="outline" className="w-full">View All Entries <ArrowRight size={16} /></Button>
+          <Link href="/entries" className="block">
+            <Button variant="outline" className="w-full">View All Entries <ArrowRight size={16} /></Button>
+          </Link>
         </div>
       </div>
     </Card>
@@ -237,7 +239,9 @@ function BudgetOverviewCard() {
           </div>
         );
       })}
-      <Button variant="outline" className="w-full">View All Budgets <ArrowRight size={16} /></Button>
+      <Link href="/budget" className="block">
+        <Button variant="outline" className="w-full">View All Budgets <ArrowRight size={16} /></Button>
+      </Link>
     </PanelList>
   );
 }
@@ -252,7 +256,9 @@ function UpcomingRemindersCard() {
           <span className="rounded-lg bg-[#efeaff] px-2 py-1 text-xs font-bold text-[#6C4CF1]">{reminder.time}</span>
         </div>
       ))}
-      <Button variant="outline" className="w-full">View All Reminders <ArrowRight size={16} /></Button>
+      <Link href="/reminders" className="block">
+        <Button variant="outline" className="w-full">View All Reminders <ArrowRight size={16} /></Button>
+      </Link>
     </PanelList>
   );
 }
@@ -266,7 +272,9 @@ function RecentNotesCard() {
           <p className="text-xs text-[#746d86]">{note.date}</p>
         </div>
       ))}
-      <Button variant="outline" className="w-full">View All Notes <ArrowRight size={16} /></Button>
+      <Link href="/notes" className="block">
+        <Button variant="outline" className="w-full">View All Notes <ArrowRight size={16} /></Button>
+      </Link>
     </PanelList>
   );
 }
@@ -306,11 +314,11 @@ function PanelList({ title, action, children }: Readonly<{ title: string; action
 }
 
 export function DashboardPage() {
-  const { entries } = useFinance();
+  const { categories, entries } = useFinance();
   const today = getTodayIso();
   const todaySummary = useMemo(() => summarizeEntries(entries, today), [entries, today]);
   const allSummary = useMemo(() => summarizeEntries(entries), [entries]);
-  const categoryData = useMemo(() => buildCategoryExpense(entries), [entries]);
+  const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
   const trendData = useMemo(() => buildExpenseTrend(entries), [entries]);
   const monthExpense = allSummary.expense;
 
@@ -392,7 +400,9 @@ export function DashboardPage() {
                 </tbody>
               </table>
             </div>
-            <Button variant="outline" className="mt-4 w-full">View All Reports <ArrowRight size={16} /></Button>
+            <Link href="/reports" className="mt-4 block">
+              <Button variant="outline" className="w-full">View All Reports <ArrowRight size={16} /></Button>
+            </Link>
           </Card>
 
           <div className="grid gap-4 xl:grid-cols-3">
