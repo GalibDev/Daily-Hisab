@@ -15,7 +15,9 @@
 
 body {
   margin: 0;
-  background: var(--background);
+  background:
+    radial-gradient(circle at top right, rgba(108, 76, 241, 0.08), transparent 34rem),
+    var(--background);
   color: var(--foreground);
   font-family: "Inter", "Noto Sans Bengali", "Segoe UI", Arial, sans-serif;
 }

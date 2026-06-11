@@ -31,7 +31,7 @@ function StatCard({
   trend,
 }: Readonly<{ title: string; value: string; icon: React.ReactNode; tone: string; trend?: "up" | "down" }>) {
   return (
-    <Card className="p-5">
+    <Card className="min-h-[126px] p-5 transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(47,35,110,0.10)]">
       <div className="flex items-start gap-4">
         <div className={`grid size-12 place-items-center rounded-xl ${tone}`}>{icon}</div>
         <div>
@@ -54,7 +54,7 @@ function StatCard({
 
 function ExpenseForm() {
   return (
-    <Card className="p-5">
+    <Card className="p-5 md:p-6">
       <h2 className="mb-6 text-lg font-bold">Add New Expense</h2>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Field label="Date">
@@ -142,7 +142,7 @@ function TodayEntries() {
 
 function DailySummaryCard() {
   return (
-    <Card className="p-5">
+    <Card className="border-[#d8d1ff] bg-gradient-to-r from-white to-[#fbf9ff] p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-lg font-bold">Daily Summary</h2>
         <MoreVertical size={18} />
@@ -249,7 +249,7 @@ function QuickActionsCard() {
 
 function PanelList({ title, action, children }: Readonly<{ title: string; action?: string; children: React.ReactNode }>) {
   return (
-    <Card className="p-5">
+    <Card className="p-5 md:p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-bold">{title}</h2>
         {action && <button className="rounded-lg border border-[#ece8ff] px-3 py-1 text-xs">{action}</button>}
@@ -263,20 +263,20 @@ export function DashboardPage() {
   return (
     <AppShell>
       <div className="grid gap-5">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard title="Today's Expense" value={taka(850)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
             <StatCard title="Today's Income" value={taka(1250)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
             <StatCard title="Total Entries Today" value="12" icon={<Receipt size={22} />} tone="bg-[#eaf6ff] text-[#38bdf8]" trend="up" />
             <StatCard title="This Month Expense" value={taka(18650)} icon={<CalendarCheck size={22} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
             <StatCard title="Balance" value={taka(6350)} icon={<Banknote size={22} />} tone="bg-[#ffeaf2] text-[#EF4444]" />
-          </div>
+        </div>
 
           <ExpenseForm />
 
           <DailySummaryCard />
 
           <div className="grid gap-5 xl:grid-cols-3">
-            <Card className="p-5">
+            <Card className="p-5 md:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Expense by Category</h2>
                 <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
@@ -294,7 +294,7 @@ export function DashboardPage() {
                 </div>
               </div>
             </Card>
-            <Card className="p-5">
+            <Card className="p-5 md:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Expense Trend</h2>
                 <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
@@ -306,7 +306,7 @@ export function DashboardPage() {
 
           <TodayEntries />
 
-          <Card className="p-5">
+          <Card className="p-5 md:p-6">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-lg font-bold">Income & Expense Summary</h2>
               <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
