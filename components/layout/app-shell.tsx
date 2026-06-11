@@ -24,7 +24,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -45,6 +45,7 @@ const nav = [
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
+  const today = getTodayIso();
 
   const setTheme = (theme: "light" | "dark") => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -135,7 +136,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Search size={18} />
             </div>
             <button className="hidden h-12 items-center gap-3 rounded-xl border border-[#ece8ff] bg-white px-4 text-sm font-semibold md:flex">
-              <CalendarDays size={18} /> 20 May 2024 (Monday)
+              <CalendarDays size={18} /> {displayDateLong(today)}
             </button>
             <button className="relative grid size-11 place-items-center rounded-xl bg-white shadow-sm">
               <Bell size={19} />

@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { entries as initialEntries } from "@/data/mock-data";
+import { entries as initialEntries, todayIso as seedIso } from "@/data/mock-data";
+import { getTodayIso } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod } from "@/types";
 
 const STORAGE_KEY = "daily-hisab.entries.v1";
@@ -33,15 +34,24 @@ function currentTime() {
   });
 }
 
+function moveDemoEntriesToToday(entries: Entry[]) {
+  const today = getTodayIso();
+
+  return entries.map((entry) => ({
+    ...entry,
+    date: entry.date === seedIso ? today : entry.date,
+  }));
+}
+
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [entries, setEntries] = useState<Entry[]>(initialEntries);
+  const [entries, setEntries] = useState<Entry[]>(() => moveDemoEntriesToToday(initialEntries));
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        setEntries(JSON.parse(saved) as Entry[]);
+        setEntries(moveDemoEntriesToToday(JSON.parse(saved) as Entry[]));
       }
     } finally {
       setHydrated(true);
@@ -83,7 +93,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         setEntries((current) => current.filter((entry) => entry.id !== id));
       },
       resetEntries: () => {
-        setEntries(initialEntries);
+        setEntries(moveDemoEntriesToToday(initialEntries));
       },
     }),
     [entries],

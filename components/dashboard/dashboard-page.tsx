@@ -24,9 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useFinance } from "@/components/state/finance-store";
-import { budgets, categories, monthlySummary, notes, paymentMethods, reminders, todayIso } from "@/data/mock-data";
+import { budgets, categories, monthlySummary, notes, paymentMethods, reminders } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, summarizeEntries } from "@/lib/finance";
-import { displayDate, displayDateLong, taka, takaShort } from "@/lib/utils";
+import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, PaymentMethod } from "@/types";
 import { CategoryPieChart, ExpenseTrendChart } from "./charts";
 
@@ -61,6 +61,7 @@ function StatCard({
 
 function ExpenseForm() {
   const { addEntry } = useFinance();
+  const today = getTodayIso();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,7 +92,7 @@ function ExpenseForm() {
         <h2 className="mb-6 text-lg font-bold">Add New Expense</h2>
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           <Field label="Date">
-            <input name="date" type="date" className={inputClass} defaultValue={todayIso} />
+            <input name="date" type="date" className={inputClass} defaultValue={today} />
           </Field>
           <Field label="Category">
             <select name="category" className={inputClass} defaultValue={categories[0]}>
@@ -126,9 +127,9 @@ function ExpenseForm() {
   );
 }
 
-function TodayEntries({ entries }: Readonly<{ entries: Entry[] }>) {
+function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: string }>) {
   const { deleteEntry } = useFinance();
-  const todayEntries = entries.filter((entry) => entry.date === todayIso);
+  const todayEntries = entries.filter((entry) => entry.date === today);
 
   return (
     <Card className="overflow-hidden p-5">
@@ -177,7 +178,7 @@ function TodayEntries({ entries }: Readonly<{ entries: Entry[] }>) {
   );
 }
 
-function DailySummaryCard({ summary }: Readonly<{ summary: ReturnType<typeof summarizeEntries> }>) {
+function DailySummaryCard({ summary, today }: Readonly<{ summary: ReturnType<typeof summarizeEntries>; today: string }>) {
   return (
     <Card className="border-[#d8d1ff] bg-gradient-to-r from-white to-[#fbf9ff] p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between">
@@ -187,7 +188,7 @@ function DailySummaryCard({ summary }: Readonly<{ summary: ReturnType<typeof sum
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr] lg:items-center">
         <div>
           <p className="text-sm text-[#746d86]">Date</p>
-          <p className="font-bold">{displayDateLong(todayIso)}</p>
+          <p className="font-bold">{displayDateLong(today)}</p>
         </div>
         <div>
           <p className="text-sm text-[#746d86]">Total Income</p>
@@ -298,7 +299,8 @@ function PanelList({ title, action, children }: Readonly<{ title: string; action
 
 export function DashboardPage() {
   const { entries } = useFinance();
-  const todaySummary = useMemo(() => summarizeEntries(entries, todayIso), [entries]);
+  const today = getTodayIso();
+  const todaySummary = useMemo(() => summarizeEntries(entries, today), [entries, today]);
   const allSummary = useMemo(() => summarizeEntries(entries), [entries]);
   const categoryData = useMemo(() => buildCategoryExpense(entries), [entries]);
   const trendData = useMemo(() => buildExpenseTrend(entries), [entries]);
@@ -317,7 +319,7 @@ export function DashboardPage() {
 
           <ExpenseForm />
 
-          <DailySummaryCard summary={todaySummary} />
+          <DailySummaryCard summary={todaySummary} today={today} />
 
           <div className="grid gap-5 xl:grid-cols-3">
             <Card className="p-5 md:p-6">
@@ -348,7 +350,7 @@ export function DashboardPage() {
             <BudgetOverviewCard />
           </div>
 
-          <TodayEntries entries={entries} />
+          <TodayEntries entries={entries} today={today} />
 
           <Card className="p-5 md:p-6">
             <div className="mb-5 flex items-center justify-between">
@@ -367,7 +369,7 @@ export function DashboardPage() {
                 </thead>
                 <tbody>
                   {[
-                    { date: `${displayDate(todayIso)} (Today)`, income: todaySummary.income, expense: todaySummary.expense, entries: todaySummary.entries, balance: todaySummary.balance },
+                    { date: `${displayDate(today)} (Today)`, income: todaySummary.income, expense: todaySummary.expense, entries: todaySummary.entries, balance: todaySummary.balance },
                     ...monthlySummary.slice(1),
                   ].map((row) => (
                     <tr className="border-b border-[#f0ecff]" key={row.date}>

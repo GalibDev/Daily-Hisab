@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
-import { budgets, categories, monthlySummary, paymentMethods, reminders, todayIso } from "@/data/mock-data";
+import { budgets, categories, monthlySummary, paymentMethods, reminders } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, filterEntries, summarizeEntries } from "@/lib/finance";
-import { displayDate, taka, takaShort } from "@/lib/utils";
+import { displayDate, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod } from "@/types";
 
 type EntryFormMode = "expense" | "income";
@@ -18,6 +18,7 @@ type EntryFormMode = "expense" | "income";
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry } = useFinance();
   const isExpense = mode === "expense";
+  const today = getTodayIso();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,7 +45,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-5 md:grid-cols-2">
-      <Field label="Date"><input name="date" type="date" className={inputClass} defaultValue={todayIso} /></Field>
+      <Field label="Date"><input name="date" type="date" className={inputClass} defaultValue={today} /></Field>
       {isExpense ? (
         <>
           <Field label="Category"><select name="category" className={inputClass}>{categories.map((c) => <option key={c}>{c}</option>)}</select></Field>
@@ -109,6 +110,7 @@ export function EntriesPage() {
 export function IncomeExpensePage() {
   const { entries } = useFinance();
   const summary = summarizeEntries(entries);
+  const today = getTodayIso();
 
   return (
     <AppShell>
@@ -124,7 +126,7 @@ export function IncomeExpensePage() {
       </Card>
       <Card className="mt-5 p-5">
         <h2 className="mb-4 text-lg font-bold">Monthly summary table</h2>
-        <SummaryTable today={summarizeEntries(entries, todayIso)} />
+        <SummaryTable today={summarizeEntries(entries, today)} todayIso={today} />
       </Card>
     </AppShell>
   );
@@ -205,6 +207,7 @@ export function CategoriesPage() {
 
 export function ReportsPage() {
   const { entries } = useFinance();
+  const today = getTodayIso();
 
   return (
     <AppShell>
@@ -218,14 +221,15 @@ export function ReportsPage() {
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(entries)} /></Card>
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(entries)} /></Card>
       </div>
-      <Card className="mt-5 p-5"><SummaryTable today={summarizeEntries(entries, todayIso)} /></Card>
+      <Card className="mt-5 p-5"><SummaryTable today={summarizeEntries(entries, today)} todayIso={today} /></Card>
     </AppShell>
   );
 }
 
 export function CalendarPage() {
   const { entries } = useFinance();
-  const [selectedDate, setSelectedDate] = useState(todayIso);
+  const today = getTodayIso();
+  const [selectedDate, setSelectedDate] = useState(today);
   const selectedEntries = entries.filter((entry) => entry.date === selectedDate);
   const selectedSummary = summarizeEntries(entries, selectedDate);
 
@@ -263,11 +267,13 @@ export function RemindersPage() {
 }
 
 export function ReceiptsPage() {
+  const today = getTodayIso();
+
   return (
     <AppShell>
       <PageTitle title="Receipts" subtitle="Upload receipt UI and image preview placeholder" />
       <Card className="mb-5 grid min-h-48 place-items-center border-dashed p-8 text-center"><Upload className="mb-3 text-[#6C4CF1]" /><h2 className="font-bold">Upload receipt</h2><p className="text-sm text-[#746d86]">Image preview placeholder</p></Card>
-      <div className="grid gap-4 md:grid-cols-3">{["Breakfast receipt", "Market receipt", "Mobile recharge"].map((item) => <Card key={item} className="p-5"><div className="mb-4 grid h-32 place-items-center rounded-xl bg-[#f4f1ff]"><Receipt className="text-[#6C4CF1]" /></div><h2 className="font-bold">{item}</h2><p className="text-sm text-[#746d86]">20 May 2024</p></Card>)}</div>
+      <div className="grid gap-4 md:grid-cols-3">{["Breakfast receipt", "Market receipt", "Mobile recharge"].map((item) => <Card key={item} className="p-5"><div className="mb-4 grid h-32 place-items-center rounded-xl bg-[#f4f1ff]"><Receipt className="text-[#6C4CF1]" /></div><h2 className="font-bold">{item}</h2><p className="text-sm text-[#746d86]">{displayDate(today)}</p></Card>)}</div>
     </AppShell>
   );
 }
@@ -361,7 +367,7 @@ function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; e
   );
 }
 
-function SummaryTable({ today }: Readonly<{ today: ReturnType<typeof summarizeEntries> }>) {
+function SummaryTable({ today, todayIso }: Readonly<{ today: ReturnType<typeof summarizeEntries>; todayIso: string }>) {
   const rows = [{ date: `${displayDate(todayIso)} (Today)`, income: today.income, expense: today.expense, entries: today.entries, balance: today.balance }, ...monthlySummary.slice(1)];
   return <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-[#fbfaff] text-xs text-[#746d86]"><tr>{["Date", "Income", "Expense", "Entries", "Balance"].map((h) => <th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.date} className="border-b border-[#f0ecff]"><td className="px-4 py-3">{row.date}</td><td className="px-4 py-3 text-[#22C55E]">{takaShort(row.income)}</td><td className="px-4 py-3 text-[#EF4444]">{takaShort(row.expense)}</td><td className="px-4 py-3">{row.entries}</td><td className="px-4 py-3 font-bold">{takaShort(row.balance)}</td></tr>)}</tbody></table></div>;
 }
