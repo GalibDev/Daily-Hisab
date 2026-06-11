@@ -11,6 +11,7 @@ export type Entry = {
   time: string;
   method: PaymentMethod;
   type: EntryType;
+  note?: string;
 };
 
 export type Budget = {

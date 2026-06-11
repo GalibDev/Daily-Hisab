@@ -1,3 +1,7 @@
+"use client";
+
+import type { FormEvent } from "react";
+import { useMemo } from "react";
 import {
   ArrowRight,
   Banknote,
@@ -19,8 +23,11 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
-import { budgets, categoryExpense, categories, entries, monthlySummary, notes, paymentMethods, reminders } from "@/data/mock-data";
-import { taka, takaShort } from "@/lib/utils";
+import { useFinance } from "@/components/state/finance-store";
+import { budgets, categories, monthlySummary, notes, paymentMethods, reminders, todayIso } from "@/data/mock-data";
+import { buildCategoryExpense, buildExpenseTrend, summarizeEntries } from "@/lib/finance";
+import { displayDate, displayDateLong, taka, takaShort } from "@/lib/utils";
+import type { Entry, PaymentMethod } from "@/types";
 import { CategoryPieChart, ExpenseTrendChart } from "./charts";
 
 function StatCard({
@@ -53,46 +60,76 @@ function StatCard({
 }
 
 function ExpenseForm() {
+  const { addEntry } = useFinance();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const form = new FormData(event.currentTarget);
+    const amount = Number(form.get("amount"));
+
+    if (!amount || amount <= 0) {
+      return;
+    }
+
+    addEntry({
+      date: String(form.get("date")),
+      category: String(form.get("category")),
+      description: String(form.get("description") || "খরচ"),
+      amount,
+      method: String(form.get("method")) as PaymentMethod,
+      type: "expense",
+      note: String(form.get("note") || ""),
+    });
+
+    event.currentTarget.reset();
+  }
+
   return (
     <Card className="p-5 md:p-6">
-      <h2 className="mb-6 text-lg font-bold">Add New Expense</h2>
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <Field label="Date">
-          <input className={inputClass} defaultValue="20 May 2024" />
-        </Field>
-        <Field label="Category">
-          <select className={inputClass} defaultValue={categories[0]}>
-            {categories.map((category) => <option key={category}>{category}</option>)}
-          </select>
-        </Field>
-        <Field label="Amount (৳)">
-          <input className={inputClass} defaultValue="120.00" />
-        </Field>
-        <Field label="Description" className="xl:col-span-2">
-          <input className={inputClass} defaultValue="চা, বিস্কুট" />
-        </Field>
-        <Field label="Payment Method">
-          <select className={inputClass} defaultValue="Cash">
-            {paymentMethods.map((method) => <option key={method}>{method}</option>)}
-          </select>
-        </Field>
-        <Field label="Attach Receipt (Optional)">
-          <div className="grid h-16 place-items-center rounded-lg border border-dashed border-[#bbaeff] bg-[#fbfaff] text-sm font-semibold text-[#6C4CF1]">
-            <span className="inline-flex items-center gap-2"><Upload size={17} /> Upload Image</span>
-          </div>
-        </Field>
-        <Field label="Note (Optional)" className="md:col-span-2">
-          <textarea className={textareaClass} defaultValue="আজ অফিস যাওয়ার পথে নাস্তা করেছি" />
-        </Field>
-      </div>
-      <div className="mt-5 flex justify-end">
-        <Button>Add Expense</Button>
-      </div>
+      <form onSubmit={handleSubmit}>
+        <h2 className="mb-6 text-lg font-bold">Add New Expense</h2>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <Field label="Date">
+            <input name="date" type="date" className={inputClass} defaultValue={todayIso} />
+          </Field>
+          <Field label="Category">
+            <select name="category" className={inputClass} defaultValue={categories[0]}>
+              {categories.map((category) => <option key={category}>{category}</option>)}
+            </select>
+          </Field>
+          <Field label="Amount (৳)">
+            <input name="amount" className={inputClass} defaultValue="120.00" inputMode="decimal" />
+          </Field>
+          <Field label="Description" className="xl:col-span-2">
+            <input name="description" className={inputClass} defaultValue="চা, বিস্কুট" />
+          </Field>
+          <Field label="Payment Method">
+            <select name="method" className={inputClass} defaultValue="Cash">
+              {paymentMethods.map((method) => <option key={method}>{method}</option>)}
+            </select>
+          </Field>
+          <Field label="Attach Receipt (Optional)">
+            <div className="grid h-16 place-items-center rounded-lg border border-dashed border-[#bbaeff] bg-[#fbfaff] text-sm font-semibold text-[#6C4CF1]">
+              <span className="inline-flex items-center gap-2"><Upload size={17} /> Upload Image</span>
+            </div>
+          </Field>
+          <Field label="Note (Optional)" className="md:col-span-2">
+            <textarea name="note" className={textareaClass} defaultValue="আজ অফিস যাওয়ার পথে নাস্তা করেছি" />
+          </Field>
+        </div>
+        <div className="mt-5 flex justify-end">
+          <Button type="submit">Add Expense</Button>
+        </div>
+      </form>
     </Card>
   );
 }
 
-function TodayEntries() {
+function TodayEntries({ entries }: Readonly<{ entries: Entry[] }>) {
+  const { deleteEntry } = useFinance();
+  const todayEntries = entries.filter((entry) => entry.date === todayIso);
+
   return (
     <Card className="overflow-hidden p-5">
       <h2 className="mb-4 text-lg font-bold">Today&apos;s Entries</h2>
@@ -106,16 +143,16 @@ function TodayEntries() {
             </tr>
           </thead>
           <tbody>
-            {entries.filter((entry) => entry.type === "expense").map((entry, index) => (
+            {todayEntries.map((entry, index) => (
               <tr className="border-b border-[#f0ecff]" key={entry.id}>
                 <td className="px-4 py-3">{index + 1}.</td>
                 <td className="px-4 py-3">{entry.category}</td>
                 <td className="px-4 py-3">{entry.description}</td>
-                <td className="px-4 py-3 font-semibold">{entry.amount.toFixed(2)}</td>
+                <td className={entry.type === "income" ? "px-4 py-3 font-semibold text-[#22C55E]" : "px-4 py-3 font-semibold text-[#EF4444]"}>{entry.amount.toFixed(2)}</td>
                 <td className="px-4 py-3">{entry.time}</td>
                 <td className="px-4 py-3">{entry.method}</td>
                 <td className="px-4 py-3">
-                  <span className="flex gap-3 text-[#6C4CF1]"><Edit2 size={16} /><Trash2 className="text-[#EF4444]" size={16} /></span>
+                  <span className="flex gap-3 text-[#6C4CF1]"><Edit2 size={16} /><button type="button" onClick={() => deleteEntry(entry.id)}><Trash2 className="text-[#EF4444]" size={16} /></button></span>
                 </td>
               </tr>
             ))}
@@ -123,14 +160,14 @@ function TodayEntries() {
         </table>
       </div>
       <div className="grid gap-3 md:hidden">
-        {entries.filter((entry) => entry.type === "expense").map((entry) => (
+        {todayEntries.map((entry) => (
           <div key={entry.id} className="rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-4">
             <div className="flex justify-between gap-3">
               <div>
                 <p className="font-bold">{entry.category}</p>
                 <p className="text-sm text-[#746d86]">{entry.description} · {entry.time}</p>
               </div>
-              <p className="font-bold text-[#EF4444]">{takaShort(entry.amount)}</p>
+              <p className={entry.type === "income" ? "font-bold text-[#22C55E]" : "font-bold text-[#EF4444]"}>{takaShort(entry.amount)}</p>
             </div>
           </div>
         ))}
@@ -140,7 +177,7 @@ function TodayEntries() {
   );
 }
 
-function DailySummaryCard() {
+function DailySummaryCard({ summary }: Readonly<{ summary: ReturnType<typeof summarizeEntries> }>) {
   return (
     <Card className="border-[#d8d1ff] bg-gradient-to-r from-white to-[#fbf9ff] p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between">
@@ -150,24 +187,24 @@ function DailySummaryCard() {
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr] lg:items-center">
         <div>
           <p className="text-sm text-[#746d86]">Date</p>
-          <p className="font-bold">20 May 2024 (Monday)</p>
+          <p className="font-bold">{displayDateLong(todayIso)}</p>
         </div>
         <div>
           <p className="text-sm text-[#746d86]">Total Income</p>
-          <strong className="text-[#22C55E]">{taka(1250)}</strong>
+          <strong className="text-[#22C55E]">{taka(summary.income)}</strong>
         </div>
         <div>
           <p className="text-sm text-[#746d86]">Total Expense</p>
-          <strong className="text-[#EF4444]">{taka(850)}</strong>
+          <strong className="text-[#EF4444]">{taka(summary.expense)}</strong>
         </div>
         <div>
           <p className="text-sm text-[#746d86]">Total Entries</p>
-          <strong>12</strong>
+          <strong>{summary.entries}</strong>
         </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-1">
           <div>
             <p className="text-sm text-[#746d86]">Balance</p>
-            <strong className="text-xl text-[#22C55E]">{taka(400)}</strong>
+            <strong className={summary.balance >= 0 ? "text-xl text-[#22C55E]" : "text-xl text-[#EF4444]"}>{taka(summary.balance)}</strong>
           </div>
           <Button variant="outline" className="w-full">View All Entries <ArrowRight size={16} /></Button>
         </div>
@@ -260,20 +297,27 @@ function PanelList({ title, action, children }: Readonly<{ title: string; action
 }
 
 export function DashboardPage() {
+  const { entries } = useFinance();
+  const todaySummary = useMemo(() => summarizeEntries(entries, todayIso), [entries]);
+  const allSummary = useMemo(() => summarizeEntries(entries), [entries]);
+  const categoryData = useMemo(() => buildCategoryExpense(entries), [entries]);
+  const trendData = useMemo(() => buildExpenseTrend(entries), [entries]);
+  const monthExpense = allSummary.expense;
+
   return (
     <AppShell>
       <div className="grid gap-5">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard title="Today's Expense" value={taka(850)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
-            <StatCard title="Today's Income" value={taka(1250)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
-            <StatCard title="Total Entries Today" value="12" icon={<Receipt size={22} />} tone="bg-[#eaf6ff] text-[#38bdf8]" trend="up" />
-            <StatCard title="This Month Expense" value={taka(18650)} icon={<CalendarCheck size={22} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
-            <StatCard title="Balance" value={taka(6350)} icon={<Banknote size={22} />} tone="bg-[#ffeaf2] text-[#EF4444]" />
+            <StatCard title="Today's Expense" value={taka(todaySummary.expense)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
+            <StatCard title="Today's Income" value={taka(todaySummary.income)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
+            <StatCard title="Total Entries Today" value={String(todaySummary.entries)} icon={<Receipt size={22} />} tone="bg-[#eaf6ff] text-[#38bdf8]" trend="up" />
+            <StatCard title="This Month Expense" value={taka(monthExpense)} icon={<CalendarCheck size={22} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
+            <StatCard title="Balance" value={taka(allSummary.balance)} icon={<Banknote size={22} />} tone="bg-[#ffeaf2] text-[#EF4444]" />
         </div>
 
           <ExpenseForm />
 
-          <DailySummaryCard />
+          <DailySummaryCard summary={todaySummary} />
 
           <div className="grid gap-5 xl:grid-cols-3">
             <Card className="p-5 md:p-6">
@@ -282,9 +326,9 @@ export function DashboardPage() {
                 <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
               </div>
               <div className="grid items-center gap-4 2xl:grid-cols-[220px_1fr]">
-                <CategoryPieChart />
+                <CategoryPieChart data={categoryData} />
                 <div className="space-y-3 text-sm">
-                  {categoryExpense.map((item) => (
+                  {categoryData.map((item) => (
                     <div key={item.name} className="flex items-center gap-2">
                       <span className="size-2 rounded-full" style={{ background: item.fill }} />
                       <span className="mr-auto">{item.name}</span>
@@ -299,12 +343,12 @@ export function DashboardPage() {
                 <h2 className="text-lg font-bold">Expense Trend</h2>
                 <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
               </div>
-              <ExpenseTrendChart />
+              <ExpenseTrendChart data={trendData} />
             </Card>
             <BudgetOverviewCard />
           </div>
 
-          <TodayEntries />
+          <TodayEntries entries={entries} />
 
           <Card className="p-5 md:p-6">
             <div className="mb-5 flex items-center justify-between">
@@ -312,9 +356,9 @@ export function DashboardPage() {
               <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
             </div>
             <div className="mb-5 grid gap-4 md:grid-cols-3">
-              <StatCard title="Total Income" value={taka(25000)} icon={<Banknote size={20} />} tone="bg-[#eafbf0] text-[#22C55E]" />
-              <StatCard title="Total Expense" value={taka(18650)} icon={<Wallet size={20} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
-              <StatCard title="Balance" value={taka(6350)} icon={<Banknote size={20} />} tone="bg-[#eafbf0] text-[#22C55E]" />
+              <StatCard title="Total Income" value={taka(allSummary.income)} icon={<Banknote size={20} />} tone="bg-[#eafbf0] text-[#22C55E]" />
+              <StatCard title="Total Expense" value={taka(allSummary.expense)} icon={<Wallet size={20} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
+              <StatCard title="Balance" value={taka(allSummary.balance)} icon={<Banknote size={20} />} tone="bg-[#eafbf0] text-[#22C55E]" />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[620px] text-left text-sm">
@@ -322,7 +366,10 @@ export function DashboardPage() {
                   <tr>{["Date", "Total Income (৳)", "Total Expense (৳)", "Entries", "Balance (৳)", "Action"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {monthlySummary.map((row) => (
+                  {[
+                    { date: `${displayDate(todayIso)} (Today)`, income: todaySummary.income, expense: todaySummary.expense, entries: todaySummary.entries, balance: todaySummary.balance },
+                    ...monthlySummary.slice(1),
+                  ].map((row) => (
                     <tr className="border-b border-[#f0ecff]" key={row.date}>
                       <td className="px-4 py-3">{row.date}</td>
                       <td className="px-4 py-3">{row.income.toFixed(2)}</td>

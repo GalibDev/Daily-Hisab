@@ -1,5 +1,7 @@
 import type { Budget, Entry, Note, PaymentMethod, Reminder } from "@/types";
 
+export const todayIso = "2024-05-20";
+
 export const categories = [
   "সকালের নাস্তা",
   "দুপুরের খাবার",
@@ -14,15 +16,20 @@ export const categories = [
 export const paymentMethods: PaymentMethod[] = ["Cash", "bKash", "Nagad", "Card", "Bank"];
 
 export const entries: Entry[] = [
-  { id: 1, date: "20 May 2024", category: "সকালের নাস্তা", description: "চা, বিস্কুট", amount: 120, time: "08:30 AM", method: "Cash", type: "expense" },
-  { id: 2, date: "20 May 2024", category: "দুপুরের খাবার", description: "ভাত, ডাল, সবজি, মাছ", amount: 200, time: "01:15 PM", method: "Cash", type: "expense" },
-  { id: 3, date: "20 May 2024", category: "যাতায়াত ভাড়া", description: "বাস ভাড়া", amount: 40, time: "09:00 AM", method: "Cash", type: "expense" },
-  { id: 4, date: "20 May 2024", category: "বিকালের নাস্তা", description: "চা, বিস্কুট", amount: 30, time: "04:30 PM", method: "Cash", type: "expense" },
-  { id: 5, date: "20 May 2024", category: "মোবাইল / রিচার্জ", description: "রিচার্জ", amount: 100, time: "07:45 PM", method: "bKash", type: "expense" },
-  { id: 6, date: "20 May 2024", category: "বাজার খরচ", description: "সবজি, আলু, তেল", amount: 300, time: "06:30 PM", method: "Cash", type: "expense" },
-  { id: 7, date: "20 May 2024", category: "রাতের খাবার", description: "রুটি, ডাল, চিকেন", amount: 210, time: "08:30 PM", method: "Cash", type: "expense" },
-  { id: 8, date: "20 May 2024", category: "বেতন", description: "মাসিক আয়", amount: 1250, time: "10:00 AM", method: "Bank", type: "income" },
+  { id: 1, date: todayIso, category: "সকালের নাস্তা", description: "চা, বিস্কুট", amount: 120, time: "08:30 AM", method: "Cash", type: "expense", note: "আজ অফিস যাওয়ার পথে নাস্তা করেছি" },
+  { id: 2, date: todayIso, category: "দুপুরের খাবার", description: "ভাত, ডাল, সবজি, মাছ", amount: 200, time: "01:15 PM", method: "Cash", type: "expense" },
+  { id: 3, date: todayIso, category: "যাতায়াত ভাড়া", description: "বাস ভাড়া", amount: 40, time: "09:00 AM", method: "Cash", type: "expense" },
+  { id: 4, date: todayIso, category: "বিকালের নাস্তা", description: "চা, বিস্কুট", amount: 30, time: "04:30 PM", method: "Cash", type: "expense" },
+  { id: 5, date: todayIso, category: "মোবাইল / রিচার্জ", description: "রিচার্জ", amount: 100, time: "07:45 PM", method: "bKash", type: "expense" },
+  { id: 6, date: todayIso, category: "বাজার খরচ", description: "সবজি, আলু, তেল", amount: 300, time: "06:30 PM", method: "Cash", type: "expense" },
+  { id: 7, date: todayIso, category: "রাতের খাবার", description: "রুটি, ডাল, চিকেন", amount: 210, time: "08:30 PM", method: "Cash", type: "expense" },
+  { id: 8, date: todayIso, category: "বেতন", description: "মাসিক আয়", amount: 1250, time: "10:00 AM", method: "Bank", type: "income", note: "মাসিক আয়ের অংশ" },
 ];
+
+export const trend = Array.from({ length: 30 }, (_, index) => ({
+  day: index + 1,
+  expense: [900, 620, 1100, 850, 1580, 720, 1320, 980, 560, 1420, 1210, 760, 1690, 640, 1820, 1510, 1720, 580, 930, 1250, 700, 1160, 810, 1390, 980, 1190, 720, 1050, 880, 1220][index],
+}));
 
 export const categoryExpense = [
   { name: "সকালের নাস্তা", value: 1850, fill: "#3b82f6" },
@@ -30,14 +37,9 @@ export const categoryExpense = [
   { name: "যাতায়াত ভাড়া", value: 2450, fill: "#8b5cf6" },
   { name: "বিকালের নাস্তা", value: 1250, fill: "#22c55e" },
   { name: "রাতের খাবার", value: 1900, fill: "#ec4899" },
-  { name: "মোবাইল/রিচার্জ", value: 2100, fill: "#14b8a6" },
+  { name: "মোবাইল / রিচার্জ", value: 2100, fill: "#14b8a6" },
   { name: "বাজার খরচ", value: 3900, fill: "#f43f5e" },
 ];
-
-export const trend = Array.from({ length: 30 }, (_, index) => ({
-  day: index + 1,
-  expense: [900, 620, 1100, 850, 1580, 720, 1320, 980, 560, 1420, 1210, 760, 1690, 640, 1820, 1510, 1720, 580, 930, 1250, 700, 1160, 810, 1390, 980, 1190, 720, 1050, 880, 1220][index],
-}));
 
 export const budgets: Budget[] = [
   { category: "খাবার খরচ", spent: 3650, limit: 5000, color: "#22c55e" },
