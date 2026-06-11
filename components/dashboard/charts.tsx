@@ -18,7 +18,7 @@ export function CategoryPieChart({ data = categoryExpense }: Readonly<{ data?: C
   return (
     <ResponsiveContainer width="100%" height={230}>
       <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={1}>
+        <Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={1} isAnimationActive={false}>
           {data.map((item) => (
             <Cell key={item.name} fill={item.fill} />
           ))}
@@ -36,7 +36,7 @@ export function ExpenseTrendChart({ data = trend }: Readonly<{ data?: TrendData[
         <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} />
         <YAxis tickLine={false} axisLine={false} fontSize={11} />
         <Tooltip formatter={(value) => `৳ ${value}`} cursor={{ fill: "#f4f1ff" }} />
-        <Bar dataKey="expense" fill="#6C4CF1" radius={[6, 6, 0, 0]} barSize={8} />
+        <Bar dataKey="expense" fill="#6C4CF1" radius={[6, 6, 0, 0]} barSize={8} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   );

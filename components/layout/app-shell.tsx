@@ -22,6 +22,7 @@ import {
   Settings,
   Sun,
   Wallet,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
@@ -46,6 +47,18 @@ const nav = [
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const today = getTodayIso();
+  const current = nav.find((item) => item.href === pathname);
+  const mobileTitles: Record<string, string> = {
+    "/": "Daily Hisab",
+    "/add-expense": "Add New Expense",
+    "/add-income": "Add Income",
+    "/budget": "Category Budget",
+    "/calendar": "Calendar View",
+    "/entries": "Today's Entries",
+    "/settings": "More",
+  };
+  const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
+  const isHome = pathname === "/";
 
   const setTheme = (theme: "light" | "dark") => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -121,12 +134,23 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         </div>
       </aside>
 
-      <main className="pb-24 lg:ml-[228px] lg:pb-0">
-        <header className="sticky top-0 z-20 border-b border-[#ece8ff]/80 bg-[#F8F7FF]/90 px-4 py-4 backdrop-blur md:px-7 lg:px-8">
-          <div className="flex items-center gap-4">
-            <button className="grid size-10 place-items-center rounded-lg bg-white text-[#6C4CF1] shadow-sm lg:hidden">
-              <Menu size={20} />
-            </button>
+      <main className="pb-20 lg:ml-[228px] lg:pb-0">
+        <header className="sticky top-0 z-20 border-b border-[#ece8ff]/80 bg-white/95 px-4 py-3 backdrop-blur md:px-7 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4">
+          <div className="flex items-center gap-4 lg:hidden">
+            <Link href={isHome ? "/settings" : "/"} className="grid size-9 place-items-center rounded-lg text-[#171424]">
+              {isHome ? <Menu size={21} /> : <ArrowLeft size={21} />}
+            </Link>
+            <div className="min-w-0 flex-1 text-center">
+              <h1 className="truncate text-sm font-bold">{mobileTitle}</h1>
+              {isHome && <p className="text-[11px] font-medium text-[#746d86]">Your Daily Tracker</p>}
+            </div>
+            <Link href={pathname === "/budget" || pathname === "/reminders" ? pathname : "/reminders"} className="relative grid size-9 place-items-center rounded-lg text-[#171424]">
+              {pathname === "/budget" || pathname === "/reminders" ? <Plus size={21} /> : <Bell size={19} />}
+              {pathname !== "/budget" && pathname !== "/reminders" && <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-[#EF4444] text-[10px] text-white">3</span>}
+            </Link>
+          </div>
+
+          <div className="hidden items-center gap-4 lg:flex">
             <div className="mr-auto">
               <h1 className="text-2xl font-bold tracking-normal md:text-3xl">Dashboard</h1>
               <p className="hidden text-sm text-[#746d86] sm:block">Welcome back! Here&apos;s your financial overview.</p>
@@ -151,10 +175,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </div>
           </div>
         </header>
-        <div className="px-4 py-5 md:px-7 lg:px-8">{children}</div>
+        <div className="mx-auto max-w-[480px] px-4 py-4 md:px-7 lg:max-w-none lg:px-8 lg:py-5">{children}</div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-4 border-t border-[#ece8ff] bg-white px-4 py-2 shadow-[0_-10px_25px_rgba(47,35,110,0.08)] lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 mx-auto grid max-w-[480px] grid-cols-4 border-t border-[#ece8ff] bg-white px-4 pb-3 pt-2 shadow-[0_-10px_25px_rgba(47,35,110,0.08)] lg:hidden">
         {[
           { href: "/", label: "Home", icon: Home },
           { href: "/add-expense", label: "Add", icon: Plus },
@@ -165,17 +189,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           const active = pathname === item.href;
 
           return (
-            <Link key={item.href} href={item.href} className={cn("grid justify-items-center gap-1 text-xs font-semibold", active ? "text-[#6C4CF1]" : "text-[#817a91]")}>
+            <Link key={item.href} href={item.href} className={cn("grid justify-items-center gap-1 text-[10px] font-semibold", active ? "text-[#6C4CF1]" : "text-[#817a91]")}>
               <Icon size={20} />
               {item.label}
             </Link>
           );
         })}
       </nav>
-
-      <Link href="/add-expense" className="fixed bottom-20 right-5 z-40 grid size-14 place-items-center rounded-full bg-[#6C4CF1] text-white shadow-xl shadow-[#6C4CF1]/30 lg:hidden">
-        <Plus />
-      </Link>
     </div>
   );
 }

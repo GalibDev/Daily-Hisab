@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Bell, CalendarDays, CheckCircle2, Download, Edit2, FileSpreadsheet, Plus, Receipt, Trash2, Upload } from "lucide-react";
+import { Bell, CalendarDays, CheckCircle2, ChevronRight, Download, Edit2, FileSpreadsheet, Plus, Receipt, Trash2, Upload, User } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { CategorySelect } from "@/components/entries/category-select";
 import { useFinance } from "@/components/state/finance-store";
@@ -71,7 +71,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
       <Field label="Payment Method"><select name="method" className={inputClass}>{paymentMethods.map((m) => <option key={m}>{m}</option>)}</select></Field>
       {isExpense && <Field label="Receipt upload placeholder"><div className="grid h-12 place-items-center rounded-lg border border-dashed border-[#bbaeff] text-[#6C4CF1]"><Upload size={18} /></div></Field>}
       <Field label="Note" className="md:col-span-2"><textarea name="note" className={textareaClass} placeholder={isExpense ? "অতিরিক্ত নোট লিখুন" : "আয়ের বিস্তারিত লিখুন"} /></Field>
-      <Button type="submit" className="md:w-fit"><Plus size={17} /> {isExpense ? "Submit Expense" : "Submit Income"}</Button>
+      <Button type="submit" className="w-full md:w-fit"><Plus size={17} /> {isExpense ? "Submit Expense" : "Submit Income"}</Button>
     </form>
   );
 }
@@ -81,11 +81,11 @@ function buildSummaryRows(entries: Entry[], hiddenSummaryDates: string[]) {
 }
 
 export function ExpensePage() {
-  return <AppShell><PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" /><Card className="max-w-5xl p-6"><EntryForm mode="expense" /></Card></AppShell>;
+  return <AppShell><PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" /><Card className="max-w-5xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="expense" /></Card></AppShell>;
 }
 
 export function IncomePage() {
-  return <AppShell><PageTitle title="Add Income" subtitle="আজকের আয় যোগ করুন" /><Card className="max-w-4xl p-6"><EntryForm mode="income" /></Card></AppShell>;
+  return <AppShell><PageTitle title="Add Income" subtitle="আজকের আয় যোগ করুন" /><Card className="max-w-4xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="income" /></Card></AppShell>;
 }
 
 export function EntriesPage() {
@@ -127,8 +127,8 @@ export function IncomeExpensePage() {
         <Metric label="Total expense" value={taka(summary.expense)} tone="text-[#EF4444]" />
         <Metric label="Balance" value={taka(summary.balance)} tone={summary.balance >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"} />
       </div>
-      <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">Recent transactions</h2><ResponsiveEntries entries={entries.slice(0, 8)} editable /></Card>
-      <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">Monthly summary table</h2><SummaryTable rows={rows} /></Card>
+      <Card className="mt-5 p-4 md:p-5"><h2 className="mb-4 text-lg font-bold">Recent transactions</h2><ResponsiveEntries entries={entries.slice(0, 8)} editable /></Card>
+      <Card className="mt-5 p-4 md:p-5"><h2 className="mb-4 text-lg font-bold">Monthly summary table</h2><SummaryTable rows={rows} /></Card>
     </AppShell>
   );
 }
@@ -204,10 +204,21 @@ export function ReportsPage() {
   return (
     <AppShell>
       <PageTitle title="Reports" subtitle="Daily, weekly, monthly and yearly report" />
-      <div className="mb-5 flex flex-wrap gap-3">
-        {(Object.keys(labels) as ReportPeriod[]).map((item) => <Button key={item} variant={period === item ? "primary" : "outline"} onClick={() => setPeriod(item)}>{labels[item]}</Button>)}
-        <Button onClick={handlePdfExport}><Download size={16} /> Export PDF</Button>
-        <Button variant="outline" onClick={() => { exportEntriesCsv(reportEntries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
+      <div className="mb-5 grid grid-cols-4 gap-1 border-b border-[#ece8ff] md:flex md:flex-wrap md:border-0">
+        {(Object.keys(labels) as ReportPeriod[]).map((item) => (
+          <button
+            key={item}
+            onClick={() => setPeriod(item)}
+            className={period === item ? "border-b-2 border-[#6C4CF1] px-2 py-2 text-xs font-bold text-[#6C4CF1] md:rounded-lg md:border md:bg-[#6C4CF1] md:px-4 md:text-sm md:text-white" : "px-2 py-2 text-xs font-semibold text-[#746d86] md:rounded-lg md:border md:border-[#d8d1ff] md:bg-white md:px-4 md:text-sm md:text-[#6C4CF1]"}
+          >
+            <span className="md:hidden">{item[0].toUpperCase() + item.slice(1)}</span>
+            <span className="hidden md:inline">{labels[item]}</span>
+          </button>
+        ))}
+      </div>
+      <div className="mb-5 flex gap-3">
+        <Button onClick={handlePdfExport} className="flex-1 md:flex-none"><Download size={16} /> Export PDF</Button>
+        <Button variant="outline" className="flex-1 md:flex-none" onClick={() => { exportEntriesCsv(reportEntries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(reportEntries)} /></Card>
@@ -228,8 +239,9 @@ export function CalendarPage() {
   return (
     <AppShell>
       <PageTitle title="Calendar" subtitle="Select date and see expense entries" />
+      <MobileCalendar selectedDate={selectedDate} setSelectedDate={setSelectedDate} summary={selectedSummary} />
       <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-        <Card className="p-5"><input type="date" className={inputClass} value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} /><div className="mt-5 rounded-xl bg-[#f4f1ff] p-5 text-center"><CalendarDays className="mx-auto mb-2 text-[#6C4CF1]" /><p className="text-sm">Selected date expense total</p><strong className="text-2xl text-[#EF4444]">{taka(selectedSummary.expense)}</strong></div></Card>
+        <Card className="hidden p-5 md:block"><input type="date" className={inputClass} value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} /><div className="mt-5 rounded-xl bg-[#f4f1ff] p-5 text-center"><CalendarDays className="mx-auto mb-2 text-[#6C4CF1]" /><p className="text-sm">Selected date expense total</p><strong className="text-2xl text-[#EF4444]">{taka(selectedSummary.expense)}</strong></div></Card>
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">{displayDate(selectedDate)} entries</h2><ResponsiveEntries entries={selectedEntries} editable /></Card>
       </div>
     </AppShell>
@@ -391,7 +403,34 @@ export function SettingsPage() {
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-3 md:hidden">
+        <Card className="flex items-center gap-3 bg-[#fbfaff] p-4">
+          <div className="grid size-12 place-items-center rounded-full bg-[#f0d3c1] text-sm font-bold">TA</div>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold">Tanvir Ahmed</p>
+            <p className="truncate text-xs text-[#746d86]">tanvir@gmail.com</p>
+          </div>
+          <span className="rounded-lg bg-[#efeaff] px-3 py-1 text-xs font-bold text-[#6C4CF1]">Premium Plan</span>
+        </Card>
+        {[
+          ["Profile", User],
+          ["Budget", CalendarDays],
+          ["Recurring Expenses", CheckCircle2],
+          ["Receipts", Receipt],
+          ["Notes", Edit2],
+          ["Export Data", Download],
+          ["Language", FileSpreadsheet],
+          ["Theme", Bell],
+        ].map(([label, Icon]) => (
+          <Card key={String(label)} className="flex items-center gap-3 p-3">
+            {typeof Icon !== "string" && <Icon size={17} className="text-[#746d86]" />}
+            <span className="flex-1 text-sm font-semibold">{String(label)}</span>
+            <ChevronRight size={16} className="text-[#746d86]" />
+          </Card>
+        ))}
+        <button className="mt-2 flex items-center gap-2 px-2 py-3 text-sm font-bold text-[#EF4444]">Logout</button>
+      </div>
+      <div className="hidden gap-5 md:grid lg:grid-cols-2">
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Profile: Tanvir Ahmed</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT ৳</span><Button variant="outline">Manage</Button></Card>
@@ -403,8 +442,73 @@ export function SettingsPage() {
   );
 }
 
+function MobileCalendar({
+  selectedDate,
+  setSelectedDate,
+  summary,
+}: Readonly<{
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+  summary: ReturnType<typeof summarizeEntries>;
+}>) {
+  const selected = new Date(`${selectedDate}T00:00:00`);
+  const year = selected.getFullYear();
+  const month = selected.getMonth();
+  const monthName = selected.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const firstDay = new Date(year, month, 1).getDay();
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const cells = [
+    ...Array.from({ length: firstDay }, (_, index) => ({ key: `blank-${index}`, day: 0 })),
+    ...Array.from({ length: totalDays }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 })),
+  ];
+
+  function toIso(day: number) {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  return (
+    <div className="mb-5 grid gap-4 md:hidden">
+      <Card className="p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <button type="button" className="text-lg text-[#746d86]">‹</button>
+          <h2 className="text-sm font-bold">{monthName}</h2>
+          <button type="button" className="text-lg text-[#746d86]">›</button>
+        </div>
+        <div className="mb-2 grid grid-cols-7 text-center text-[11px] font-semibold text-[#746d86]">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
+        </div>
+        <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
+          {cells.map((cell) => {
+            const iso = cell.day ? toIso(cell.day) : "";
+            const active = iso === selectedDate;
+
+            return (
+              <button
+                key={cell.key}
+                type="button"
+                disabled={!cell.day}
+                onClick={() => setSelectedDate(iso)}
+                className={active ? "mx-auto grid size-8 place-items-center rounded-full bg-[#6C4CF1] font-bold text-white" : "mx-auto grid size-8 place-items-center rounded-full text-[#2b273d]"}
+              >
+                {cell.day || ""}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+      <Card className="bg-[#fbfaff] p-4">
+        <p className="mb-3 text-sm font-bold">{displayDate(selectedDate)}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div><p className="text-xs text-[#746d86]">Total Expense</p><strong className="text-lg">{taka(summary.expense)}</strong></div>
+          <div><p className="text-xs text-[#746d86]">Total Entries</p><strong className="text-lg">{summary.entries}</strong></div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function PageTitle({ title, subtitle }: Readonly<{ title: string; subtitle: string }>) {
-  return <div className="mb-5"><h1 className="text-2xl font-bold md:text-3xl">{title}</h1><p className="text-[#746d86]">{subtitle}</p></div>;
+  return <div className="mb-5 hidden md:block"><h1 className="text-2xl font-bold md:text-3xl">{title}</h1><p className="text-[#746d86]">{subtitle}</p></div>;
 }
 
 function Metric({ label, value, tone }: Readonly<{ label: string; value: string; tone: string }>) {

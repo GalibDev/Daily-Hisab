@@ -356,6 +356,97 @@ function PanelList({ title, action, children }: Readonly<{ title: string; action
   );
 }
 
+function MobileMetricCard({
+  label,
+  value,
+  icon,
+  tone,
+}: Readonly<{ label: string; value: string; icon: React.ReactNode; tone: string }>) {
+  return (
+    <Card className="min-h-[92px] p-3">
+      <div className="flex items-start gap-3">
+        <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${tone}`}>{icon}</span>
+        <span>
+          <span className="block text-[11px] font-medium leading-4 text-[#746d86]">{label}</span>
+          <strong className="mt-1 block text-base">{value}</strong>
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function MobileDashboard({
+  allSummary,
+  categoryData,
+  monthExpense,
+  today,
+  todaySummary,
+}: Readonly<{
+  allSummary: ReturnType<typeof summarizeEntries>;
+  categoryData: ReturnType<typeof buildCategoryExpense>;
+  monthExpense: number;
+  today: string;
+  todaySummary: ReturnType<typeof summarizeEntries>;
+}>) {
+  return (
+    <div className="grid gap-4 lg:hidden">
+      <section className="rounded-xl bg-[#6C4CF1] p-4 text-white shadow-[0_18px_36px_rgba(108,76,241,0.25)]">
+        <div className="mb-5 flex items-start justify-between">
+          <div>
+            <p className="text-sm font-bold">Today&apos;s Summary</p>
+            <p className="text-xs text-white/75">{displayDateLong(today)}</p>
+          </div>
+          <CalendarCheck size={18} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-white/75">Total Expense</p>
+            <strong className="mt-1 block text-lg">{taka(todaySummary.expense)}</strong>
+          </div>
+          <div>
+            <p className="text-xs text-white/75">Total Income</p>
+            <strong className="mt-1 block text-lg">{taka(todaySummary.income)}</strong>
+          </div>
+          <div>
+            <p className="text-xs text-white/75">Balance</p>
+            <strong className="mt-1 block text-lg text-[#7CFFB2]">{taka(todaySummary.balance)}</strong>
+          </div>
+          <div>
+            <p className="text-xs text-white/75">Month Balance</p>
+            <strong className="mt-1 block text-lg text-[#7CFFB2]">{taka(allSummary.balance)}</strong>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3">
+        <MobileMetricCard label="Total Entries" value={String(todaySummary.entries)} icon={<Receipt size={18} />} tone="bg-[#eaf6ff] text-[#38bdf8]" />
+        <MobileMetricCard label="This Month Expense" value={takaShort(monthExpense)} icon={<CalendarCheck size={18} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
+        <MobileMetricCard label="Average Day Expense" value={takaShort(todaySummary.expense)} icon={<Wallet size={18} />} tone="bg-[#eaf6ff] text-[#38bdf8]" />
+        <MobileMetricCard label="Budget Status" value={todaySummary.expense <= todaySummary.income ? "Good" : "Warning"} icon={<Banknote size={18} />} tone="bg-[#eafbf0] text-[#22C55E]" />
+      </div>
+
+      <Card className="p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold">Expense by Category <span className="font-medium text-[#746d86]">(This Month)</span></h2>
+          <ArrowRight size={16} className="text-[#746d86]" />
+        </div>
+        <div className="h-[210px]">
+          <CategoryPieChart data={categoryData} />
+        </div>
+        <div className="mt-2 grid gap-2 text-xs">
+          {categoryData.slice(0, 5).map((item) => (
+            <div key={item.name} className="flex items-center gap-2">
+              <span className="size-2 rounded-full" style={{ background: item.fill }} />
+              <span className="mr-auto truncate">{item.name}</span>
+              <strong>{takaShort(item.value)}</strong>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { categories, deleteSummaryRow, entries, hiddenSummaryDates } = useFinance();
   const { notify } = useToast();
@@ -369,7 +460,9 @@ export function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="grid gap-4">
+      <MobileDashboard allSummary={allSummary} categoryData={categoryData} monthExpense={monthExpense} today={today} todaySummary={todaySummary} />
+
+      <div className="hidden gap-4 lg:grid">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard title="Today's Expense" value={taka(todaySummary.expense)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
             <StatCard title="Today's Income" value={taka(todaySummary.income)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
@@ -458,7 +551,7 @@ export function DashboardPage() {
             <QuickActionsCard />
           </div>
       </div>
-      <div className="mt-6 grid gap-3 rounded-xl bg-[#f0eaff] p-5 text-sm md:grid-cols-5">
+      <div className="mt-6 hidden gap-3 rounded-xl bg-[#f0eaff] p-5 text-sm md:grid-cols-5 lg:grid">
         {["Secure & Private", "Cloud Backup", "Multi Platform", "Data Export", "24/7 Support"].map((item) => (
           <div key={item} className="font-semibold text-[#4f4770]">{item}<p className="font-normal text-[#746d86]">Your data stays organized.</p></div>
         ))}
