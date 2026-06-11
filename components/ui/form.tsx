@@ -14,7 +14,7 @@ export function Field({
 }
 
 export const inputClass =
-  "h-12 rounded-lg border border-[#e7e2fb] bg-white px-4 text-sm text-[#252139] outline-none transition placeholder:text-[#a6a0bd] focus:border-[#6C4CF1] focus:ring-4 focus:ring-[#6C4CF1]/10";
+  "h-11 rounded-lg border border-[#e7e2fb] bg-white px-3.5 text-sm text-[#252139] outline-none transition placeholder:text-[#a6a0bd] focus:border-[#6C4CF1] focus:ring-4 focus:ring-[#6C4CF1]/10";
 
 export const textareaClass =
-  "min-h-24 rounded-lg border border-[#e7e2fb] bg-white px-4 py-3 text-sm text-[#252139] outline-none transition placeholder:text-[#a6a0bd] focus:border-[#6C4CF1] focus:ring-4 focus:ring-[#6C4CF1]/10";
+  "min-h-20 rounded-lg border border-[#e7e2fb] bg-white px-3.5 py-3 text-sm text-[#252139] outline-none transition placeholder:text-[#a6a0bd] focus:border-[#6C4CF1] focus:ring-4 focus:ring-[#6C4CF1]/10";

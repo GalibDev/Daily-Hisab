@@ -13,16 +13,17 @@ import {
   MoreVertical,
   Plus,
   Receipt,
-  Trash2,
   TrendingDown,
   TrendingUp,
   Upload,
   Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
+import { useToast } from "@/components/ui/toast";
 import { useFinance } from "@/components/state/finance-store";
 import { budgets, categories, monthlySummary, notes, paymentMethods, reminders } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, summarizeEntries } from "@/lib/finance";
@@ -38,16 +39,16 @@ function StatCard({
   trend,
 }: Readonly<{ title: string; value: string; icon: React.ReactNode; tone: string; trend?: "up" | "down" }>) {
   return (
-    <Card className="min-h-[126px] p-5 transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(47,35,110,0.10)]">
-      <div className="flex items-start gap-4">
-        <div className={`grid size-12 place-items-center rounded-xl ${tone}`}>{icon}</div>
+    <Card className="min-h-[112px] p-4 transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(47,35,110,0.10)]">
+      <div className="flex items-start gap-3">
+        <div className={`grid size-11 place-items-center rounded-xl ${tone}`}>{icon}</div>
         <div>
           <p className="text-sm text-[#746d86]">{title}</p>
-          <p className="mt-2 text-2xl font-bold">{value}</p>
+          <p className="mt-1 text-2xl font-bold">{value}</p>
         </div>
       </div>
       {trend && (
-        <div className="mt-5 flex items-center gap-2 text-xs text-[#746d86]">
+        <div className="mt-4 flex items-center gap-2 text-xs text-[#746d86]">
           vs Yesterday
           <span className={`ml-auto inline-flex items-center gap-1 font-bold ${trend === "up" ? "text-[#22C55E]" : "text-[#EF4444]"}`}>
             {trend === "up" ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
@@ -61,6 +62,7 @@ function StatCard({
 
 function ExpenseForm() {
   const { addEntry } = useFinance();
+  const { notify } = useToast();
   const today = getTodayIso();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -84,13 +86,14 @@ function ExpenseForm() {
     });
 
     event.currentTarget.reset();
+    notify("Expense added successfully");
   }
 
   return (
-    <Card className="p-5 md:p-6">
+    <Card className="p-4 md:p-5">
       <form onSubmit={handleSubmit}>
-        <h2 className="mb-6 text-lg font-bold">Add New Expense</h2>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <h2 className="mb-5 text-lg font-bold">Add New Expense</h2>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Field label="Date">
             <input name="date" type="date" className={inputClass} defaultValue={today} />
           </Field>
@@ -129,10 +132,15 @@ function ExpenseForm() {
 
 function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: string }>) {
   const { deleteEntry } = useFinance();
+  const { notify } = useToast();
   const todayEntries = entries.filter((entry) => entry.date === today);
+  const handleDelete = (id: number) => {
+    deleteEntry(id);
+    notify("Entry deleted", "danger");
+  };
 
   return (
-    <Card className="overflow-hidden p-5">
+    <Card className="overflow-hidden p-4 md:p-5">
       <h2 className="mb-4 text-lg font-bold">Today&apos;s Entries</h2>
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[720px] text-left text-sm">
@@ -153,7 +161,7 @@ function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: st
                 <td className="px-4 py-3">{entry.time}</td>
                 <td className="px-4 py-3">{entry.method}</td>
                 <td className="px-4 py-3">
-                  <span className="flex gap-3 text-[#6C4CF1]"><Edit2 size={16} /><button type="button" onClick={() => deleteEntry(entry.id)}><Trash2 className="text-[#EF4444]" size={16} /></button></span>
+                  <span className="flex gap-3 text-[#6C4CF1]"><Edit2 size={16} /><ConfirmDeleteButton onConfirm={() => handleDelete(entry.id)} /></span>
                 </td>
               </tr>
             ))}
@@ -180,7 +188,7 @@ function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: st
 
 function DailySummaryCard({ summary, today }: Readonly<{ summary: ReturnType<typeof summarizeEntries>; today: string }>) {
   return (
-    <Card className="border-[#d8d1ff] bg-gradient-to-r from-white to-[#fbf9ff] p-5 md:p-6">
+    <Card className="border-[#d8d1ff] bg-gradient-to-r from-white to-[#fbf9ff] p-4 md:p-5">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-lg font-bold">Daily Summary</h2>
         <MoreVertical size={18} />
@@ -287,7 +295,7 @@ function QuickActionsCard() {
 
 function PanelList({ title, action, children }: Readonly<{ title: string; action?: string; children: React.ReactNode }>) {
   return (
-    <Card className="p-5 md:p-6">
+    <Card className="p-4 md:p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-bold">{title}</h2>
         {action && <button className="rounded-lg border border-[#ece8ff] px-3 py-1 text-xs">{action}</button>}
@@ -308,7 +316,7 @@ export function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="grid gap-5">
+      <div className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard title="Today's Expense" value={taka(todaySummary.expense)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
             <StatCard title="Today's Income" value={taka(todaySummary.income)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
@@ -321,8 +329,8 @@ export function DashboardPage() {
 
           <DailySummaryCard summary={todaySummary} today={today} />
 
-          <div className="grid gap-5 xl:grid-cols-3">
-            <Card className="p-5 md:p-6">
+          <div className="grid gap-4 xl:grid-cols-3">
+            <Card className="p-4 md:p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Expense by Category</h2>
                 <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
@@ -340,7 +348,7 @@ export function DashboardPage() {
                 </div>
               </div>
             </Card>
-            <Card className="p-5 md:p-6">
+            <Card className="p-4 md:p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Expense Trend</h2>
                 <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
@@ -352,7 +360,7 @@ export function DashboardPage() {
 
           <TodayEntries entries={entries} today={today} />
 
-          <Card className="p-5 md:p-6">
+          <Card className="p-4 md:p-5">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-lg font-bold">Income & Expense Summary</h2>
               <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
@@ -387,7 +395,7 @@ export function DashboardPage() {
             <Button variant="outline" className="mt-4 w-full">View All Reports <ArrowRight size={16} /></Button>
           </Card>
 
-          <div className="grid gap-5 xl:grid-cols-3">
+          <div className="grid gap-4 xl:grid-cols-3">
             <UpcomingRemindersCard />
             <RecentNotesCard />
             <QuickActionsCard />

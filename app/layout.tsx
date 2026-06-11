@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { FinanceProvider } from "@/components/state/finance-store";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="bn">
       <body>
-        <FinanceProvider>{children}</FinanceProvider>
+        <ToastProvider>
+          <FinanceProvider>{children}</FinanceProvider>
+        </ToastProvider>
       </body>
     </html>
   );

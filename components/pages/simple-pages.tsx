@@ -6,7 +6,9 @@ import { AppShell } from "@/components/layout/app-shell";
 import { useFinance } from "@/components/state/finance-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
+import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
 import { budgets, categories, monthlySummary, paymentMethods, reminders } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, filterEntries, summarizeEntries } from "@/lib/finance";
@@ -17,6 +19,7 @@ type EntryFormMode = "expense" | "income";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry } = useFinance();
+  const { notify } = useToast();
   const isExpense = mode === "expense";
   const today = getTodayIso();
 
@@ -40,6 +43,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
     });
 
     event.currentTarget.reset();
+    notify(isExpense ? "Expense added successfully" : "Income added successfully");
     onDone?.();
   }
 
@@ -309,6 +313,7 @@ function Metric({ label, value, tone }: Readonly<{ label: string; value: string;
 
 function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; editable?: boolean }>) {
   const { deleteEntry, updateEntry } = useFinance();
+  const { notify } = useToast();
   const [editingId, setEditingId] = useState<number | null>(null);
 
   function saveEdit(entry: Entry, formData: FormData) {
@@ -322,6 +327,12 @@ function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; e
       note: entry.note,
     });
     setEditingId(null);
+    notify("Entry updated successfully", "info");
+  }
+
+  function handleDelete(id: number) {
+    deleteEntry(id);
+    notify("Entry deleted", "danger");
   }
 
   if (entries.length === 0) {
@@ -355,14 +366,14 @@ function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; e
                   <td className="px-4 py-3 capitalize">{e.type}</td>
                   <td className={e.type === "income" ? "px-4 py-3 font-bold text-[#22C55E]" : "px-4 py-3 font-bold text-[#EF4444]"}>{takaShort(e.amount)}</td>
                   <td className="px-4 py-3">{e.method}</td>
-                  <td className="px-4 py-3"><span className="flex gap-3 text-[#6C4CF1]">{editable && <button type="button" onClick={() => setEditingId(e.id)}><Edit2 size={16} /></button>}<button type="button" onClick={() => deleteEntry(e.id)}><Trash2 className="text-[#EF4444]" size={16} /></button></span></td>
+                  <td className="px-4 py-3"><span className="flex gap-3 text-[#6C4CF1]">{editable && <button type="button" onClick={() => setEditingId(e.id)}><Edit2 size={16} /></button>}<ConfirmDeleteButton onConfirm={() => handleDelete(e.id)} /></span></td>
                 </>
               )}
             </tr>
           ))}</tbody>
         </table>
       </div>
-      <div className="grid gap-3 md:hidden">{entries.map((e) => <Card key={e.id} className="p-4"><div className="flex justify-between gap-3"><div><b>{e.category}</b><p className="text-sm text-[#746d86]">{e.description} · {displayDate(e.date)}</p><p className="text-xs text-[#746d86]">{e.method} · {e.type}</p></div><strong className={e.type === "income" ? "text-[#22C55E]" : "text-[#EF4444]"}>{takaShort(e.amount)}</strong></div>{editable && <div className="mt-3 flex gap-3 text-[#6C4CF1]"><button type="button" onClick={() => setEditingId(e.id)}><Edit2 size={17} /></button><button type="button" onClick={() => deleteEntry(e.id)}><Trash2 className="text-[#EF4444]" size={17} /></button></div>}</Card>)}</div>
+      <div className="grid gap-3 md:hidden">{entries.map((e) => <Card key={e.id} className="p-4"><div className="flex justify-between gap-3"><div><b>{e.category}</b><p className="text-sm text-[#746d86]">{e.description} · {displayDate(e.date)}</p><p className="text-xs text-[#746d86]">{e.method} · {e.type}</p></div><strong className={e.type === "income" ? "text-[#22C55E]" : "text-[#EF4444]"}>{takaShort(e.amount)}</strong></div>{editable && <div className="mt-3 flex gap-3 text-[#6C4CF1]"><button type="button" onClick={() => setEditingId(e.id)}><Edit2 size={17} /></button><ConfirmDeleteButton onConfirm={() => handleDelete(e.id)} /></div>}</Card>)}</div>
     </>
   );
 }
