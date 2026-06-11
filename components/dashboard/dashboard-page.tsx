@@ -314,7 +314,8 @@ function PanelList({ title, action, children }: Readonly<{ title: string; action
 }
 
 export function DashboardPage() {
-  const { categories, entries } = useFinance();
+  const { categories, deleteSummaryRow, entries, hiddenSummaryDates } = useFinance();
+  const { notify } = useToast();
   const today = getTodayIso();
   const todaySummary = useMemo(() => summarizeEntries(entries, today), [entries, today]);
   const allSummary = useMemo(() => summarizeEntries(entries), [entries]);
@@ -387,14 +388,19 @@ export function DashboardPage() {
                   {[
                     { date: `${displayDate(today)} (Today)`, income: todaySummary.income, expense: todaySummary.expense, entries: todaySummary.entries, balance: todaySummary.balance },
                     ...monthlySummary.slice(1),
-                  ].map((row) => (
+                  ].filter((row) => !hiddenSummaryDates.includes(row.date)).map((row) => (
                     <tr className="border-b border-[#f0ecff]" key={row.date}>
                       <td className="px-4 py-3">{row.date}</td>
                       <td className="px-4 py-3">{row.income.toFixed(2)}</td>
                       <td className="px-4 py-3">{row.expense.toFixed(2)}</td>
                       <td className="px-4 py-3">{row.entries}</td>
                       <td className="px-4 py-3">{row.balance.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-[#6C4CF1]"><Eye size={16} /></td>
+                      <td className="px-4 py-3 text-[#6C4CF1]">
+                        <span className="flex items-center gap-3">
+                          <Eye size={16} />
+                          <ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.date); notify("Monthly summary row deleted", "danger"); }} />
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -7,6 +7,7 @@ import type { Entry, EntryType, PaymentMethod } from "@/types";
 
 const STORAGE_KEY = "daily-hisab.entries.v1";
 const CATEGORY_STORAGE_KEY = "daily-hisab.categories.v1";
+const SUMMARY_STORAGE_KEY = "daily-hisab.hidden-summary-dates.v1";
 
 type EntryInput = {
   date: string;
@@ -21,11 +22,14 @@ type EntryInput = {
 type FinanceStore = {
   entries: Entry[];
   categories: string[];
+  hiddenSummaryDates: string[];
   addEntry: (entry: EntryInput) => void;
   addCategory: (category: string) => boolean;
   updateEntry: (id: number, entry: EntryInput) => void;
   deleteEntry: (id: number) => void;
+  deleteSummaryRow: (date: string) => void;
   resetEntries: () => void;
+  resetAllData: () => void;
 };
 
 const FinanceContext = createContext<FinanceStore | null>(null);
@@ -49,6 +53,7 @@ function moveDemoEntriesToToday(entries: Entry[]) {
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [entries, setEntries] = useState<Entry[]>(() => moveDemoEntriesToToday(initialEntries));
   const [categories, setCategories] = useState<string[]>(initialCategories);
+  const [hiddenSummaryDates, setHiddenSummaryDates] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -61,6 +66,10 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       if (savedCategories) {
         setCategories(JSON.parse(savedCategories) as string[]);
       }
+      const savedHiddenSummaryDates = window.localStorage.getItem(SUMMARY_STORAGE_KEY);
+      if (savedHiddenSummaryDates) {
+        setHiddenSummaryDates(JSON.parse(savedHiddenSummaryDates) as string[]);
+      }
     } finally {
       setHydrated(true);
     }
@@ -70,13 +79,15 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
     if (hydrated) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
       window.localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
+      window.localStorage.setItem(SUMMARY_STORAGE_KEY, JSON.stringify(hiddenSummaryDates));
     }
-  }, [categories, entries, hydrated]);
+  }, [categories, entries, hiddenSummaryDates, hydrated]);
 
   const value = useMemo<FinanceStore>(
     () => ({
       entries,
       categories,
+      hiddenSummaryDates,
       addEntry: (entry) => {
         setEntries((current) => [
           {
@@ -110,11 +121,19 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       deleteEntry: (id) => {
         setEntries((current) => current.filter((entry) => entry.id !== id));
       },
+      deleteSummaryRow: (date) => {
+        setHiddenSummaryDates((current) => (current.includes(date) ? current : [...current, date]));
+      },
       resetEntries: () => {
         setEntries(moveDemoEntriesToToday(initialEntries));
       },
+      resetAllData: () => {
+        setEntries(moveDemoEntriesToToday(initialEntries));
+        setCategories(initialCategories);
+        setHiddenSummaryDates([]);
+      },
     }),
-    [categories, entries],
+    [categories, entries, hiddenSummaryDates],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

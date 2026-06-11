@@ -12,6 +12,7 @@ import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
 import { budgets, monthlySummary, paymentMethods, reminders } from "@/data/mock-data";
+import { exportDataJson, exportEntriesCsv, exportReportPdf } from "@/lib/export-data";
 import { buildCategoryExpense, buildExpenseTrend, filterEntries, summarizeEntries } from "@/lib/finance";
 import { displayDate, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod } from "@/types";
@@ -68,6 +69,13 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
   );
 }
 
+function buildSummaryRows(today: ReturnType<typeof summarizeEntries>, todayIso: string, hiddenSummaryDates: string[]) {
+  return [
+    { date: `${displayDate(todayIso)} (Today)`, income: today.income, expense: today.expense, entries: today.entries, balance: today.balance },
+    ...monthlySummary.slice(1),
+  ].filter((row) => !hiddenSummaryDates.includes(row.date));
+}
+
 export function ExpensePage() {
   return (
     <AppShell>
@@ -113,7 +121,7 @@ export function EntriesPage() {
 }
 
 export function IncomeExpensePage() {
-  const { entries } = useFinance();
+  const { entries, hiddenSummaryDates } = useFinance();
   const summary = summarizeEntries(entries);
   const today = getTodayIso();
 
@@ -131,7 +139,7 @@ export function IncomeExpensePage() {
       </Card>
       <Card className="mt-5 p-5">
         <h2 className="mb-4 text-lg font-bold">Monthly summary table</h2>
-        <SummaryTable today={summarizeEntries(entries, today)} todayIso={today} />
+        <SummaryTable rows={buildSummaryRows(summarizeEntries(entries, today), today, hiddenSummaryDates)} />
       </Card>
     </AppShell>
   );
@@ -211,22 +219,29 @@ export function CategoriesPage() {
 }
 
 export function ReportsPage() {
-  const { categories, entries } = useFinance();
+  const { categories, entries, hiddenSummaryDates } = useFinance();
+  const { notify } = useToast();
   const today = getTodayIso();
+  const summaryRows = buildSummaryRows(summarizeEntries(entries, today), today, hiddenSummaryDates);
+
+  function handlePdfExport() {
+    const exported = exportReportPdf(entries, summaryRows);
+    notify(exported ? "PDF export opened" : "Popup blocked. Allow popups to export PDF.", exported ? "success" : "danger");
+  }
 
   return (
     <AppShell>
       <PageTitle title="Reports" subtitle="Daily, weekly, monthly and yearly report" />
       <div className="mb-5 flex flex-wrap gap-3">
         {["Daily report", "Weekly report", "Monthly report", "Yearly report"].map((item) => <Button key={item} variant="outline">{item}</Button>)}
-        <Button><Download size={16} /> Export PDF</Button>
-        <Button variant="outline"><FileSpreadsheet size={16} /> Export Excel</Button>
+        <Button onClick={handlePdfExport}><Download size={16} /> Export PDF</Button>
+        <Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(entries)} /></Card>
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(entries, categories)} /></Card>
       </div>
-      <Card className="mt-5 p-5"><SummaryTable today={summarizeEntries(entries, today)} todayIso={today} /></Card>
+      <Card className="mt-5 p-5"><SummaryTable rows={summaryRows} /></Card>
     </AppShell>
   );
 }
@@ -294,11 +309,37 @@ export function NotesPage() {
 }
 
 export function SettingsPage() {
+  const { categories, entries, hiddenSummaryDates, resetAllData } = useFinance();
+  const { notify } = useToast();
+  const today = getTodayIso();
+  const summaryRows = buildSummaryRows(summarizeEntries(entries, today), today, hiddenSummaryDates);
+
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
       <div className="grid gap-5 lg:grid-cols-2">
-        {["Profile: Tanvir Ahmed", "Language: Bangla / English", "Light mode / Dark mode", "Currency: BDT ৳", "Export data", "Logout"].map((item) => <Card key={item} className="flex items-center justify-between p-5"><span className="font-semibold">{item}</span><Button variant="outline">Manage</Button></Card>)}
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Profile: Tanvir Ahmed</span><Button variant="outline">Manage</Button></Card>
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT ৳</span><Button variant="outline">Manage</Button></Card>
+        <Card className="flex items-center justify-between p-5">
+          <span className="font-semibold">Export data</span>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows }); notify("Data exported", "success"); }}>JSON</Button>
+            <Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button>
+          </div>
+        </Card>
+        <Card className="flex items-center justify-between p-5">
+          <span className="font-semibold">Reset all data</span>
+          <ConfirmDeleteButton
+            label="Reset all data"
+            triggerText="Reset"
+            onConfirm={() => {
+              resetAllData();
+              notify("Data reset successfully", "info");
+            }}
+          />
+        </Card>
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Logout</span><Button variant="outline">Manage</Button></Card>
       </div>
     </AppShell>
   );
@@ -379,9 +420,11 @@ function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; e
   );
 }
 
-function SummaryTable({ today, todayIso }: Readonly<{ today: ReturnType<typeof summarizeEntries>; todayIso: string }>) {
-  const rows = [{ date: `${displayDate(todayIso)} (Today)`, income: today.income, expense: today.expense, entries: today.entries, balance: today.balance }, ...monthlySummary.slice(1)];
-  return <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-[#fbfaff] text-xs text-[#746d86]"><tr>{["Date", "Income", "Expense", "Entries", "Balance"].map((h) => <th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.date} className="border-b border-[#f0ecff]"><td className="px-4 py-3">{row.date}</td><td className="px-4 py-3 text-[#22C55E]">{takaShort(row.income)}</td><td className="px-4 py-3 text-[#EF4444]">{takaShort(row.expense)}</td><td className="px-4 py-3">{row.entries}</td><td className="px-4 py-3 font-bold">{takaShort(row.balance)}</td></tr>)}</tbody></table></div>;
+function SummaryTable({ rows }: Readonly<{ rows: ReturnType<typeof buildSummaryRows> }>) {
+  const { deleteSummaryRow } = useFinance();
+  const { notify } = useToast();
+
+  return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-[#fbfaff] text-xs text-[#746d86]"><tr>{["Date", "Income", "Expense", "Entries", "Balance", "Action"].map((h) => <th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.date} className="border-b border-[#f0ecff]"><td className="px-4 py-3">{row.date}</td><td className="px-4 py-3 text-[#22C55E]">{takaShort(row.income)}</td><td className="px-4 py-3 text-[#EF4444]">{takaShort(row.expense)}</td><td className="px-4 py-3">{row.entries}</td><td className="px-4 py-3 font-bold">{takaShort(row.balance)}</td><td className="px-4 py-3"><ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.date); notify("Monthly summary row deleted", "danger"); }} /></td></tr>)}</tbody></table></div>;
 }
 
 function ListCards({ items, editable }: Readonly<{ items: string[]; editable?: boolean }>) {

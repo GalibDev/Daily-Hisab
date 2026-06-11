@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 export function ConfirmDeleteButton({
   onConfirm,
   label = "Delete entry",
-}: Readonly<{ onConfirm: () => void; label?: string }>) {
+  triggerText,
+}: Readonly<{ onConfirm: () => void; label?: string; triggerText?: string }>) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-label={label}>
+      <button type="button" onClick={() => setOpen(true)} aria-label={label} className={triggerText ? "inline-flex items-center gap-2 rounded-lg border border-[#fecaca] px-3 py-2 text-sm font-semibold text-[#EF4444]" : ""}>
         <Trash2 className="text-[#EF4444]" size={16} />
+        {triggerText}
       </button>
       {open && (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-[#161421]/35 px-4 backdrop-blur-sm">
