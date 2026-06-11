@@ -159,6 +159,50 @@ export function BudgetPage() {
   );
 }
 
+export function CategoriesPage() {
+  const { entries } = useFinance();
+  const categoryData = useMemo(() => buildCategoryExpense(entries), [entries]);
+
+  return (
+    <AppShell>
+      <PageTitle title="Categories" subtitle="Category-wise expense tracking and quick overview" />
+      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+        <Card className="p-5">
+          <h2 className="mb-4 text-lg font-bold">Expense Categories</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {categories.map((category) => {
+              const item = categoryData.find((data) => data.name === category);
+              const spent = item?.value ?? 0;
+
+              return (
+                <div key={category} className="rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-4">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="grid size-10 place-items-center rounded-lg bg-[#efeaff] text-[#6C4CF1]">
+                      <Receipt size={18} />
+                    </span>
+                    <div>
+                      <h3 className="font-bold">{category}</h3>
+                      <p className="text-sm text-[#746d86]">Monthly spent {takaShort(spent)}</p>
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#eeeafb]">
+                    <div className="h-full rounded-full bg-[#6C4CF1]" style={{ width: `${Math.min((spent / 5000) * 100, 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="mb-4 text-lg font-bold">Category Chart</h2>
+          <CategoryPieChart data={categoryData} />
+        </Card>
+      </div>
+    </AppShell>
+  );
+}
+
 export function ReportsPage() {
   const { entries } = useFinance();
 
