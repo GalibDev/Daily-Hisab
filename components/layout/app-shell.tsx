@@ -52,8 +52,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
   return (
     <div className="min-h-screen bg-[#F8F7FF] text-[#171424]">
-      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-[228px] flex-col border-r border-[#ece8ff] bg-white px-5 py-7 lg:flex">
-        <Link href="/" className="mb-10 flex items-center gap-3">
+      <aside className="thin-scrollbar fixed left-0 top-0 z-30 hidden h-screen w-[228px] flex-col overflow-y-auto border-r border-[#ece8ff] bg-white px-5 py-7 lg:flex">
+        <Link href="/" className="mb-8 flex items-center gap-3">
           <span className="grid size-12 place-items-center rounded-xl bg-[#6C4CF1] text-white shadow-lg shadow-[#6C4CF1]/25">
             <Wallet size={24} />
           </span>
@@ -63,7 +63,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </span>
         </Link>
 
-        <nav className="thin-scrollbar flex-1 space-y-1 overflow-y-auto pr-1">
+        <nav className="space-y-1 pr-1">
           {nav.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
