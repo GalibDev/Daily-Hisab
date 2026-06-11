@@ -140,80 +140,110 @@ function TodayEntries() {
   );
 }
 
-function RightPanel() {
+function DailySummaryCard() {
   return (
-    <aside className="grid gap-5">
-      <Card className="p-5">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Daily Summary</h2>
-          <MoreVertical size={18} />
+    <Card className="p-5">
+      <div className="mb-5 flex items-center justify-between">
+        <h2 className="text-lg font-bold">Daily Summary</h2>
+        <MoreVertical size={18} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr] lg:items-center">
+        <div>
+          <p className="text-sm text-[#746d86]">Date</p>
+          <p className="font-bold">20 May 2024 (Monday)</p>
         </div>
-        <p className="text-sm text-[#746d86]">Date</p>
-        <p className="mb-5 font-bold">20 May 2024 (Monday)</p>
-        <div className="space-y-5 border-y border-[#ece8ff] py-5 text-sm">
-          <p className="flex justify-between">Total Income <strong className="text-[#22C55E]">{taka(1250)}</strong></p>
-          <p className="flex justify-between">Total Expense <strong className="text-[#EF4444]">{taka(850)}</strong></p>
-          <p className="flex justify-between">Total Entries <strong>12</strong></p>
+        <div>
+          <p className="text-sm text-[#746d86]">Total Income</p>
+          <strong className="text-[#22C55E]">{taka(1250)}</strong>
         </div>
-        <p className="my-5 flex justify-between text-sm">Balance <strong className="text-xl text-[#22C55E]">{taka(400)}</strong></p>
-        <Button variant="outline" className="w-full">View All Entries <ArrowRight size={16} /></Button>
-      </Card>
+        <div>
+          <p className="text-sm text-[#746d86]">Total Expense</p>
+          <strong className="text-[#EF4444]">{taka(850)}</strong>
+        </div>
+        <div>
+          <p className="text-sm text-[#746d86]">Total Entries</p>
+          <strong>12</strong>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-1">
+          <div>
+            <p className="text-sm text-[#746d86]">Balance</p>
+            <strong className="text-xl text-[#22C55E]">{taka(400)}</strong>
+          </div>
+          <Button variant="outline" className="w-full">View All Entries <ArrowRight size={16} /></Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
-      <PanelList title="Budget Overview" action="This Month">
-        {budgets.map((budget) => {
-          const percent = Math.round((budget.spent / budget.limit) * 100);
-          return (
-            <div key={budget.category}>
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-semibold">{budget.category}</span>
-                <span>{takaShort(budget.spent)} / {budget.limit.toLocaleString()} <b className="ml-2">{percent}%</b></span>
-              </div>
-              <div className="h-2 rounded-full bg-[#eeeafb]"><div className="h-full rounded-full" style={{ width: `${percent}%`, background: budget.color }} /></div>
+function BudgetOverviewCard() {
+  return (
+    <PanelList title="Budget Overview" action="This Month">
+      {budgets.map((budget) => {
+        const percent = Math.round((budget.spent / budget.limit) * 100);
+        return (
+          <div key={budget.category}>
+            <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+              <span className="font-semibold">{budget.category}</span>
+              <span className="text-right">{takaShort(budget.spent)} / {budget.limit.toLocaleString()} <b className="ml-2">{percent}%</b></span>
             </div>
-          );
-        })}
-        <Button variant="outline" className="w-full">View All Budgets <ArrowRight size={16} /></Button>
-      </PanelList>
-
-      <PanelList title="Upcoming Reminders">
-        {reminders.map((reminder) => (
-          <div key={reminder.title} className="flex items-center gap-3 rounded-xl bg-[#fbfaff] p-3 text-sm">
-            <CalendarCheck className="text-[#6C4CF1]" size={18} />
-            <span className="mr-auto"><b className="block">{reminder.title}</b><small>{reminder.date}</small></span>
-            <span className="rounded-lg bg-[#efeaff] px-2 py-1 text-xs font-bold text-[#6C4CF1]">{reminder.time}</span>
+            <div className="h-2 rounded-full bg-[#eeeafb]"><div className="h-full rounded-full" style={{ width: `${percent}%`, background: budget.color }} /></div>
           </div>
-        ))}
-        <Button variant="outline" className="w-full">View All Reminders <ArrowRight size={16} /></Button>
-      </PanelList>
+        );
+      })}
+      <Button variant="outline" className="w-full">View All Budgets <ArrowRight size={16} /></Button>
+    </PanelList>
+  );
+}
 
-      <PanelList title="Recent Notes">
-        {notes.map((note) => (
-          <div key={note.title} className="rounded-xl bg-[#fbfaff] p-3 text-sm">
-            <b>{note.title}</b>
-            <p className="text-xs text-[#746d86]">{note.date}</p>
-          </div>
-        ))}
-        <Button variant="outline" className="w-full">View All Notes <ArrowRight size={16} /></Button>
-      </PanelList>
-
-      <PanelList title="Quick Actions">
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            ["Add Expense", Wallet],
-            ["Add Income", Banknote],
-            ["Add Budget", CalendarCheck],
-            ["Upload Receipt", Receipt],
-            ["Download PDF", Download],
-            ["Export Excel", FileText],
-          ].map(([label, Icon]) => (
-            <button key={String(label)} className="flex items-center gap-2 rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-3 text-sm font-medium">
-              {typeof Icon !== "string" && <Icon className="text-[#6C4CF1]" size={17} />}
-              {String(label)}
-            </button>
-          ))}
+function UpcomingRemindersCard() {
+  return (
+    <PanelList title="Upcoming Reminders">
+      {reminders.map((reminder) => (
+        <div key={reminder.title} className="flex items-center gap-3 rounded-xl bg-[#fbfaff] p-3 text-sm">
+          <CalendarCheck className="text-[#6C4CF1]" size={18} />
+          <span className="mr-auto"><b className="block">{reminder.title}</b><small>{reminder.date}</small></span>
+          <span className="rounded-lg bg-[#efeaff] px-2 py-1 text-xs font-bold text-[#6C4CF1]">{reminder.time}</span>
         </div>
-      </PanelList>
-    </aside>
+      ))}
+      <Button variant="outline" className="w-full">View All Reminders <ArrowRight size={16} /></Button>
+    </PanelList>
+  );
+}
+
+function RecentNotesCard() {
+  return (
+    <PanelList title="Recent Notes">
+      {notes.map((note) => (
+        <div key={note.title} className="rounded-xl bg-[#fbfaff] p-3 text-sm">
+          <b>{note.title}</b>
+          <p className="text-xs text-[#746d86]">{note.date}</p>
+        </div>
+      ))}
+      <Button variant="outline" className="w-full">View All Notes <ArrowRight size={16} /></Button>
+    </PanelList>
+  );
+}
+
+function QuickActionsCard() {
+  return (
+    <PanelList title="Quick Actions">
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          ["Add Expense", Wallet],
+          ["Add Income", Banknote],
+          ["Add Budget", CalendarCheck],
+          ["Upload Receipt", Receipt],
+          ["Download PDF", Download],
+          ["Export Excel", FileText],
+        ].map(([label, Icon]) => (
+          <button key={String(label)} className="flex items-center gap-2 rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-3 text-sm font-medium">
+            {typeof Icon !== "string" && <Icon className="text-[#6C4CF1]" size={17} />}
+            {String(label)}
+          </button>
+        ))}
+      </div>
+    </PanelList>
   );
 }
 
@@ -232,11 +262,10 @@ function PanelList({ title, action, children }: Readonly<{ title: string; action
 export function DashboardPage() {
   return (
     <AppShell>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid gap-5">
+      <div className="grid gap-5">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard title="Today&apos;s Expense" value={taka(850)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
-            <StatCard title="Today&apos;s Income" value={taka(1250)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
+            <StatCard title="Today's Expense" value={taka(850)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
+            <StatCard title="Today's Income" value={taka(1250)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
             <StatCard title="Total Entries Today" value="12" icon={<Receipt size={22} />} tone="bg-[#eaf6ff] text-[#38bdf8]" trend="up" />
             <StatCard title="This Month Expense" value={taka(18650)} icon={<CalendarCheck size={22} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
             <StatCard title="Balance" value={taka(6350)} icon={<Banknote size={22} />} tone="bg-[#ffeaf2] text-[#EF4444]" />
@@ -244,13 +273,15 @@ export function DashboardPage() {
 
           <ExpenseForm />
 
-          <div className="grid gap-5 xl:grid-cols-2">
+          <DailySummaryCard />
+
+          <div className="grid gap-5 xl:grid-cols-3">
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Expense by Category</h2>
                 <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
               </div>
-              <div className="grid items-center gap-4 md:grid-cols-[240px_1fr]">
+              <div className="grid items-center gap-4 2xl:grid-cols-[220px_1fr]">
                 <CategoryPieChart />
                 <div className="space-y-3 text-sm">
                   {categoryExpense.map((item) => (
@@ -270,6 +301,7 @@ export function DashboardPage() {
               </div>
               <ExpenseTrendChart />
             </Card>
+            <BudgetOverviewCard />
           </div>
 
           <TodayEntries />
@@ -305,8 +337,12 @@ export function DashboardPage() {
             </div>
             <Button variant="outline" className="mt-4 w-full">View All Reports <ArrowRight size={16} /></Button>
           </Card>
-        </div>
-        <RightPanel />
+
+          <div className="grid gap-5 xl:grid-cols-3">
+            <UpcomingRemindersCard />
+            <RecentNotesCard />
+            <QuickActionsCard />
+          </div>
       </div>
       <div className="mt-6 grid gap-3 rounded-xl bg-[#f0eaff] p-5 text-sm md:grid-cols-5">
         {["Secure & Private", "Cloud Backup", "Multi Platform", "Data Export", "24/7 Support"].map((item) => (
