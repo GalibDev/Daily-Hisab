@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   categories as initialCategories,
   entries as initialEntries,
@@ -9,23 +10,27 @@ import {
   todayIso as seedIso,
 } from "@/data/mock-data";
 import { getTodayIso } from "@/lib/utils";
-import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from "@/types";
+import {
+  createCategory,
+  createEntry,
+  createRecurringExpense,
+  createReminder,
+  loadFinanceData,
+  removeEntry,
+  removeRecurringExpense,
+  removeReminder,
+  saveEntry,
+  saveRecurringExpense,
+  saveReminder,
+  type EntryInput,
+} from "@/lib/supabase/finance";
+import type { Entry, RecurringExpense, Reminder } from "@/types";
 
 const STORAGE_KEY = "daily-hisab.entries.v1";
 const CATEGORY_STORAGE_KEY = "daily-hisab.categories.v1";
 const SUMMARY_STORAGE_KEY = "daily-hisab.hidden-summary-dates.v1";
 const RECURRING_STORAGE_KEY = "daily-hisab.recurring.v1";
 const REMINDER_STORAGE_KEY = "daily-hisab.reminders.v1";
-
-type EntryInput = {
-  date: string;
-  category: string;
-  description: string;
-  amount: number;
-  method: PaymentMethod;
-  type: EntryType;
-  note?: string;
-};
 
 type FinanceStore = {
   entries: Entry[];
@@ -47,6 +52,8 @@ type FinanceStore = {
   toggleReminder: (id: number) => void;
   resetEntries: () => void;
   resetAllData: () => void;
+  syncEnabled: boolean;
+  syncError: string | null;
 };
 
 const FinanceContext = createContext<FinanceStore | null>(null);
@@ -68,12 +75,14 @@ function moveDemoEntriesToToday(entries: Entry[]) {
 }
 
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { user } = useAuth();
   const [entries, setEntries] = useState<Entry[]>(() => moveDemoEntriesToToday(initialEntries));
   const [categories, setCategories] = useState<string[]>(initialCategories);
   const [hiddenSummaryDates, setHiddenSummaryDates] = useState<string[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>(initialRecurringExpenses);
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [hydrated, setHydrated] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -112,6 +121,24 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
     }
   }, [categories, entries, hiddenSummaryDates, hydrated, recurringExpenses, reminders]);
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    loadFinanceData(user.id)
+      .then((data) => {
+        if (data.entries.length > 0) setEntries(data.entries);
+        if (data.categories.length > 0) setCategories(data.categories);
+        if (data.reminders.length > 0) setReminders(data.reminders);
+        if (data.recurringExpenses.length > 0) setRecurringExpenses(data.recurringExpenses);
+        setSyncError(null);
+      })
+      .catch((error: unknown) => {
+        setSyncError(error instanceof Error ? error.message : "Supabase sync failed");
+      });
+  }, [user]);
+
   const value = useMemo<FinanceStore>(
     () => ({
       entries,
@@ -119,15 +146,17 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       hiddenSummaryDates,
       recurringExpenses,
       reminders,
+      syncEnabled: Boolean(user && !syncError),
+      syncError,
       addEntry: (entry) => {
-        setEntries((current) => [
-          {
-            ...entry,
-            id: Date.now(),
-            time: currentTime(),
-          },
-          ...current,
-        ]);
+        const optimistic = { ...entry, id: Date.now(), time: currentTime() };
+        setEntries((current) => [optimistic, ...current]);
+
+        if (user) {
+          createEntry(user.id, entry, optimistic.time)
+            .then((saved) => setEntries((current) => current.map((item) => (item.id === optimistic.id ? saved : item))))
+            .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry sync failed"));
+        }
       },
       addCategory: (category) => {
         const nextCategory = category.trim();
@@ -135,6 +164,9 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
           return false;
         }
         setCategories((current) => [...current, nextCategory]);
+        if (user) {
+          createCategory(user.id, nextCategory).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Category sync failed"));
+        }
         return true;
       },
       updateEntry: (id, entry) => {
@@ -148,30 +180,60 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
               : item,
           ),
         );
+        if (user) {
+          saveEntry(id, entry).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry update sync failed"));
+        }
       },
       deleteEntry: (id) => {
         setEntries((current) => current.filter((entry) => entry.id !== id));
+        if (user) {
+          removeEntry(id).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry delete sync failed"));
+        }
       },
       deleteSummaryRow: (date) => {
         setHiddenSummaryDates((current) => (current.includes(date) ? current : [...current, date]));
       },
       addRecurringExpense: (item) => {
-        setRecurringExpenses((current) => [{ ...item, id: Date.now() }, ...current]);
+        const optimistic = { ...item, id: Date.now() };
+        setRecurringExpenses((current) => [optimistic, ...current]);
+        if (user) {
+          createRecurringExpense(user.id, item)
+            .then((saved) => setRecurringExpenses((current) => current.map((expense) => (expense.id === optimistic.id ? saved : expense))))
+            .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Recurring sync failed"));
+        }
       },
       updateRecurringExpense: (id, item) => {
         setRecurringExpenses((current) => current.map((expense) => (expense.id === id ? { ...expense, ...item } : expense)));
+        if (user) {
+          saveRecurringExpense(id, item).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Recurring update sync failed"));
+        }
       },
       deleteRecurringExpense: (id) => {
         setRecurringExpenses((current) => current.filter((expense) => expense.id !== id));
+        if (user) {
+          removeRecurringExpense(id).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Recurring delete sync failed"));
+        }
       },
       addReminder: (item) => {
-        setReminders((current) => [{ ...item, id: Date.now() }, ...current]);
+        const optimistic = { ...item, id: Date.now() };
+        setReminders((current) => [optimistic, ...current]);
+        if (user) {
+          createReminder(user.id, item)
+            .then((saved) => setReminders((current) => current.map((reminder) => (reminder.id === optimistic.id ? saved : reminder))))
+            .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Reminder sync failed"));
+        }
       },
       updateReminder: (id, item) => {
         setReminders((current) => current.map((reminder) => (reminder.id === id ? { ...reminder, ...item } : reminder)));
+        if (user) {
+          saveReminder(id, item).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Reminder update sync failed"));
+        }
       },
       deleteReminder: (id) => {
         setReminders((current) => current.filter((reminder) => reminder.id !== id));
+        if (user) {
+          removeReminder(id).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Reminder delete sync failed"));
+        }
       },
       toggleReminder: (id) => {
         setReminders((current) =>
@@ -189,7 +251,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         setReminders(initialReminders);
       },
     }),
-    [categories, entries, hiddenSummaryDates, recurringExpenses, reminders],
+    [categories, entries, hiddenSummaryDates, recurringExpenses, reminders, syncError, user],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

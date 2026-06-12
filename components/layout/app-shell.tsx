@@ -25,6 +25,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/auth-provider";
 import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
 
 const nav = [
@@ -46,6 +47,7 @@ const nav = [
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
+  const { signOut, user } = useAuth();
   const today = getTodayIso();
   const current = nav.find((item) => item.href === pathname);
   const mobileTitles: Record<string, string> = {
@@ -128,9 +130,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </Link>
           </div>
 
-          <Link href="/settings" className="flex items-center gap-2 text-sm text-[#5c566d]">
-            <LogOut size={17} /> Logout
-          </Link>
+          {user ? (
+            <button onClick={() => void signOut()} className="flex items-center gap-2 text-sm text-[#5c566d]">
+              <LogOut size={17} /> Logout
+            </button>
+          ) : (
+            <Link href="/login" className="flex items-center gap-2 text-sm text-[#5c566d]">
+              <LogOut size={17} /> Login
+            </Link>
+          )}
         </div>
       </aside>
 

@@ -9,7 +9,7 @@ Daily Hisab is a responsive Bengali personal finance dashboard built with Next.j
 - Dashboard stats, daily summary, category pie chart, monthly expense trend, budget overview, reminders, notes, and quick actions
 - Add Expense and Add Income forms with Bengali categories and payment methods
 - All Entries, Income & Expense, Budget, Reports, Calendar, Recurring Expenses, Reminders, Receipts, Notes, and Settings pages
-- Local mock data first with Supabase-ready environment placeholders
+- Local mock fallback with Supabase Auth and user-scoped sync support
 
 ## Tech Stack
 
@@ -18,6 +18,7 @@ Daily Hisab is a responsive Bengali personal finance dashboard built with Next.j
 - Tailwind CSS
 - Lucide React
 - Recharts
+- Supabase
 
 ## Getting Started
 
@@ -34,13 +35,17 @@ Open `http://localhost:3000`.
 npm run build
 ```
 
-## Supabase Setup Later
+## Supabase Setup
 
-Add these variables when connecting the real database:
+Create `.env.local` with:
 
 ```env---------------------------------------------------------------------------------------------------------------------------------------------------
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-The current version uses `data/mock-data.ts` for all dashboard, charts, forms, and table content.
+Run `supabase/schema.sql` in the Supabase SQL editor before testing database sync.
+
+Important: never expose or commit the Supabase service role key. The app only uses the browser-safe publishable/anon key.
+
+When a user is logged in, entries, categories, recurring expenses, and reminders sync to Supabase. Without login or if the schema is not ready, the app keeps working with local mock/localStorage fallback.

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SupabaseAuthProvider } from "@/components/auth/auth-provider";
 import { FinanceProvider } from "@/components/state/finance-store";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="bn">
       <body>
         <ToastProvider>
-          <FinanceProvider>{children}</FinanceProvider>
+          <SupabaseAuthProvider>
+            <FinanceProvider>{children}</FinanceProvider>
+          </SupabaseAuthProvider>
         </ToastProvider>
       </body>
     </html>
