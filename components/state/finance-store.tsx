@@ -76,6 +76,7 @@ function moveDemoEntriesToToday(entries: Entry[]) {
 
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user } = useAuth();
+  const canSyncSupabase = false as boolean;
   const [entries, setEntries] = useState<Entry[]>(() => moveDemoEntriesToToday(initialEntries));
   const [categories, setCategories] = useState<string[]>(initialCategories);
   const [hiddenSummaryDates, setHiddenSummaryDates] = useState<string[]>([]);
@@ -122,7 +123,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
   }, [categories, entries, hiddenSummaryDates, hydrated, recurringExpenses, reminders]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !canSyncSupabase) {
       return;
     }
 
@@ -137,7 +138,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       .catch((error: unknown) => {
         setSyncError(error instanceof Error ? error.message : "Supabase sync failed");
       });
-  }, [user]);
+  }, [canSyncSupabase, user]);
 
   const value = useMemo<FinanceStore>(
     () => ({
@@ -146,13 +147,13 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       hiddenSummaryDates,
       recurringExpenses,
       reminders,
-      syncEnabled: Boolean(user && !syncError),
+      syncEnabled: Boolean(user && canSyncSupabase && !syncError),
       syncError,
       addEntry: (entry) => {
         const optimistic = { ...entry, id: Date.now(), time: currentTime() };
         setEntries((current) => [optimistic, ...current]);
 
-        if (user) {
+        if (user && canSyncSupabase) {
           createEntry(user.id, entry, optimistic.time)
             .then((saved) => setEntries((current) => current.map((item) => (item.id === optimistic.id ? saved : item))))
             .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry sync failed"));
@@ -164,7 +165,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
           return false;
         }
         setCategories((current) => [...current, nextCategory]);
-        if (user) {
+        if (user && canSyncSupabase) {
           createCategory(user.id, nextCategory).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Category sync failed"));
         }
         return true;
@@ -180,13 +181,13 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
               : item,
           ),
         );
-        if (user) {
+        if (user && canSyncSupabase) {
           saveEntry(id, entry).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry update sync failed"));
         }
       },
       deleteEntry: (id) => {
         setEntries((current) => current.filter((entry) => entry.id !== id));
-        if (user) {
+        if (user && canSyncSupabase) {
           removeEntry(id).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry delete sync failed"));
         }
       },
@@ -196,7 +197,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       addRecurringExpense: (item) => {
         const optimistic = { ...item, id: Date.now() };
         setRecurringExpenses((current) => [optimistic, ...current]);
-        if (user) {
+        if (user && canSyncSupabase) {
           createRecurringExpense(user.id, item)
             .then((saved) => setRecurringExpenses((current) => current.map((expense) => (expense.id === optimistic.id ? saved : expense))))
             .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Recurring sync failed"));
@@ -204,20 +205,20 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       },
       updateRecurringExpense: (id, item) => {
         setRecurringExpenses((current) => current.map((expense) => (expense.id === id ? { ...expense, ...item } : expense)));
-        if (user) {
+        if (user && canSyncSupabase) {
           saveRecurringExpense(id, item).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Recurring update sync failed"));
         }
       },
       deleteRecurringExpense: (id) => {
         setRecurringExpenses((current) => current.filter((expense) => expense.id !== id));
-        if (user) {
+        if (user && canSyncSupabase) {
           removeRecurringExpense(id).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Recurring delete sync failed"));
         }
       },
       addReminder: (item) => {
         const optimistic = { ...item, id: Date.now() };
         setReminders((current) => [optimistic, ...current]);
-        if (user) {
+        if (user && canSyncSupabase) {
           createReminder(user.id, item)
             .then((saved) => setReminders((current) => current.map((reminder) => (reminder.id === optimistic.id ? saved : reminder))))
             .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Reminder sync failed"));
@@ -225,13 +226,13 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       },
       updateReminder: (id, item) => {
         setReminders((current) => current.map((reminder) => (reminder.id === id ? { ...reminder, ...item } : reminder)));
-        if (user) {
+        if (user && canSyncSupabase) {
           saveReminder(id, item).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Reminder update sync failed"));
         }
       },
       deleteReminder: (id) => {
         setReminders((current) => current.filter((reminder) => reminder.id !== id));
-        if (user) {
+        if (user && canSyncSupabase) {
           removeReminder(id).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Reminder delete sync failed"));
         }
       },
@@ -251,7 +252,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         setReminders(initialReminders);
       },
     }),
-    [categories, entries, hiddenSummaryDates, recurringExpenses, reminders, syncError, user],
+    [canSyncSupabase, categories, entries, hiddenSummaryDates, recurringExpenses, reminders, syncError, user],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

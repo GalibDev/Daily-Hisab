@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Bell,
@@ -175,9 +176,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <span className="absolute right-2 top-2 grid size-4 place-items-center rounded-full bg-[#EF4444] text-[10px] text-white">3</span>
             </button>
             <div className="hidden items-center gap-3 md:flex">
-              <div className="grid size-11 place-items-center rounded-full bg-[#f0d3c1] text-sm font-bold">TA</div>
+              <div className="grid size-11 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
+                {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={44} height={44} className="size-full object-cover" /> : "TA"}
+              </div>
               <div>
-                <p className="text-sm font-bold">Tanvir Ahmed</p>
+                <p className="text-sm font-bold">{user?.name ?? "Tanvir Ahmed"}</p>
                 <p className="text-xs text-[#22C55E]">Free Plan</p>
               </div>
             </div>

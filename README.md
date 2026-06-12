@@ -9,7 +9,7 @@ Daily Hisab is a responsive Bengali personal finance dashboard built with Next.j
 - Dashboard stats, daily summary, category pie chart, monthly expense trend, budget overview, reminders, notes, and quick actions
 - Add Expense and Add Income forms with Bengali categories and payment methods
 - All Entries, Income & Expense, Budget, Reports, Calendar, Recurring Expenses, Reminders, Receipts, Notes, and Settings pages
-- Local mock fallback with Supabase Auth and user-scoped sync support
+- Local mock fallback with Firebase login/register, Google sign-in, and profile image upload
 
 ## Tech Stack
 
@@ -18,6 +18,8 @@ Daily Hisab is a responsive Bengali personal finance dashboard built with Next.j
 - Tailwind CSS
 - Lucide React
 - Recharts
+- Firebase Auth
+- Firebase Storage
 - Supabase
 
 ## Getting Started
@@ -48,4 +50,20 @@ Run `supabase/schema.sql` in the Supabase SQL editor before testing database syn
 
 Important: never expose or commit the Supabase service role key. The app only uses the browser-safe publishable/anon key.
 
-When a user is logged in, entries, categories, recurring expenses, and reminders sync to Supabase. Without login or if the schema is not ready, the app keeps working with local mock/localStorage fallback.
+The current app keeps finance records in local mock/localStorage fallback while Firebase handles authentication and profile images. The Supabase schema is kept for a future database-sync step.
+
+## Firebase Setup
+
+Create `.env.local` with:
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
+```
+
+Firebase is used for email/password login, register, Google sign-in, and profile image upload to Storage. Enable Email/Password and Google providers in Firebase Authentication, and enable Firebase Storage before testing uploads.

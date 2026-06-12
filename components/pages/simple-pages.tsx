@@ -3,7 +3,9 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Bell, CalendarDays, CheckCircle2, ChevronRight, Download, Edit2, FileSpreadsheet, Plus, Receipt, Trash2, Upload, User } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
+import { ProfileImageUploader } from "@/components/auth/profile-image-uploader";
 import { AppShell } from "@/components/layout/app-shell";
 import { CategorySelect } from "@/components/entries/category-select";
 import { useFinance } from "@/components/state/finance-store";
@@ -408,15 +410,18 @@ export function SettingsPage() {
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
       <div className="grid gap-3 md:hidden">
         <Card className="flex items-center gap-3 bg-[#fbfaff] p-4">
-          <div className="grid size-12 place-items-center rounded-full bg-[#f0d3c1] text-sm font-bold">TA</div>
+          <div className="grid size-12 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
+            {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={48} height={48} className="size-full object-cover" /> : "TA"}
+          </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold">{user?.email ? "Supabase User" : "Tanvir Ahmed"}</p>
+            <p className="font-bold">{user?.name ?? (user?.email ? "Firebase User" : "Tanvir Ahmed")}</p>
             <p className="truncate text-xs text-[#746d86]">{user?.email ?? "Local mock mode"}</p>
           </div>
           <span className={syncEnabled ? "rounded-lg bg-[#eafbf0] px-3 py-1 text-xs font-bold text-[#22C55E]" : "rounded-lg bg-[#efeaff] px-3 py-1 text-xs font-bold text-[#6C4CF1]"}>
             {syncEnabled ? "Synced" : "Local"}
           </span>
         </Card>
+        {user && <ProfileImageUploader />}
         {syncError && <div className="rounded-xl bg-[#fff4e2] p-3 text-xs font-medium text-[#8a5a00]">{syncError}</div>}
         {[
           ["Profile", User],
@@ -441,13 +446,19 @@ export function SettingsPage() {
         )}
       </div>
       <div className="hidden gap-5 md:grid lg:grid-cols-2">
-        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Profile: Tanvir Ahmed</span><Button variant="outline">Manage</Button></Card>
+        <Card className="p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="font-semibold">Profile: {user?.name ?? user?.email ?? "Tanvir Ahmed"}</span>
+            {!user && <Link href="/login"><Button variant="outline">Login</Button></Link>}
+          </div>
+          {user && <ProfileImageUploader />}
+        </Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT ৳</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Export data</span><div className="flex gap-2"><Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>JSON</Button><Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button></div></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Reset all data</span><ConfirmDeleteButton label="Reset all data" triggerText="Reset" onConfirm={() => { resetAllData(); notify("Data reset successfully", "info"); }} /></Card>
         <Card className="flex items-center justify-between p-5">
-          <span className="font-semibold">{user ? `Logged in: ${user.email}` : "Login to Supabase"}</span>
+          <span className="font-semibold">{user ? `Logged in: ${user.email}` : "Login to Firebase"}</span>
           {user ? <Button variant="outline" onClick={() => void signOut()}>Logout</Button> : <Link href="/login"><Button variant="outline">Login</Button></Link>}
         </Card>
       </div>
