@@ -38,7 +38,7 @@ npm run build
 
 Add these variables when connecting the real database:
 
-```env
+```env---------------------------------------------------------------------------------------------------------------------------------------------------
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
