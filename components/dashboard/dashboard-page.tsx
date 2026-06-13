@@ -6,16 +6,20 @@ import { useMemo, useState } from "react";
 import {
   ArrowRight,
   Banknote,
+  BookOpen,
+  Bus,
   CalendarCheck,
   Download,
   Edit2,
   Eye,
   FileText,
+  MoreHorizontal,
   MoreVertical,
   Plus,
   Receipt,
   TrendingDown,
   TrendingUp,
+  Utensils,
   Upload,
   Wallet,
 } from "lucide-react";
@@ -359,21 +363,22 @@ function PanelList({ title, action, children }: Readonly<{ title: string; action
   );
 }
 
-function MobileMetricCard({
-  label,
-  value,
+function MobileStatCard({
   icon,
-  tone,
-}: Readonly<{ label: string; value: string; icon: React.ReactNode; tone: string }>) {
+  label,
+  meta,
+  value,
+}: Readonly<{ icon: React.ReactNode; label: string; meta: React.ReactNode; value: string }>) {
   return (
-    <Card className="min-h-[92px] p-3">
-      <div className="flex items-start gap-3">
-        <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${tone}`}>{icon}</span>
-        <span>
-          <span className="block text-[11px] font-medium leading-4 text-[#746d86]">{label}</span>
-          <strong className="mt-1 block text-base">{value}</strong>
-        </span>
+    <Card className="min-h-[132px] overflow-hidden rounded-[18px] border-[#eef0f8] p-3 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+      <div className="mb-4 grid gap-2">
+        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#f3f7ff] text-[#0d2c88]">{icon}</span>
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-semibold text-[#59627a]">{label}</p>
+          <strong className="mt-1 block whitespace-nowrap text-[16px] font-extrabold text-[#111936]">{value}</strong>
+        </div>
       </div>
+      <div className="text-[10px] leading-4 text-[#6c7287]">{meta}</div>
     </Card>
   );
 }
@@ -381,70 +386,120 @@ function MobileMetricCard({
 function MobileDashboard({
   allSummary,
   categoryData,
+  entries,
   monthExpense,
-  today,
-  todaySummary,
 }: Readonly<{
   allSummary: ReturnType<typeof summarizeEntries>;
   categoryData: ReturnType<typeof buildCategoryExpense>;
+  entries: Entry[];
   monthExpense: number;
-  today: string;
-  todaySummary: ReturnType<typeof summarizeEntries>;
 }>) {
+  const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const recentExpenses = expenseEntries.slice(0, 5);
+  const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
+  const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
+  const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
+  const shortcutIcons = [Utensils, Bus, Receipt, BookOpen, MoreHorizontal];
+  const shortcutTones = ["bg-[#fff5ec] text-[#f59e0b]", "bg-[#f0f5ff] text-[#0d4fb8]", "bg-[#fff2ed] text-[#f97316]", "bg-[#f5efff] text-[#6d5adf]", "bg-[#f2f6ff] text-[#0d2c88]"];
+  const shortcuts = (categoryData.length > 0 ? categoryData.map((item) => item.name) : ["Add", "Income", "Entries", "Reports", "Others"]).slice(0, 5);
+  const shortcutHrefs = ["/add-expense", "/add-income", "/entries", "/reports", "/settings"];
+  const totalCategoryValue = categoryData.reduce((sum, item) => sum + item.value, 0);
+
   return (
-    <div className="grid gap-4 lg:hidden">
-      <section className="rounded-xl bg-[#6C4CF1] p-4 text-white shadow-[0_18px_36px_rgba(108,76,241,0.25)]">
-        <div className="mb-5 flex items-start justify-between">
-          <div>
-            <p className="text-sm font-bold">Today&apos;s Summary</p>
-            <p className="text-xs text-white/75">{displayDateLong(today)}</p>
+    <div className="grid gap-4 bg-white pb-6 lg:hidden">
+      <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
+        <div className="grid grid-cols-[1fr_112px] gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-white/80">Total Expense</p>
+            <strong className="mt-1 block text-[28px] font-extrabold leading-tight">{taka(monthExpense)}</strong>
+            <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-xs font-bold text-white/90">Today</span>
+            <div className="mt-3 h-12 rounded-xl bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,0.06)_100%)]">
+              <svg viewBox="0 0 220 52" className="h-full w-full" aria-hidden="true">
+                <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9" fill="none" stroke="rgba(255,255,255,.86)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9 L217 52 L3 52 Z" fill="url(#mobileChartFill)" />
+                <circle cx="165" cy="10" r="4" fill="#ff8a1d" />
+                <defs><linearGradient id="mobileChartFill" x1="0" y1="0" x2="0" y2="1"><stop stopColor="rgba(255,255,255,.28)" /><stop offset="1" stopColor="rgba(255,255,255,0)" /></linearGradient></defs>
+              </svg>
+            </div>
           </div>
-          <CalendarCheck size={18} />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-white/75">Total Expense</p>
-            <strong className="mt-1 block text-lg">{taka(todaySummary.expense)}</strong>
-          </div>
-          <div>
-            <p className="text-xs text-white/75">Total Income</p>
-            <strong className="mt-1 block text-lg">{taka(todaySummary.income)}</strong>
-          </div>
-          <div>
-            <p className="text-xs text-white/75">Balance</p>
-            <strong className="mt-1 block text-lg text-[#7CFFB2]">{taka(todaySummary.balance)}</strong>
-          </div>
-          <div>
-            <p className="text-xs text-white/75">Month Balance</p>
-            <strong className="mt-1 block text-lg text-[#7CFFB2]">{taka(allSummary.balance)}</strong>
+          <div className="grid content-center gap-5">
+            <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/12 ring-1 ring-white/15"><Wallet size={36} /></div>
+            <div>
+              <p className="text-xs font-semibold text-white/80">Daily Average</p>
+              <strong className="mt-1 block text-base">{takaShort(dailyAverage)}</strong>
+            </div>
+            <div className="border-t border-white/15 pt-3">
+              <p className="text-xs font-semibold text-white/80">This Month</p>
+              <strong className="mt-1 block text-base">{takaShort(allSummary.expense)}</strong>
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <MobileMetricCard label="Total Entries" value={String(todaySummary.entries)} icon={<Receipt size={18} />} tone="bg-[#eaf6ff] text-[#38bdf8]" />
-        <MobileMetricCard label="This Month Expense" value={takaShort(monthExpense)} icon={<CalendarCheck size={18} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
-        <MobileMetricCard label="Average Day Expense" value={takaShort(todaySummary.expense)} icon={<Wallet size={18} />} tone="bg-[#eaf6ff] text-[#38bdf8]" />
-        <MobileMetricCard label="Budget Status" value={todaySummary.expense <= todaySummary.income ? "Good" : "Warning"} icon={<Banknote size={18} />} tone="bg-[#eafbf0] text-[#22C55E]" />
+      <Card className="rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="grid grid-cols-5 gap-2">
+          {shortcuts.map((label, index) => {
+            const Icon = shortcutIcons[index] ?? MoreHorizontal;
+            return (
+              <Link key={`${label}-${index}`} href={shortcutHrefs[index] ?? "/settings"} className="grid justify-items-center gap-2 text-center">
+                <span className={`grid size-12 place-items-center rounded-2xl ${shortcutTones[index] ?? shortcutTones[4]}`}><Icon size={22} /></span>
+                <span className="line-clamp-2 text-[11px] font-bold leading-4 text-[#20263a]">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-3">
+        <MobileStatCard icon={<Wallet size={22} />} label="Total Expense" value={takaShort(allSummary.expense)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Current data</span></>} />
+        <MobileStatCard icon={<CalendarCheck size={22} />} label="Total Days" value={totalDaysLabel} meta={<><span>Expenses Added</span><br /><span>from your entries</span></>} />
+        <MobileStatCard icon={<TrendingUp size={22} />} label="Daily Average" value={takaShort(dailyAverage)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Live total</span></>} />
       </div>
 
-      <Card className="p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-bold">Expense by Category <span className="font-medium text-[#746d86]">(This Month)</span></h2>
-          <ArrowRight size={16} className="text-[#746d86]" />
+      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-[#111936]">Recent Expenses</h2>
+          <Link href="/entries" className="text-xs font-bold text-[#0d2c88]">View All</Link>
         </div>
-        <div className="h-[210px]">
-          <CategoryPieChart data={categoryData} />
+        <div className="divide-y divide-[#eef0f8]">
+          {recentExpenses.map((entry, index) => {
+            const Icon = shortcutIcons[index] ?? Receipt;
+            return (
+              <div key={entry.id} className="flex items-center gap-3 py-3 first:pt-0">
+                <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${shortcutTones[index] ?? shortcutTones[0]}`}><Icon size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-extrabold text-[#18203a]">{entry.category}</p>
+                  <p className="truncate text-[11px] text-[#69718a]">{displayDate(entry.date)} · {entry.time}</p>
+                </div>
+                <strong className="text-sm text-[#111936]">{takaShort(entry.amount)}</strong>
+              </div>
+            );
+          })}
+          {recentExpenses.length === 0 && <div className="rounded-2xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-medium text-[#69718a]">No expenses yet.</div>}
         </div>
-        <div className="mt-2 grid gap-2 text-xs">
-          {categoryData.slice(0, 5).map((item) => (
-            <div key={item.name} className="flex items-center gap-2">
-              <span className="size-2 rounded-full" style={{ background: item.fill }} />
-              <span className="mr-auto truncate">{item.name}</span>
-              <strong>{takaShort(item.value)}</strong>
+        <Link href="/add-expense" className="mt-4 flex h-11 items-center justify-center gap-3 rounded-xl bg-[#f3f1ff] text-sm font-extrabold text-[#0d2c88]"><Plus size={19} /> Add Expense</Link>
+      </Card>
+
+      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-[#111936]">This Month Overview</h2>
+          <span className="text-xs font-semibold text-[#69718a]">{new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span>
+        </div>
+        {categoryData.length > 0 ? (
+          <div className="grid grid-cols-[150px_1fr] items-center gap-3">
+            <div className="relative grid aspect-square place-items-center rounded-full" style={{ background: `conic-gradient(${categoryData.map((item, index) => { const start = categoryData.slice(0, index).reduce((sum, cat) => sum + (cat.value / totalCategoryValue) * 100, 0); const end = categoryData.slice(0, index + 1).reduce((sum, cat) => sum + (cat.value / totalCategoryValue) * 100, 0); return `${item.fill} ${start}% ${end}%`; }).join(", ")})` }}>
+              <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-inner"><span><b className="block text-lg">{takaShort(totalCategoryValue)}</b><small>Total</small></span></div>
             </div>
-          ))}
-        </div>
+            <div className="grid gap-3 text-xs">
+              {categoryData.slice(0, 5).map((item) => {
+                const percent = totalCategoryValue > 0 ? Math.round((item.value / totalCategoryValue) * 100) : 0;
+                return <div key={item.name} className="grid grid-cols-[1fr_auto_auto] items-center gap-3"><span className="flex min-w-0 items-center gap-2"><i className="size-2.5 shrink-0 rounded-full" style={{ background: item.fill }} /><span className="truncate">{item.name}</span></span><span>{percent}%</span><strong>{takaShort(item.value)}</strong></div>;
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-medium text-[#69718a]">No overview data yet.</div>
+        )}
       </Card>
     </div>
   );
@@ -463,7 +518,7 @@ export function DashboardPage() {
 
   return (
     <AppShell>
-      <MobileDashboard allSummary={allSummary} categoryData={categoryData} monthExpense={monthExpense} today={today} todaySummary={todaySummary} />
+      <MobileDashboard allSummary={allSummary} categoryData={categoryData} entries={entries} monthExpense={monthExpense} />
 
       <div className="hidden gap-4 lg:grid">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Bell,
   CalendarDays,
   ChartColumn,
@@ -144,19 +145,30 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         </div>
       </aside>
 
-      <main className="pb-20 lg:ml-[228px] lg:pb-0">
-        <header className="sticky top-0 z-20 border-b border-[#ece8ff]/80 bg-white/95 px-4 py-3 backdrop-blur md:px-7 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4">
+      <main className="pb-28 lg:ml-[228px] lg:pb-0">
+        <header className="sticky top-0 z-20 bg-white px-6 py-4 md:px-7 lg:border-b lg:border-[#ece8ff]/80 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4 lg:backdrop-blur">
           <div className="flex items-center gap-4 lg:hidden">
-            <Link href={isHome ? "/settings" : "/"} className="grid size-9 place-items-center rounded-lg text-[#171424]">
+            <Link href={isHome ? "/settings" : "/"} className="grid size-9 place-items-center rounded-lg text-[#111936]">
               {isHome ? <Menu size={21} /> : <ArrowLeft size={21} />}
             </Link>
-            <div className="min-w-0 flex-1 text-center">
-              <h1 className="truncate text-sm font-bold">{mobileTitle}</h1>
-              {isHome && <p className="text-[11px] font-medium text-[#746d86]">Your Daily Tracker</p>}
-            </div>
-            <Link href={mobileActionHref} className="relative grid size-9 place-items-center rounded-lg text-[#171424]">
+            {isHome ? (
+              <Link href="/" className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#11298f] text-white shadow-[0_8px_18px_rgba(17,41,143,0.22)]">
+                  <Wallet size={23} />
+                </span>
+                <span className="min-w-0">
+                  <strong className="block truncate text-[22px] leading-6 text-[#111936]">Daily <span className="text-[#f97316]">hisab</span></strong>
+                  <small className="block truncate text-[11px] font-semibold text-[#59627a]">Your Daily Expense Tracker</small>
+                </span>
+              </Link>
+            ) : (
+              <div className="min-w-0 flex-1 text-center">
+                <h1 className="truncate text-sm font-bold">{mobileTitle}</h1>
+              </div>
+            )}
+            <Link href={mobileActionHref} className="relative grid size-9 place-items-center rounded-lg text-[#111936]">
               {pathname === "/budget" || pathname === "/reminders" ? <Plus size={21} /> : <Bell size={19} />}
-              {pathname !== "/budget" && pathname !== "/reminders" && <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-[#EF4444] text-[10px] text-white">3</span>}
+              {pathname !== "/budget" && pathname !== "/reminders" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
             </Link>
           </div>
 
@@ -187,23 +199,26 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </div>
           </div>
         </header>
-        <div className="mx-auto max-w-[480px] px-4 py-4 md:px-7 lg:max-w-none lg:px-8 lg:py-5">{children}</div>
+        <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">{children}</div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 mx-auto grid max-w-[480px] grid-cols-4 border-t border-[#ece8ff] bg-white px-4 pb-3 pt-2 shadow-[0_-10px_25px_rgba(47,35,110,0.08)] lg:hidden">
+      <nav className="fixed bottom-3 left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-5 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] lg:hidden">
         {[
           { href: "/", label: "Home", icon: Home },
-          { href: "/add-expense", label: "Add", icon: Plus },
-          { href: "/reports", label: "Reports", icon: ChartColumn },
-          { href: "/settings", label: "More", icon: Menu },
+          { href: "/reports", label: "Reports", icon: BarChart3 },
+          { href: "/add-expense", label: "Add", icon: Plus, primary: true },
+          { href: "/calendar", label: "Calendar", icon: CalendarDays },
+          { href: "/settings", label: "Profile", icon: Settings },
         ].map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
 
           return (
-            <Link key={item.href} href={item.href} className={cn("grid justify-items-center gap-1 text-[10px] font-semibold", active ? "text-[#6C4CF1]" : "text-[#817a91]")}>
-              <Icon size={20} />
-              {item.label}
+            <Link key={item.href} href={item.href} className={cn("grid justify-items-center gap-1 text-[10px] font-semibold", item.primary ? "-mt-9 text-[#11298f]" : active ? "text-[#11298f]" : "text-[#111936]")}>
+              <span className={cn("grid place-items-center", item.primary ? "size-16 rounded-full bg-[#11298f] text-white shadow-[0_12px_22px_rgba(17,41,143,0.25)]" : "size-6")}>
+                <Icon size={item.primary ? 31 : 22} />
+              </span>
+              <span>{item.label}</span>
             </Link>
           );
         })}
