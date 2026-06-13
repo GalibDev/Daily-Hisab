@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Bell, CalendarDays, CheckCircle2, ChevronRight, Download, Edit2, FileSpreadsheet, Plus, Receipt, Upload, User } from "lucide-react";
+import { Bell, Bus, CalendarDays, CheckCircle2, ChevronRight, Download, Edit2, FileSpreadsheet, Plus, Receipt, Upload, User, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -245,8 +245,8 @@ export function CalendarPage() {
   return (
     <AppShell>
       <PageTitle title="Calendar" subtitle="Select date and see expense entries" />
-      <MobileCalendar selectedDate={selectedDate} setSelectedDate={setSelectedDate} summary={selectedSummary} />
-      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+      <MobileCalendar entries={entries} selectedDate={selectedDate} selectedEntries={selectedEntries} setSelectedDate={setSelectedDate} summary={selectedSummary} />
+      <div className="hidden gap-5 md:grid lg:grid-cols-[360px_1fr]">
         <Card className="hidden p-5 md:block"><input type="date" className={inputClass} value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} /><div className="mt-5 rounded-xl bg-[#f4f1ff] p-5 text-center"><CalendarDays className="mx-auto mb-2 text-[#6C4CF1]" /><p className="text-sm">Selected date expense total</p><strong className="text-2xl text-[#EF4444]">{taka(selectedSummary.expense)}</strong></div></Card>
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">{displayDate(selectedDate)} entries</h2><ResponsiveEntries entries={selectedEntries} editable /></Card>
       </div>
@@ -474,29 +474,55 @@ export function SettingsPage() {
   );
 }
 
+function getExpenseTone(amount: number) {
+  if (amount <= 0) return "bg-[#c6cada]";
+  if (amount <= 500) return "bg-[#2563eb]";
+  if (amount <= 1500) return "bg-[#f59e0b]";
+  return "bg-[#ef4444]";
+}
+
 function MobileCalendar({
+  entries,
   selectedDate,
+  selectedEntries,
   setSelectedDate,
   summary,
 }: Readonly<{
+  entries: Entry[];
   selectedDate: string;
+  selectedEntries: Entry[];
   setSelectedDate: (date: string) => void;
   summary: ReturnType<typeof summarizeEntries>;
 }>) {
   const selected = new Date(`${selectedDate}T00:00:00`);
   const year = selected.getFullYear();
   const month = selected.getMonth();
-  const monthName = selected.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = selected.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const firstDay = new Date(year, month, 1).getDay();
   const totalDays = new Date(year, month + 1, 0).getDate();
+  const prevMonthDays = new Date(year, month, 0).getDate();
+  const currentMonth = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const monthEntries = entries.filter((entry) => entry.type === "expense" && entry.date.startsWith(currentMonth));
+  const monthTotal = monthEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const dailyTotals = monthEntries.reduce<Record<string, number>>((acc, entry) => {
+    acc[entry.date] = (acc[entry.date] ?? 0) + entry.amount;
+    return acc;
+  }, {});
+  const selectedExpenseEntries = selectedEntries.filter((entry) => entry.type === "expense");
   const cells = [
-    ...Array.from({ length: firstDay }, (_, index) => ({ key: `blank-${index}`, day: 0 })),
-    ...Array.from({ length: totalDays }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 })),
+    ...Array.from({ length: firstDay }, (_, index) => ({ key: `prev-${index}`, day: prevMonthDays - firstDay + index + 1, muted: true, iso: "" })),
+    ...Array.from({ length: totalDays }, (_, index) => {
+      const day = index + 1;
+      const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return { key: iso, day, muted: false, iso };
+    }),
   ];
-
-  function toIso(day: number) {
-    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
+  const trailingCells = (7 - (cells.length % 7)) % 7;
+  const calendarCells = [
+    ...cells,
+    ...Array.from({ length: trailingCells }, (_, index) => ({ key: `next-${index}`, day: index + 1, muted: true, iso: "" })),
+  ];
+  const entryIcons = [Receipt, Bus, Wallet, CalendarDays];
 
   function changeMonth(offset: number) {
     const next = new Date(year, month + offset, 1);
@@ -504,40 +530,74 @@ function MobileCalendar({
   }
 
   return (
-    <div className="mb-5 grid gap-4 md:hidden">
-      <Card className="p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <button type="button" onClick={() => changeMonth(-1)} className="text-lg text-[#746d86]">{`<`}</button>
-          <h2 className="text-sm font-bold">{monthName}</h2>
-          <button type="button" onClick={() => changeMonth(1)} className="text-lg text-[#746d86]">{`>`}</button>
+    <div className="grid gap-5 pb-2 md:hidden">
+      <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <button type="button" onClick={() => changeMonth(0)} className="mb-5 inline-flex items-center gap-2 text-lg font-extrabold">{monthLabel}<ChevronRight className="rotate-90" size={18} /></button>
+            <p className="text-sm font-semibold text-white/80">Total Expense</p>
+            <strong className="mt-1 block text-[28px] font-extrabold leading-tight">{taka(monthTotal)}</strong>
+          </div>
+          <div className="grid size-20 place-items-center rounded-full bg-white/12 ring-1 ring-white/15"><Wallet size={36} /></div>
         </div>
-        <div className="mb-2 grid grid-cols-7 text-center text-[11px] font-semibold text-[#746d86]">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
-        </div>
-        <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
-          {cells.map((cell) => {
-            const iso = cell.day ? toIso(cell.day) : "";
-            const active = iso === selectedDate;
+      </section>
 
+      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="mb-5 flex items-center justify-between">
+          <button type="button" onClick={() => changeMonth(-1)} className="grid size-9 place-items-center rounded-full text-[#111936]">{`<`}</button>
+          <h2 className="text-sm font-extrabold text-[#111936]">{monthLabel}</h2>
+          <button type="button" onClick={() => changeMonth(1)} className="grid size-9 place-items-center rounded-full text-[#111936]">{`>`}</button>
+        </div>
+        <div className="mb-4 grid grid-cols-7 text-center text-sm font-bold text-[#111936]">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day} className={day === "Sun" ? "text-[#f97316]" : ""}>{day}</span>)}
+        </div>
+        <div className="grid grid-cols-7 gap-y-3 text-center">
+          {calendarCells.map((cell) => {
+            const total = cell.iso ? dailyTotals[cell.iso] ?? 0 : 0;
+            const active = cell.iso === selectedDate;
             return (
               <button
                 key={cell.key}
                 type="button"
-                disabled={!cell.day}
-                onClick={() => setSelectedDate(iso)}
-                className={active ? "mx-auto grid size-8 place-items-center rounded-full bg-[#6C4CF1] font-bold text-white" : "mx-auto grid size-8 place-items-center rounded-full text-[#2b273d]"}
+                disabled={cell.muted}
+                onClick={() => cell.iso && setSelectedDate(cell.iso)}
+                className={active ? "relative mx-auto grid size-10 place-items-center rounded-full bg-[#11298f] text-sm font-extrabold text-white shadow-[0_10px_18px_rgba(17,41,143,0.22)]" : cell.muted ? "relative mx-auto grid size-10 place-items-center text-sm font-bold text-[#a5aabc]" : "relative mx-auto grid size-10 place-items-center rounded-full text-sm font-extrabold text-[#111936]"}
               >
-                {cell.day || ""}
+                {cell.day}
+                {!cell.muted && <span className={`absolute bottom-1.5 size-1.5 rounded-full ${getExpenseTone(total)}`} />}
               </button>
             );
           })}
         </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-[#fbfcff] p-3 text-[11px] font-medium text-[#59627a]">
+          <span className="flex items-start gap-2"><i className="mt-1 size-2 shrink-0 rounded-full bg-[#2563eb]" /><span>Low Expense<small className="block">(Tk 1 - 500)</small></span></span>
+          <span className="flex items-start gap-2"><i className="mt-1 size-2 shrink-0 rounded-full bg-[#f59e0b]" /><span>Medium Expense<small className="block">(Tk 501 - 1,500)</small></span></span>
+          <span className="flex items-start gap-2"><i className="mt-1 size-2 shrink-0 rounded-full bg-[#ef4444]" /><span>High Expense<small className="block">(Tk 1,501+)</small></span></span>
+          <span className="flex items-start gap-2"><i className="mt-1 size-2 shrink-0 rounded-full bg-[#c6cada]" /><span>No Expense</span></span>
+        </div>
       </Card>
-      <Card className="bg-[#fbfaff] p-4">
-        <p className="mb-3 text-sm font-bold">{displayDate(selectedDate)}</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div><p className="text-xs text-[#746d86]">Total Expense</p><strong className="text-lg">{taka(summary.expense)}</strong></div>
-          <div><p className="text-xs text-[#746d86]">Total Entries</p><strong className="text-lg">{summary.entries}</strong></div>
+
+      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="mb-4 flex items-center justify-between border-b border-[#eef0f8] pb-4">
+          <h2 className="text-lg font-extrabold text-[#111936]">{displayDate(selectedDate)}</h2>
+          <strong className="text-sm text-[#111936]">Total {takaShort(summary.expense)}</strong>
+        </div>
+        <div className="divide-y divide-[#eef0f8]">
+          {selectedExpenseEntries.map((entry, index) => {
+            const Icon = entryIcons[index % entryIcons.length];
+            return (
+              <div key={entry.id} className="flex items-center gap-3 py-4 first:pt-0 last:pb-0">
+                <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#f5f7ff] text-[#11298f]"><Icon size={20} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-extrabold text-[#111936]">{entry.category}</p>
+                  <p className="text-xs font-medium text-[#59627a]">{entry.time}</p>
+                  {entry.description && <p className="truncate text-[11px] text-[#8a90a3]">{entry.description}</p>}
+                </div>
+                <strong className="text-sm text-[#111936]">{takaShort(entry.amount)}</strong>
+              </div>
+            );
+          })}
+          {selectedExpenseEntries.length === 0 && <div className="rounded-2xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-medium text-[#69718a]">No expenses for this day.</div>}
         </div>
       </Card>
     </div>

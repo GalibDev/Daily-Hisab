@@ -57,13 +57,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/add-expense": "Add New Expense",
     "/add-income": "Add Income",
     "/budget": "Category Budget",
-    "/calendar": "Calendar View",
+    "/calendar": "Calendar",
     "/entries": "Today's Entries",
     "/settings": "More",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
-  const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : "/reminders";
+  const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : pathname === "/calendar" ? "/calendar" : "/reminders";
 
   const setTheme = (theme: "light" | "dark") => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -167,8 +167,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               </div>
             )}
             <Link href={mobileActionHref} className="relative grid size-9 place-items-center rounded-lg text-[#111936]">
-              {pathname === "/budget" || pathname === "/reminders" ? <Plus size={21} /> : <Bell size={19} />}
-              {pathname !== "/budget" && pathname !== "/reminders" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
+              {pathname === "/calendar" ? <CalendarDays size={20} /> : pathname === "/budget" || pathname === "/reminders" ? <Plus size={21} /> : <Bell size={19} />}
+              {pathname !== "/budget" && pathname !== "/reminders" && pathname !== "/calendar" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
             </Link>
           </div>
 
