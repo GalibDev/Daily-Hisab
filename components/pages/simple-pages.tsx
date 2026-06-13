@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Globe2, Grid2X2, HelpCircle, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, ShieldCheck, Shirt, Trash2, Upload, User, Utensils, Wallet } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Globe2, Grid2X2, HelpCircle, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, Shirt, Trash2, Upload, User, Utensils, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -519,6 +519,153 @@ export function NotesPage() {
   );
 }
 
+type BackupHistoryItem = {
+  id: string;
+  createdAt: string;
+  size: string;
+};
+
+function formatBackupDate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value)).replace(",", "");
+}
+
+function estimateBackupSize(data: unknown) {
+  const bytes = new Blob([JSON.stringify(data)]).size;
+  return `${Math.max(bytes / (1024 * 1024), 0.1).toFixed(1)} MB`;
+}
+
+export function BackupRestorePage() {
+  const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, restoreData } = useFinance();
+  const { notify } = useToast();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [history, setHistory] = useState<BackupHistoryItem[]>([]);
+  const backupData = useMemo(
+    () => ({ categories, entries, hiddenSummaryDates, recurringExpenses, reminders, summaryRows: buildSummaryRows(entries, hiddenSummaryDates) }),
+    [categories, entries, hiddenSummaryDates, recurringExpenses, reminders],
+  );
+  const lastBackup = history[0]?.createdAt;
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      try {
+        const saved = window.localStorage.getItem("daily-hisab.backup-history.v1");
+        if (saved) setHistory(JSON.parse(saved) as BackupHistoryItem[]);
+      } catch {
+        setHistory([]);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  function saveHistory(nextHistory: BackupHistoryItem[]) {
+    setHistory(nextHistory);
+    window.localStorage.setItem("daily-hisab.backup-history.v1", JSON.stringify(nextHistory));
+  }
+
+  function handleCreateBackup() {
+    exportDataJson(backupData);
+    saveHistory([{ id: String(Date.now()), createdAt: new Date().toISOString(), size: estimateBackupSize(backupData) }, ...history].slice(0, 6));
+    notify("Backup created", "success");
+  }
+
+  function handleRestoreFile(file: File | undefined) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result));
+        restoreData(data);
+        notify("Backup restored", "success");
+      } catch {
+        notify("Invalid backup file", "danger");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  return (
+    <AppShell>
+      <PageTitle title="Backup & Restore" subtitle="Create local backups and restore your Daily Hisab data" />
+      <div className="grid gap-5 md:hidden">
+        <section className="overflow-hidden rounded-[22px] bg-[#11298f] p-6 text-white shadow-[0_18px_38px_rgba(14,37,126,0.22)]">
+          <div className="grid grid-cols-[1fr_132px] items-center gap-3">
+            <div>
+              <h2 className="text-[25px] font-extrabold leading-tight">Keep Your Data Safe</h2>
+              <p className="mt-3 text-base font-medium leading-7 text-white/88">Backup your data regularly to avoid data loss. You can restore anytime on this device or a new device.</p>
+            </div>
+            <div className="relative grid h-32 place-items-center">
+              <CloudUpload size={122} className="text-[#6e8cff]" fill="currentColor" strokeWidth={1.8} />
+              <Upload size={46} className="absolute text-white drop-shadow-md" />
+            </div>
+          </div>
+          <p className="mt-4 flex items-center gap-2 text-sm font-bold"><ShieldCheck size={19} className="text-[#3fe082]" fill="currentColor" /> Last Backup: <span className="text-[#47df8a]">{lastBackup ? formatBackupDate(lastBackup) : "Not created yet"}</span></p>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-extrabold text-[#111936]">Backup</h2>
+          <Card className="overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+            <button type="button" onClick={handleCreateBackup} className="flex w-full items-center gap-4 border-b border-[#eef0f8] p-4 text-left">
+              <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-[#f2e9ff] text-[#7c3aed]"><CloudUpload size={33} /></span>
+              <span className="min-w-0 flex-1"><strong className="block text-lg font-extrabold text-[#111936]">Create Backup</strong><span className="mt-1 block text-sm font-semibold leading-6 text-[#59627a]">Back up all your expenses, categories, budgets and settings to secure your data.</span></span>
+              <ChevronRight size={22} className="text-[#59627a]" />
+            </button>
+            <button type="button" onClick={() => notify("Auto backup is on for this device.", "info")} className="flex w-full items-center gap-4 p-4 text-left">
+              <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-[#e9f9f0] text-[#20b26b]"><RotateCcw size={34} /></span>
+              <span className="min-w-0 flex-1"><strong className="block text-lg font-extrabold text-[#111936]">Auto Backup <span className="ml-2 rounded-full bg-[#e4faec] px-3 py-1 text-xs text-[#20a85f]">ON</span></strong><span className="mt-1 block text-sm font-semibold leading-6 text-[#59627a]">Automatically backup your data on a regular basis.</span></span>
+              <ChevronRight size={22} className="text-[#59627a]" />
+            </button>
+          </Card>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-extrabold text-[#111936]">Restore</h2>
+          <Card className="rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+            <input ref={inputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => handleRestoreFile(event.target.files?.[0])} />
+            <button type="button" onClick={() => inputRef.current?.click()} className="flex w-full items-center gap-4 text-left">
+              <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-[#eef4ff] text-[#2563eb]"><CloudDownload size={34} /></span>
+              <span className="min-w-0 flex-1"><strong className="block text-lg font-extrabold text-[#111936]">Restore Data</strong><span className="mt-1 block text-sm font-semibold leading-6 text-[#59627a]">Restore your data from a previous backup on this device.</span></span>
+              <ChevronRight size={22} className="text-[#59627a]" />
+            </button>
+          </Card>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-extrabold text-[#111936]">Backup History</h2>
+          <Card className="overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+            {history.length === 0 && <div className="p-5 text-sm font-semibold text-[#59627a]">No backups yet. Tap Create Backup to save one.</div>}
+            {history.map((item, index) => (
+              <button key={item.id} type="button" onClick={handleCreateBackup} className="flex w-full items-center gap-4 border-b border-[#eef0f8] p-4 text-left last:border-b-0">
+                <span className={index % 3 === 0 ? "grid size-11 shrink-0 place-items-center rounded-xl bg-[#f2e9ff] text-[#7c3aed]" : index % 3 === 1 ? "grid size-11 shrink-0 place-items-center rounded-xl bg-[#e9f9f0] text-[#20b26b]" : "grid size-11 shrink-0 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"}><CalendarDays size={22} /></span>
+                <span className="min-w-0 flex-1"><strong className="block text-sm font-extrabold text-[#111936]">{formatBackupDate(item.createdAt)}</strong><span className="text-sm font-semibold text-[#59627a]">Size: {item.size}</span></span>
+                {index === 0 && <span className="rounded-lg bg-[#e4faec] px-3 py-1 text-xs font-extrabold text-[#20a85f]">Latest</span>}
+                <Download size={22} className="text-[#11214a]" />
+              </button>
+            ))}
+          </Card>
+        </section>
+
+        <Card id="backup-info" className="flex items-center gap-4 rounded-[18px] border-[#efeaff] bg-[#f7f2ff] p-5">
+          <span className="grid size-16 shrink-0 place-items-center rounded-full bg-[#efe7ff] text-[#7c3aed]"><ShieldCheck size={30} /></span>
+          <span><strong className="block text-base font-extrabold text-[#111936]">Your data is secure</strong><span className="mt-2 block text-sm font-semibold leading-6 text-[#59627a]">All backups are stored locally on your device. We do not upload your data to any server.</span></span>
+        </Card>
+      </div>
+
+      <div className="hidden gap-5 md:grid xl:grid-cols-2">
+        <Card className="p-5"><h2 className="mb-2 text-lg font-bold">Create Backup</h2><p className="mb-4 text-sm text-[#746d86]">Download a JSON copy of your local data.</p><Button onClick={handleCreateBackup}><CloudUpload size={17} /> Create Backup</Button></Card>
+        <Card className="p-5"><h2 className="mb-2 text-lg font-bold">Restore Data</h2><p className="mb-4 text-sm text-[#746d86]">Choose a previous Daily Hisab JSON backup.</p><input type="file" accept="application/json,.json" onChange={(event) => handleRestoreFile(event.target.files?.[0])} /></Card>
+      </div>
+    </AppShell>
+  );
+}
+
 function ProfileMenuSection({
   items,
   title,
@@ -569,7 +716,7 @@ export function SettingsPage() {
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
-    { href: "/settings", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
   ];
   const preferenceItems = [
     { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },

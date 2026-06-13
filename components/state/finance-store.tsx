@@ -54,6 +54,7 @@ type FinanceStore = {
   toggleReminder: (id: number) => void;
   resetEntries: () => void;
   resetAllData: () => void;
+  restoreData: (data: Partial<Pick<FinanceStore, "categories" | "entries" | "hiddenSummaryDates" | "recurringExpenses" | "reminders">>) => void;
   syncEnabled: boolean;
   syncError: string | null;
 };
@@ -286,6 +287,13 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         setHiddenSummaryDates([]);
         setRecurringExpenses(initialRecurringExpenses);
         setReminders(initialReminders);
+      },
+      restoreData: (data) => {
+        if (Array.isArray(data.entries)) setEntries(data.entries);
+        if (Array.isArray(data.categories)) setCategories(data.categories);
+        if (Array.isArray(data.hiddenSummaryDates)) setHiddenSummaryDates(data.hiddenSummaryDates);
+        if (Array.isArray(data.recurringExpenses)) setRecurringExpenses(data.recurringExpenses);
+        if (Array.isArray(data.reminders)) setReminders(data.reminders);
       },
     }),
     [canSyncSupabase, categories, entries, hiddenSummaryDates, recurringExpenses, reminders, syncError, user],
