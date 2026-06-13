@@ -40,6 +40,8 @@ type FinanceStore = {
   reminders: Reminder[];
   addEntry: (entry: EntryInput) => void;
   addCategory: (category: string) => boolean;
+  updateCategory: (category: string, nextCategory: string) => boolean;
+  deleteCategory: (category: string) => void;
   updateEntry: (id: number, entry: EntryInput) => void;
   deleteEntry: (id: number) => void;
   deleteSummaryRow: (date: string) => void;
@@ -191,6 +193,18 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
           createCategory(user.id, nextCategory).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Category sync failed"));
         }
         return true;
+      },
+      updateCategory: (category, nextCategory) => {
+        const trimmedCategory = nextCategory.trim();
+        if (!trimmedCategory || categories.some((item) => item.toLowerCase() === trimmedCategory.toLowerCase() && item !== category)) {
+          return false;
+        }
+        setCategories((current) => current.map((item) => (item === category ? trimmedCategory : item)));
+        setEntries((current) => current.map((entry) => (entry.category === category ? { ...entry, category: trimmedCategory } : entry)));
+        return true;
+      },
+      deleteCategory: (category) => {
+        setCategories((current) => current.filter((item) => item !== category));
       },
       updateEntry: (id, entry) => {
         setEntries((current) =>

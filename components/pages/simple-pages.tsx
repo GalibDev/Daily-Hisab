@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Globe2, HelpCircle, Info, LogOut, MessageCircle, Palette, Plus, Receipt, ShieldCheck, Upload, User, Wallet } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Globe2, Grid2X2, HelpCircle, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, ShieldCheck, Shirt, Trash2, Upload, User, Utensils, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -165,13 +165,134 @@ export function BudgetPage() {
 }
 
 export function CategoriesPage() {
-  const { categories, entries } = useFinance();
+  const { addCategory, categories, deleteCategory, entries, updateCategory } = useFinance();
+  const { notify } = useToast();
+  const [activeType, setActiveType] = useState<"expense" | "income">("expense");
   const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
+  const incomeCategories = useMemo(
+    () => Array.from(new Set(entries.filter((entry) => entry.type === "income").map((entry) => entry.category).filter(Boolean))),
+    [entries],
+  );
+  const visibleCategories = activeType === "expense" ? categories : incomeCategories;
+  const categoryIconStyles = [
+    { icon: <Receipt size={29} />, tone: "bg-[#fff0e6] text-[#f97316]" },
+    { icon: <Bus size={29} />, tone: "bg-[#edf4ff] text-[#2563eb]" },
+    { icon: <Utensils size={29} />, tone: "bg-[#fff0e6] text-[#f97316]" },
+    { icon: <FileSpreadsheet size={29} />, tone: "bg-[#f2e9ff] text-[#7c3aed]" },
+    { icon: <Shirt size={29} />, tone: "bg-[#ffe6f6] text-[#db2777]" },
+    { icon: <Folder size={29} />, tone: "bg-[#fff7e8] text-[#c77800]" },
+  ];
+
+  function countByCategory(category: string, type: EntryType) {
+    return entries.filter((entry) => entry.type === type && entry.category === category).length;
+  }
+
+  function handleAddCategory() {
+    if (activeType !== "expense") {
+      notify("Income categories are created from income entries.", "info");
+      return;
+    }
+
+    const category = window.prompt("New category name");
+    if (category === null) return;
+    const added = addCategory(category);
+    notify(added ? "Category added" : "Category already exists or empty", added ? "success" : "danger");
+  }
+
+  function handleEditCategory(category: string) {
+    if (activeType !== "expense") {
+      notify("Income categories are edited from income entries.", "info");
+      return;
+    }
+
+    const nextCategory = window.prompt("Edit category name", category);
+    if (nextCategory === null) return;
+    const updated = updateCategory(category, nextCategory);
+    notify(updated ? "Category updated" : "Category already exists or empty", updated ? "success" : "danger");
+  }
+
+  function handleDeleteCategory(category: string) {
+    if (activeType !== "expense") {
+      notify("Income categories are managed from income entries.", "info");
+      return;
+    }
+
+    if (window.confirm(`Delete ${category}? Existing entries will stay saved.`)) {
+      deleteCategory(category);
+      notify("Category deleted", "success");
+    }
+  }
+
+  useEffect(() => {
+    function handleHashAdd() {
+      if (window.location.hash === "#add-category") {
+        handleAddCategory();
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    }
+
+    handleHashAdd();
+    window.addEventListener("hashchange", handleHashAdd);
+    return () => window.removeEventListener("hashchange", handleHashAdd);
+  });
 
   return (
     <AppShell>
       <PageTitle title="Categories" subtitle="Category-wise expense tracking and quick overview" />
-      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+      <div className="grid gap-5 md:hidden">
+        <section className="relative overflow-hidden rounded-[18px] bg-[#11298f] p-6 text-white shadow-[0_18px_38px_rgba(14,37,126,0.22)]">
+          <div className="flex items-center justify-between gap-5">
+            <div className="flex items-center gap-5">
+              <span className="grid size-20 shrink-0 place-items-center rounded-full bg-white/15 text-white"><Grid2X2 size={38} /></span>
+              <div>
+                <p className="text-base font-bold text-white/88">Total Categories</p>
+                <strong className="mt-2 block text-[34px] leading-none">{categories.length + incomeCategories.length}</strong>
+                <p className="mt-3 text-base font-bold"><span className="text-[#ff8fb1]">{categories.length} Expense</span><span className="text-white/75"> • </span><span className="text-[#78d59b]">{incomeCategories.length} Income</span></p>
+              </div>
+            </div>
+            <Folder size={72} className="shrink-0 text-[#7084ff]" fill="currentColor" strokeWidth={1.4} />
+          </div>
+        </section>
+
+        <div className="grid grid-cols-2 rounded-2xl border border-[#e7eaf3] bg-white p-1 shadow-[0_8px_24px_rgba(20,35,90,0.05)]">
+          <button type="button" onClick={() => setActiveType("expense")} className={activeType === "expense" ? "h-14 rounded-xl bg-[#11298f] text-sm font-extrabold text-white" : "h-14 rounded-xl text-sm font-extrabold text-[#111936]"}>Expense Categories</button>
+          <button type="button" onClick={() => setActiveType("income")} className={activeType === "income" ? "h-14 rounded-xl bg-[#11298f] text-sm font-extrabold text-white" : "h-14 rounded-xl text-sm font-extrabold text-[#111936]"}>Income Categories</button>
+        </div>
+
+        <div className="grid gap-3">
+          {visibleCategories.length === 0 && (
+            <Card className="rounded-[18px] border-dashed border-[#d8ddea] p-6 text-center text-sm font-semibold text-[#59627a]">
+              No {activeType} categories yet. Tap + to add one.
+            </Card>
+          )}
+          {visibleCategories.map((category, index) => {
+            const style = categoryIconStyles[index % categoryIconStyles.length];
+            const count = countByCategory(category, activeType);
+
+            return (
+              <Card key={category} className="flex items-center gap-4 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_30px_rgba(20,35,90,0.06)]">
+                <span className={`grid size-16 shrink-0 place-items-center rounded-[18px] ${style.tone}`}>{style.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-lg font-extrabold text-[#111936]">{category}</h2>
+                  <p className="mt-1 text-sm font-semibold text-[#59627a]">{count} {activeType === "expense" ? "expenses" : "income"}</p>
+                </div>
+                <button type="button" onClick={() => handleEditCategory(category)} aria-label={`Edit ${category}`} className="grid size-10 place-items-center rounded-xl text-[#111936]"><Pencil size={22} /></button>
+                <button type="button" onClick={() => handleDeleteCategory(category)} aria-label={`Delete ${category}`} className="grid size-10 place-items-center rounded-xl text-[#dc2626]"><Trash2 size={22} /></button>
+              </Card>
+            );
+          })}
+        </div>
+
+        <button id="add-category" type="button" onClick={handleAddCategory} className="flex items-center gap-4 rounded-[18px] border border-dashed border-[#cfd6e6] bg-white p-5 text-left">
+          <span className="grid size-16 shrink-0 place-items-center rounded-full bg-[#f2e9ff] text-[#7c3aed]"><Lightbulb size={28} /></span>
+          <span>
+            <strong className="block text-base font-extrabold text-[#111936]">Manage your categories</strong>
+            <span className="mt-2 block text-sm font-medium leading-6 text-[#59627a]">Categories help you organize your expenses better. Tap + button to add a new category.</span>
+          </span>
+        </button>
+      </div>
+
+      <div className="hidden gap-5 md:grid xl:grid-cols-[1fr_360px]">
         <Card className="p-5">
           <h2 className="mb-4 text-lg font-bold">Expense Categories</h2>
           <div className="grid gap-4 md:grid-cols-2">
@@ -445,6 +566,7 @@ export function SettingsPage() {
   const profileEmail = user?.email ?? "Login to sync your data";
   const accountItems = [
     { href: user ? "/settings" : "/login", icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
     { href: "/settings", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
