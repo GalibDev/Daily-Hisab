@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Bell, CalendarDays, CheckCircle2, ChevronRight, Download, Edit2, FileSpreadsheet, Plus, Receipt, Trash2, Upload, User } from "lucide-react";
+import { Bell, CalendarDays, CheckCircle2, ChevronRight, Download, Edit2, FileSpreadsheet, Plus, Receipt, Upload, User } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -145,6 +145,7 @@ export function BudgetPage() {
     <AppShell>
       <PageTitle title="Budget" subtitle="Category-wise monthly budget" />
       <div className="grid gap-4 lg:grid-cols-2">
+        {budgets.length === 0 && <Card className="p-6 text-center text-sm text-[#746d86]">No budget data yet.</Card>}
         {budgets.map((budget) => {
           const dynamicSpent = spentByCategory.find((item) => budget.category.includes(item.name) || item.name.includes(budget.category))?.value;
           const spent = dynamicSpent ?? budget.spent;
@@ -174,6 +175,7 @@ export function CategoriesPage() {
         <Card className="p-5">
           <h2 className="mb-4 text-lg font-bold">Expense Categories</h2>
           <div className="grid gap-4 md:grid-cols-2">
+            {categories.length === 0 && <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86] md:col-span-2">No categories yet.</div>}
             {categories.map((category) => {
               const spent = categoryData.find((data) => data.name === category)?.value ?? 0;
               return (
@@ -349,7 +351,7 @@ export function RemindersPage() {
   return (
     <AppShell>
       <PageTitle title="Reminders" subtitle="Completed and upcoming status" />
-      <Card className="mb-5 p-5"><form action={(formData) => saveReminder(formData)} className="grid gap-4 md:grid-cols-4"><input name="title" className={inputClass} placeholder="নতুন রিমাইন্ডার" required /><input name="date" type="date" className={inputClass} defaultValue={today} required /><input name="time" type="time" className={inputClass} defaultValue="09:00" required /><Button type="submit"><Bell size={16} /> Add reminder</Button></form></Card>
+      <Card id="new-reminder" className="mb-5 p-5"><form action={(formData) => saveReminder(formData)} className="grid gap-4 md:grid-cols-4"><input name="title" className={inputClass} placeholder="নতুন রিমাইন্ডার" required /><input name="date" type="date" className={inputClass} defaultValue={today} required /><input name="time" type="time" className={inputClass} defaultValue="09:00" required /><Button type="submit"><Bell size={16} /> Add reminder</Button></form></Card>
       <div className="grid gap-4 lg:grid-cols-3">
         {reminders.map((reminder) => (
           <Card key={reminder.id} className="p-5">
@@ -378,13 +380,10 @@ export function RemindersPage() {
 }
 
 export function ReceiptsPage() {
-  const today = getTodayIso();
-
   return (
     <AppShell>
-      <PageTitle title="Receipts" subtitle="Upload receipt UI and image preview placeholder" />
-      <Card className="mb-5 grid min-h-48 place-items-center border-dashed p-8 text-center"><Upload className="mb-3 text-[#6C4CF1]" /><h2 className="font-bold">Upload receipt</h2><p className="text-sm text-[#746d86]">Image preview placeholder</p></Card>
-      <div className="grid gap-4 md:grid-cols-3">{["Breakfast receipt", "Market receipt", "Mobile recharge"].map((item) => <Card key={item} className="p-5"><div className="mb-4 grid h-32 place-items-center rounded-xl bg-[#f4f1ff]"><Receipt className="text-[#6C4CF1]" /></div><h2 className="font-bold">{item}</h2><p className="text-sm text-[#746d86]">{displayDate(today)}</p></Card>)}</div>
+      <PageTitle title="Receipts" subtitle="Upload and manage receipts" />
+      <Card className="mb-5 grid min-h-48 place-items-center border-dashed p-8 text-center"><Upload className="mb-3 text-[#6C4CF1]" /><h2 className="font-bold">Upload receipt</h2><p className="text-sm text-[#746d86]">No receipts uploaded yet.</p></Card>
     </AppShell>
   );
 }
@@ -393,8 +392,8 @@ export function NotesPage() {
   return (
     <AppShell>
       <PageTitle title="Notes" subtitle="Daily note create, edit and delete" />
-      <Card className="mb-5 p-5"><textarea className={textareaClass} placeholder="আজকের নোট লিখুন" /><Button className="mt-4"><Plus size={16} /> Save note</Button></Card>
-      <ListCards items={["আজ বাজার বেশি হয়েছে", "অফিস যাতায়াত সময় বাস পরিবর্তন করেছি", "মাসের শেষে কিছু টাকা সেভ করতে হবে"]} editable />
+      <Card className="mb-5 p-5"><textarea className={textareaClass} placeholder="Write today's note" /><Button className="mt-4"><Plus size={16} /> Save note</Button></Card>
+      <Card className="p-6 text-center text-sm text-[#746d86]">No notes yet.</Card>
     </AppShell>
   );
 }
@@ -404,6 +403,14 @@ export function SettingsPage() {
   const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData, syncEnabled, syncError } = useFinance();
   const { notify } = useToast();
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
+  const mobileSettingsLinks = [
+    { href: user ? "/settings" : "/login", label: "Profile", icon: User },
+    { href: "/budget", label: "Budget", icon: CalendarDays },
+    { href: "/recurring", label: "Recurring Expenses", icon: CheckCircle2 },
+    { href: "/receipts", label: "Receipts", icon: Receipt },
+    { href: "/notes", label: "Notes", icon: Edit2 },
+    { href: "/reports", label: "Export Data", icon: Download },
+  ];
 
   return (
     <AppShell>
@@ -411,11 +418,11 @@ export function SettingsPage() {
       <div className="grid gap-3 md:hidden">
         <Card className="flex items-center gap-3 bg-[#fbfaff] p-4">
           <div className="grid size-12 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
-            {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={48} height={48} className="size-full object-cover" /> : "TA"}
+            {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={48} height={48} className="size-full object-cover" /> : "U"}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold">{user?.name ?? (user?.email ? "Firebase User" : "Tanvir Ahmed")}</p>
-            <p className="truncate text-xs text-[#746d86]">{user?.email ?? "Local mock mode"}</p>
+            <p className="font-bold">{user?.name ?? (user?.email ? "Firebase User" : "Guest User")}</p>
+            <p className="truncate text-xs text-[#746d86]">{user?.email ?? "Login to sync your data"}</p>
           </div>
           <span className={syncEnabled ? "rounded-lg bg-[#eafbf0] px-3 py-1 text-xs font-bold text-[#22C55E]" : "rounded-lg bg-[#efeaff] px-3 py-1 text-xs font-bold text-[#6C4CF1]"}>
             {syncEnabled ? "Synced" : "Local"}
@@ -423,22 +430,23 @@ export function SettingsPage() {
         </Card>
         {user && <ProfileImageUploader />}
         {syncError && <div className="rounded-xl bg-[#fff4e2] p-3 text-xs font-medium text-[#8a5a00]">{syncError}</div>}
-        {[
-          ["Profile", User],
-          ["Budget", CalendarDays],
-          ["Recurring Expenses", CheckCircle2],
-          ["Receipts", Receipt],
-          ["Notes", Edit2],
-          ["Export Data", Download],
-          ["Language", FileSpreadsheet],
-          ["Theme", Bell],
-        ].map(([label, Icon]) => (
-          <Card key={String(label)} className="flex items-center gap-3 p-3">
-            {typeof Icon !== "string" && <Icon size={17} className="text-[#746d86]" />}
-            <span className="flex-1 text-sm font-semibold">{String(label)}</span>
+        {mobileSettingsLinks.map(({ href, label, icon: Icon }) => (
+          <Link key={label} href={href} className="flex items-center gap-3 rounded-lg border border-[#ece8ff] bg-white p-3">
+            <Icon size={17} className="text-[#746d86]" />
+            <span className="flex-1 text-sm font-semibold">{label}</span>
             <ChevronRight size={16} className="text-[#746d86]" />
-          </Card>
+          </Link>
         ))}
+        <button className="flex items-center gap-3 rounded-lg border border-[#ece8ff] bg-white p-3" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>
+          <FileSpreadsheet size={17} className="text-[#746d86]" />
+          <span className="flex-1 text-left text-sm font-semibold">Export JSON</span>
+          <ChevronRight size={16} className="text-[#746d86]" />
+        </button>
+        <button className="flex items-center gap-3 rounded-lg border border-[#ece8ff] bg-white p-3" onClick={() => { resetAllData(); notify("Data reset successfully", "info"); }}>
+          <Bell size={17} className="text-[#746d86]" />
+          <span className="flex-1 text-left text-sm font-semibold">Reset Data</span>
+          <ChevronRight size={16} className="text-[#746d86]" />
+        </button>
         {user ? (
           <button onClick={() => void signOut()} className="mt-2 flex items-center gap-2 px-2 py-3 text-sm font-bold text-[#EF4444]">Logout</button>
         ) : (
@@ -448,7 +456,7 @@ export function SettingsPage() {
       <div className="hidden gap-5 md:grid lg:grid-cols-2">
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
-            <span className="font-semibold">Profile: {user?.name ?? user?.email ?? "Tanvir Ahmed"}</span>
+            <span className="font-semibold">Profile: {user?.name ?? user?.email ?? "Guest User"}</span>
             {!user && <Link href="/login"><Button variant="outline">Login</Button></Link>}
           </div>
           {user && <ProfileImageUploader />}
@@ -490,13 +498,18 @@ function MobileCalendar({
     return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
+  function changeMonth(offset: number) {
+    const next = new Date(year, month + offset, 1);
+    setSelectedDate(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`);
+  }
+
   return (
     <div className="mb-5 grid gap-4 md:hidden">
       <Card className="p-4">
         <div className="mb-4 flex items-center justify-between">
-          <button type="button" className="text-lg text-[#746d86]">‹</button>
+          <button type="button" onClick={() => changeMonth(-1)} className="text-lg text-[#746d86]">{`<`}</button>
           <h2 className="text-sm font-bold">{monthName}</h2>
-          <button type="button" className="text-lg text-[#746d86]">›</button>
+          <button type="button" onClick={() => changeMonth(1)} className="text-lg text-[#746d86]">{`>`}</button>
         </div>
         <div className="mb-2 grid grid-cols-7 text-center text-[11px] font-semibold text-[#746d86]">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
@@ -611,8 +624,4 @@ function SummaryTable({ rows }: Readonly<{ rows: SummaryRow[] }>) {
   if (rows.length === 0) return <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86]">No summary data found.</div>;
 
   return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-[#fbfaff] text-xs text-[#746d86]"><tr>{["Date", "Income", "Expense", "Entries", "Balance", "Action"].map((h) => <th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.dateKey} className="border-b border-[#f0ecff]"><td className="px-4 py-3">{row.date}</td><td className="px-4 py-3 text-[#22C55E]">{takaShort(row.income)}</td><td className="px-4 py-3 text-[#EF4444]">{takaShort(row.expense)}</td><td className="px-4 py-3">{row.entries}</td><td className="px-4 py-3 font-bold">{takaShort(row.balance)}</td><td className="px-4 py-3"><ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.dateKey); notify("Monthly summary row deleted", "danger"); }} /></td></tr>)}</tbody></table></div>;
-}
-
-function ListCards({ items, editable }: Readonly<{ items: string[]; editable?: boolean }>) {
-  return <div className="grid gap-4 md:grid-cols-3">{items.map((item, index) => <Card key={item} className="p-5"><CheckCircle2 className="mb-4 text-[#22C55E]" /><h2 className="font-bold">{item}</h2><p className="text-sm text-[#746d86]">Item #{index + 1}</p>{editable && <div className="mt-4 flex gap-3 text-[#6C4CF1]"><Edit2 size={17} /><Trash2 className="text-[#EF4444]" size={17} /></div>}</Card>)}</div>;
 }

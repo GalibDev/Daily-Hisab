@@ -1,4 +1,4 @@
-import { categories as defaultCategories, trend } from "@/data/mock-data";
+import { categories as defaultCategories } from "@/data/mock-data";
 import { displayDate, getTodayIso } from "@/lib/utils";
 import type { Entry } from "@/types";
 
@@ -28,7 +28,7 @@ export function buildCategoryExpense(entries: Entry[], categories = defaultCateg
 
   const visible = totals.filter((item) => item.value > 0);
 
-  return visible.length > 0 ? visible : totals.slice(0, 4);
+  return visible;
 }
 
 export function buildExpenseTrend(entries: Entry[]) {
@@ -46,7 +46,7 @@ export function buildExpenseTrend(entries: Entry[]) {
       }
     });
 
-  return totals.some((item) => item.expense > 0) ? totals : trend;
+  return totals;
 }
 
 export type SummaryRow = {

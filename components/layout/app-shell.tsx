@@ -62,6 +62,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
+  const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : "/reminders";
 
   const setTheme = (theme: "light" | "dark") => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -153,7 +154,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <h1 className="truncate text-sm font-bold">{mobileTitle}</h1>
               {isHome && <p className="text-[11px] font-medium text-[#746d86]">Your Daily Tracker</p>}
             </div>
-            <Link href={pathname === "/budget" || pathname === "/reminders" ? pathname : "/reminders"} className="relative grid size-9 place-items-center rounded-lg text-[#171424]">
+            <Link href={mobileActionHref} className="relative grid size-9 place-items-center rounded-lg text-[#171424]">
               {pathname === "/budget" || pathname === "/reminders" ? <Plus size={21} /> : <Bell size={19} />}
               {pathname !== "/budget" && pathname !== "/reminders" && <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-[#EF4444] text-[10px] text-white">3</span>}
             </Link>
@@ -177,10 +178,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </button>
             <div className="hidden items-center gap-3 md:flex">
               <div className="grid size-11 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
-                {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={44} height={44} className="size-full object-cover" /> : "TA"}
+                {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={44} height={44} className="size-full object-cover" /> : "U"}
               </div>
               <div>
-                <p className="text-sm font-bold">{user?.name ?? "Tanvir Ahmed"}</p>
+                <p className="text-sm font-bold">{user?.name ?? "Guest User"}</p>
                 <p className="text-xs text-[#22C55E]">Free Plan</p>
               </div>
             </div>

@@ -24,9 +24,12 @@ export function CategorySelect({ defaultValue }: Readonly<{ defaultValue?: strin
 
   return (
     <div className="grid gap-2">
-      <select name="category" className={inputClass} defaultValue={defaultValue ?? categories[0]}>
+      <select name="category" className={inputClass} defaultValue={defaultValue ?? categories[0] ?? ""} required>
+        <option value="" disabled>
+          Select category
+        </option>
         {categories.map((category) => (
-          <option key={category}>{category}</option>
+          <option key={category} value={category}>{category}</option>
         ))}
       </select>
       <div className="grid grid-cols-[1fr_auto] gap-2">

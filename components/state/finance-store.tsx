@@ -74,6 +74,19 @@ function moveDemoEntriesToToday(entries: Entry[]) {
   }));
 }
 
+function isLegacyDemoEntries(entries: Entry[]) {
+  const demoAmounts = [120, 200, 40, 30, 100, 300, 210, 1250];
+
+  return (
+    entries.length === demoAmounts.length &&
+    entries.every((entry, index) => entry.id === index + 1 && entry.amount === demoAmounts[index])
+  );
+}
+
+function isLegacyDemoList(items: { id: number }[], ids: number[]) {
+  return items.length === ids.length && items.every((item, index) => item.id === ids[index]);
+}
+
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user } = useAuth();
   const canSyncSupabase = false as boolean;
@@ -89,11 +102,18 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        setEntries(moveDemoEntriesToToday(JSON.parse(saved) as Entry[]));
+        const parsedEntries = JSON.parse(saved) as Entry[];
+        if (isLegacyDemoEntries(parsedEntries)) {
+          window.localStorage.removeItem(STORAGE_KEY);
+          setEntries([]);
+        } else {
+          setEntries(moveDemoEntriesToToday(parsedEntries));
+        }
       }
       const savedCategories = window.localStorage.getItem(CATEGORY_STORAGE_KEY);
       if (savedCategories) {
-        setCategories(JSON.parse(savedCategories) as string[]);
+        const parsedCategories = JSON.parse(savedCategories) as string[];
+        setCategories(parsedCategories.some((category) => category.includes("à")) ? [] : parsedCategories);
       }
       const savedHiddenSummaryDates = window.localStorage.getItem(SUMMARY_STORAGE_KEY);
       if (savedHiddenSummaryDates) {
@@ -101,11 +121,13 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       }
       const savedRecurringExpenses = window.localStorage.getItem(RECURRING_STORAGE_KEY);
       if (savedRecurringExpenses) {
-        setRecurringExpenses(JSON.parse(savedRecurringExpenses) as RecurringExpense[]);
+        const parsedRecurringExpenses = JSON.parse(savedRecurringExpenses) as RecurringExpense[];
+        setRecurringExpenses(isLegacyDemoList(parsedRecurringExpenses, [1, 2, 3]) ? [] : parsedRecurringExpenses);
       }
       const savedReminders = window.localStorage.getItem(REMINDER_STORAGE_KEY);
       if (savedReminders) {
-        setReminders(JSON.parse(savedReminders) as Reminder[]);
+        const parsedReminders = JSON.parse(savedReminders) as Reminder[];
+        setReminders(isLegacyDemoList(parsedReminders, [1, 2, 3]) ? [] : parsedReminders);
       }
     } finally {
       setHydrated(true);

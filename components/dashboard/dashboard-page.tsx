@@ -27,7 +27,7 @@ import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useFinance } from "@/components/state/finance-store";
-import { budgets, notes, paymentMethods } from "@/data/mock-data";
+import { budgets, paymentMethods } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, summarizeEntries } from "@/lib/finance";
 import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod, Reminder } from "@/types";
@@ -103,10 +103,10 @@ function ExpenseForm() {
             <CategorySelect defaultValue={categories[0]} />
           </Field>
           <Field label="Amount (৳)">
-            <input name="amount" className={inputClass} defaultValue="120.00" inputMode="decimal" />
+            <input name="amount" className={inputClass} placeholder="0.00" inputMode="decimal" />
           </Field>
           <Field label="Description" className="xl:col-span-2">
-            <input name="description" className={inputClass} defaultValue="চা, বিস্কুট" />
+            <input name="description" className={inputClass} placeholder="Expense details" />
           </Field>
           <Field label="Payment Method">
             <select name="method" className={inputClass} defaultValue="Cash">
@@ -119,7 +119,7 @@ function ExpenseForm() {
             </div>
           </Field>
           <Field label="Note (Optional)" className="md:col-span-2">
-            <textarea name="note" className={textareaClass} defaultValue="আজ অফিস যাওয়ার পথে নাস্তা করেছি" />
+            <textarea name="note" className={textareaClass} placeholder="Optional note" />
           </Field>
         </div>
         <div className="mt-5 flex justify-end">
@@ -210,8 +210,13 @@ function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: st
               </div>
               <p className={entry.type === "income" ? "font-bold text-[#22C55E]" : "font-bold text-[#EF4444]"}>{takaShort(entry.amount)}</p>
             </div>
+            <div className="mt-3 flex gap-3 text-[#6C4CF1]">
+              <Link href="/entries" aria-label="Edit entry"><Edit2 size={17} /></Link>
+              <ConfirmDeleteButton onConfirm={() => handleDelete(entry.id)} />
+            </div>
           </div>
         ))}
+        {todayEntries.length === 0 && <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86]">No entries found.</div>}
       </div>
       <Link href="/add-expense" className="mt-4 block">
         <Button variant="outline" className="w-full border-dashed"><Plus size={16} /> Add New Entry</Button>
@@ -264,6 +269,7 @@ function BudgetOverviewCard() {
 
   return (
     <PanelList title="Budget Overview" action="This Month">
+      {budgets.length === 0 && <p className="rounded-xl border border-dashed border-[#d8d1ff] p-4 text-sm text-[#746d86]">No budget data yet.</p>}
       {budgets.map((budget) => {
         const dynamicSpent = spentByCategory.find((item) => budget.category.includes(item.name) || item.name.includes(budget.category))?.value;
         const spent = dynamicSpent ?? budget.spent;
@@ -309,12 +315,7 @@ function UpcomingRemindersCard() {
 function RecentNotesCard() {
   return (
     <PanelList title="Recent Notes">
-      {notes.map((note) => (
-        <div key={note.title} className="rounded-xl bg-[#fbfaff] p-3 text-sm">
-          <b>{note.title}</b>
-          <p className="text-xs text-[#746d86]">{note.date}</p>
-        </div>
-      ))}
+      <p className="rounded-xl border border-dashed border-[#d8d1ff] p-4 text-sm text-[#746d86]">No notes yet.</p>
       <Link href="/notes" className="block">
         <Button variant="outline" className="w-full">View All Notes <ArrowRight size={16} /></Button>
       </Link>
@@ -323,21 +324,23 @@ function RecentNotesCard() {
 }
 
 function QuickActionsCard() {
+  const actions = [
+    { href: "/add-expense", label: "Add Expense", icon: Wallet },
+    { href: "/add-income", label: "Add Income", icon: Banknote },
+    { href: "/budget", label: "Add Budget", icon: CalendarCheck },
+    { href: "/receipts", label: "Upload Receipt", icon: Receipt },
+    { href: "/reports", label: "Download PDF", icon: Download },
+    { href: "/reports", label: "Export Excel", icon: FileText },
+  ];
+
   return (
     <PanelList title="Quick Actions">
       <div className="grid grid-cols-2 gap-3">
-        {[
-          ["Add Expense", Wallet],
-          ["Add Income", Banknote],
-          ["Add Budget", CalendarCheck],
-          ["Upload Receipt", Receipt],
-          ["Download PDF", Download],
-          ["Export Excel", FileText],
-        ].map(([label, Icon]) => (
-          <button key={String(label)} className="flex items-center gap-2 rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-3 text-sm font-medium">
-            {typeof Icon !== "string" && <Icon className="text-[#6C4CF1]" size={17} />}
-            {String(label)}
-          </button>
+        {actions.map(({ href, label, icon: Icon }) => (
+          <Link key={label} href={href} className="flex items-center gap-2 rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-3 text-sm font-medium">
+            <Icon className="text-[#6C4CF1]" size={17} />
+            {label}
+          </Link>
         ))}
       </div>
     </PanelList>

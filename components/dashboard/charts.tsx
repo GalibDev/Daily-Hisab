@@ -1,7 +1,6 @@
 "use client";
 
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { categoryExpense, trend } from "@/data/mock-data";
 
 type CategoryData = {
   name: string;
@@ -14,7 +13,11 @@ type TrendData = {
   expense: number;
 };
 
-export function CategoryPieChart({ data = categoryExpense }: Readonly<{ data?: CategoryData[] }>) {
+export function CategoryPieChart({ data = [] }: Readonly<{ data?: CategoryData[] }>) {
+  if (data.length === 0) {
+    return <div className="grid h-[230px] place-items-center rounded-xl border border-dashed border-[#d8d1ff] text-sm text-[#746d86]">No chart data yet.</div>;
+  }
+
   return (
     <ResponsiveContainer width="100%" height={230}>
       <PieChart>
@@ -29,7 +32,11 @@ export function CategoryPieChart({ data = categoryExpense }: Readonly<{ data?: C
   );
 }
 
-export function ExpenseTrendChart({ data = trend }: Readonly<{ data?: TrendData[] }>) {
+export function ExpenseTrendChart({ data = [] }: Readonly<{ data?: TrendData[] }>) {
+  if (data.every((item) => item.expense === 0)) {
+    return <div className="grid h-[250px] place-items-center rounded-xl border border-dashed border-[#d8d1ff] text-sm text-[#746d86]">No trend data yet.</div>;
+  }
+
   return (
     <ResponsiveContainer width="100%" height={250}>
       <BarChart data={data} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
