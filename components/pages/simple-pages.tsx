@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Globe2, Grid2X2, HelpCircle, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, Shirt, Trash2, Upload, User, Utensils, Wallet } from "lucide-react";
+import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Globe2, Grid2X2, HelpCircle, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, Shirt, Trash2, TrendingUp, Upload, User, Utensils, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -314,11 +314,147 @@ export function CategoriesPage() {
   );
 }
 
+function MobileTrendLine({ data }: Readonly<{ data: { day: number; expense: number }[] }>) {
+  const max = Math.max(...data.map((item) => item.expense), 1);
+  const points = data
+    .map((item, index) => {
+      const x = 18 + (index / Math.max(data.length - 1, 1)) * 304;
+      const y = 142 - (item.expense / max) * 112;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg viewBox="0 0 340 170" className="h-48 w-full" role="img" aria-label="Expense trend line">
+      {[0, 1, 2, 3].map((line) => <line key={line} x1="18" x2="322" y1={30 + line * 36} y2={30 + line * 36} stroke="#eef2fb" strokeWidth="1" />)}
+      <text x="0" y="34" className="fill-[#59627a] text-[10px]">৳ {Math.round(max)}</text>
+      <text x="0" y="70" className="fill-[#59627a] text-[10px]">৳ {Math.round(max * 0.66)}</text>
+      <text x="0" y="106" className="fill-[#59627a] text-[10px]">৳ {Math.round(max * 0.33)}</text>
+      <text x="0" y="146" className="fill-[#59627a] text-[10px]">৳ 0</text>
+      <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      {data.map((item, index) => {
+        const x = 18 + (index / Math.max(data.length - 1, 1)) * 304;
+        const y = 142 - (item.expense / max) * 112;
+        return <circle key={item.day} cx={x} cy={y} r="3.5" fill="#fff" stroke="#2563eb" strokeWidth="2" />;
+      })}
+      <text x="18" y="164" className="fill-[#59627a] text-[11px]">1 May</text>
+      <text x="145" y="164" className="fill-[#59627a] text-[11px]">15 May</text>
+      <text x="292" y="164" className="fill-[#59627a] text-[11px]">31 May</text>
+    </svg>
+  );
+}
+
+function MobileReportsAnalytics({
+  categories,
+  entries,
+  today,
+}: Readonly<{
+  categories: string[];
+  entries: Entry[];
+  today: string;
+}>) {
+  const [analyticsTab, setAnalyticsTab] = useState<"overview" | "expense" | "income" | "budget">("overview");
+  const monthEntries = useMemo(() => filterEntriesByReportPeriod(entries, "monthly", today), [entries, today]);
+  const summary = useMemo(() => summarizeEntries(monthEntries), [monthEntries]);
+  const categoryData = useMemo(() => buildCategoryExpense(monthEntries, categories), [categories, monthEntries]);
+  const trendData = useMemo(() => buildExpenseTrend(monthEntries), [monthEntries]);
+  const totalExpense = summary.expense;
+  const daysWithExpense = new Set(monthEntries.filter((entry) => entry.type === "expense").map((entry) => entry.date)).size;
+  const dailyAverage = daysWithExpense > 0 ? totalExpense / daysWithExpense : 0;
+  const categoryTotal = categoryData.reduce((sum, item) => sum + item.value, 0);
+  const todayDate = new Date(`${today}T00:00:00`);
+  const monthLabel = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(todayDate);
+  const daysInMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0).getDate();
+  const conic = categoryData.length > 0
+    ? categoryData
+      .map((item, index) => {
+        const start = categoryData.slice(0, index).reduce((sum, part) => sum + (part.value / categoryTotal) * 100, 0);
+        const end = categoryData.slice(0, index + 1).reduce((sum, part) => sum + (part.value / categoryTotal) * 100, 0);
+        return `${item.fill} ${start}% ${end}%`;
+      })
+      .join(", ")
+    : "#e8edf7 0% 100%";
+  const topCategory = categoryData[0];
+
+  return (
+    <div className="grid gap-5 md:hidden">
+      <div className="grid grid-cols-4 overflow-hidden rounded-2xl border border-[#e4e8f2] bg-white">
+        {[
+          ["overview", "Overview"],
+          ["expense", "Expense"],
+          ["income", "Income"],
+          ["budget", "Budget"],
+        ].map(([key, label]) => (
+          <button key={key} type="button" onClick={() => setAnalyticsTab(key as typeof analyticsTab)} className={analyticsTab === key ? "h-12 bg-[#11298f] text-sm font-extrabold text-white" : "h-12 border-l border-[#e4e8f2] text-sm font-extrabold text-[#111936] first:border-l-0"}>{label}</button>
+        ))}
+      </div>
+
+      <section className="rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.22)]">
+        <div className="mb-7 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-extrabold">This Month Overview</h2>
+          <span className="text-sm font-semibold text-white/88">1 - {daysInMonth} {monthLabel}</span>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-white/16">
+          <div className="pr-3"><p className="text-sm font-semibold text-white/85">Total Expense</p><strong className="mt-3 block text-2xl">{takaShort(summary.expense)}</strong><span className="mt-2 block text-xs text-white/80">vs Apr: <b className="text-[#ff8fb1]">+0.0%</b></span></div>
+          <div className="px-3"><p className="text-sm font-semibold text-white/85">Total Income</p><strong className="mt-3 block text-2xl">{takaShort(summary.income)}</strong><span className="mt-2 block text-xs text-white/80">vs Apr: <b className="text-[#5ee18b]">+0.0%</b></span></div>
+          <div className="pl-3"><p className="text-sm font-semibold text-white/85">Net Balance</p><strong className="mt-3 block text-2xl">{takaShort(summary.balance)}</strong><span className="mt-2 block text-xs text-white/80">vs Apr: <b className="text-[#5ee18b]">+0.0%</b></span></div>
+        </div>
+      </section>
+
+      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense by Category</h2><span className="text-sm font-bold text-[#59627a]">This Month</span></div>
+        <div className="grid grid-cols-[120px_1fr] items-center gap-5">
+          <div className="relative grid aspect-square place-items-center rounded-full" style={{ background: `conic-gradient(${conic})` }}>
+            <div className="grid size-[72px] place-items-center rounded-full bg-white text-center shadow-inner"><strong className="text-lg text-[#111936]">{takaShort(totalExpense)}</strong><span className="-mt-5 text-xs font-semibold text-[#59627a]">Total</span></div>
+          </div>
+          <div className="grid gap-3">
+            {(categoryData.length > 0 ? categoryData.slice(0, 6) : [{ name: "No expenses", value: 0, fill: "#94a3b8" }]).map((item) => {
+              const percent = categoryTotal > 0 ? (item.value / categoryTotal) * 100 : 0;
+              return (
+                <div key={item.name} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 text-sm">
+                  <span className="flex min-w-0 items-center gap-2 font-extrabold text-[#111936]"><span className="size-3 rounded-full" style={{ background: item.fill }} /> <span className="truncate">{item.name}</span></span>
+                  <span className="font-extrabold text-[#111936]">{takaShort(item.value)}</span>
+                  <span className="w-10 text-right font-semibold text-[#59627a]">{percent.toFixed(1)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <button type="button" className="mt-5 flex w-full items-center justify-center gap-2 border-t border-[#eef0f8] pt-4 text-sm font-extrabold text-[#11298f]">View Details <ChevronRight size={18} /></button>
+      </Card>
+
+      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense Trend</h2><span className="text-sm font-bold text-[#59627a]">This Month</span></div>
+        <MobileTrendLine data={trendData} />
+      </Card>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="rounded-[18px] border-[#eef0f8] p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#e9f9f0] text-[#20b26b]"><TrendingUp size={25} /></span><h3 className="mt-3 text-base font-extrabold text-[#111936]">Daily Average</h3><strong className="mt-2 block text-2xl text-[#16a34a]">{takaShort(dailyAverage)}</strong><p className="mt-1 text-xs font-semibold text-[#59627a]">vs Apr: +0.0%</p></Card>
+        <Card className="rounded-[18px] border-[#eef0f8] p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#f2e9ff] text-[#7c3aed]"><CalendarDays size={25} /></span><h3 className="mt-3 text-base font-extrabold text-[#111936]">Total Days</h3><strong className="mt-2 block text-2xl text-[#11298f]">{daysWithExpense} Days</strong><p className="mt-1 text-xs font-semibold text-[#59627a]">Expenses Added</p></Card>
+      </div>
+
+      <Card className="flex items-center gap-4 rounded-[18px] border-[#efeaff] bg-[#f7f2ff] p-5">
+        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-[#efe7ff] text-[#7c3aed]"><Lightbulb size={26} /></span>
+        <p className="min-w-0 flex-1 text-sm font-semibold leading-6 text-[#111936]">You spent <b>{takaShort(topCategory?.value ?? 0)}</b> on <b>{topCategory?.name ?? "expenses"}</b> this month, which is <b>{categoryTotal > 0 && topCategory ? ((topCategory.value / categoryTotal) * 100).toFixed(1) : "0.0"}%</b> of your total expenses.</p>
+        <button type="button" className="shrink-0 rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Insights</button>
+      </Card>
+
+      <section id="reports-filter">
+        <h2 className="mb-3 text-lg font-extrabold text-[#111936]">Quick Filters</h2>
+        <div className="grid grid-cols-4 gap-2">
+          {["This Month", "Last Month", "This Year", "Custom"].map((item, index) => <button key={item} type="button" className={index === 0 ? "min-h-11 rounded-xl bg-[#11298f] px-2 text-xs font-extrabold text-white" : "min-h-11 rounded-xl border border-[#e4e8f2] bg-white px-2 text-xs font-extrabold text-[#111936]"}><CalendarDays size={15} className="mx-auto mb-1" />{item}</button>)}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function ReportsPage() {
   const { categories, entries, hiddenSummaryDates } = useFinance();
   const { notify } = useToast();
   const today = getTodayIso();
   const [period, setPeriod] = useState<ReportPeriod>("daily");
+  const [reportMode, setReportMode] = useState<"reports" | "analytics">("reports");
   const reportEntries = useMemo(() => filterEntriesByReportPeriod(entries, period, today), [entries, period, today]);
   const summaryRows = useMemo(() => buildSummaryRows(reportEntries, hiddenSummaryDates), [hiddenSummaryDates, reportEntries]);
   const labels: Record<ReportPeriod, string> = { daily: "Daily report", weekly: "Weekly report", monthly: "Monthly report", yearly: "Yearly report" };
@@ -331,27 +467,36 @@ export function ReportsPage() {
   return (
     <AppShell>
       <PageTitle title="Reports" subtitle="Daily, weekly, monthly and yearly report" />
-      <div className="mb-5 grid grid-cols-4 gap-1 border-b border-[#ece8ff] md:flex md:flex-wrap md:border-0">
-        {(Object.keys(labels) as ReportPeriod[]).map((item) => (
-          <button
-            key={item}
-            onClick={() => setPeriod(item)}
-            className={period === item ? "border-b-2 border-[#6C4CF1] px-2 py-2 text-xs font-bold text-[#6C4CF1] md:rounded-lg md:border md:bg-[#6C4CF1] md:px-4 md:text-sm md:text-white" : "px-2 py-2 text-xs font-semibold text-[#746d86] md:rounded-lg md:border md:border-[#d8d1ff] md:bg-white md:px-4 md:text-sm md:text-[#6C4CF1]"}
-          >
-            <span className="md:hidden">{item[0].toUpperCase() + item.slice(1)}</span>
-            <span className="hidden md:inline">{labels[item]}</span>
-          </button>
-        ))}
+      <div className="mb-4 grid grid-cols-2 rounded-2xl border border-[#e4e8f2] bg-white p-1 md:hidden">
+        <button type="button" onClick={() => setReportMode("reports")} className={reportMode === "reports" ? "h-12 rounded-xl bg-[#11298f] text-sm font-extrabold text-white" : "h-12 rounded-xl text-sm font-extrabold text-[#111936]"}>Reports</button>
+        <button type="button" onClick={() => setReportMode("analytics")} className={reportMode === "analytics" ? "h-12 rounded-xl bg-[#11298f] text-sm font-extrabold text-white" : "h-12 rounded-xl text-sm font-extrabold text-[#111936]"}>Analytics</button>
       </div>
-      <div className="mb-5 flex gap-3">
-        <Button onClick={handlePdfExport} className="flex-1 md:flex-none"><Download size={16} /> Export PDF</Button>
-        <Button variant="outline" className="flex-1 md:flex-none" onClick={() => { exportEntriesCsv(reportEntries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
+
+      {reportMode === "analytics" && <MobileReportsAnalytics categories={categories} entries={entries} today={today} />}
+
+      <div className={reportMode === "analytics" ? "hidden md:block" : ""}>
+        <div className="mb-5 grid grid-cols-4 gap-1 border-b border-[#ece8ff] md:flex md:flex-wrap md:border-0">
+          {(Object.keys(labels) as ReportPeriod[]).map((item) => (
+            <button
+              key={item}
+              onClick={() => setPeriod(item)}
+              className={period === item ? "border-b-2 border-[#6C4CF1] px-2 py-2 text-xs font-bold text-[#6C4CF1] md:rounded-lg md:border md:bg-[#6C4CF1] md:px-4 md:text-sm md:text-white" : "px-2 py-2 text-xs font-semibold text-[#746d86] md:rounded-lg md:border md:border-[#d8d1ff] md:bg-white md:px-4 md:text-sm md:text-[#6C4CF1]"}
+            >
+              <span className="md:hidden">{item[0].toUpperCase() + item.slice(1)}</span>
+              <span className="hidden md:inline">{labels[item]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mb-5 flex gap-3">
+          <Button onClick={handlePdfExport} className="flex-1 md:flex-none"><Download size={16} /> Export PDF</Button>
+          <Button variant="outline" className="flex-1 md:flex-none" onClick={() => { exportEntriesCsv(reportEntries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
+        </div>
+        <div className="grid gap-5 xl:grid-cols-2">
+          <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(reportEntries)} /></Card>
+          <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(reportEntries, categories)} /></Card>
+        </div>
+        <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">{labels[period]} summary</h2><SummaryTable rows={summaryRows} /></Card>
       </div>
-      <div className="grid gap-5 xl:grid-cols-2">
-        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(reportEntries)} /></Card>
-        <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(reportEntries, categories)} /></Card>
-      </div>
-      <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">{labels[period]} summary</h2><SummaryTable rows={summaryRows} /></Card>
     </AppShell>
   );
 }

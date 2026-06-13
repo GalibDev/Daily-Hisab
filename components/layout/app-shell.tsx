@@ -62,11 +62,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/calendar": "Calendar",
     "/categories": "Category Management",
     "/entries": "Today's Entries",
+    "/reports": "Reports & Analytics",
     "/settings": "Profile",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
-  const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : pathname === "/calendar" ? "/calendar" : pathname === "/categories" ? "#add-category" : pathname === "/backup-restore" ? "#backup-info" : "/reminders";
+  const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : pathname === "/calendar" ? "/calendar" : pathname === "/categories" ? "#add-category" : pathname === "/backup-restore" ? "#backup-info" : pathname === "/reports" ? "#reports-filter" : "/reminders";
 
   const setTheme = (theme: "light" | "dark") => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -167,13 +168,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 </span>
               </Link>
             ) : (
-              <div className={cn("min-w-0 flex-1", pathname === "/settings" || pathname === "/backup-restore" ? "text-left" : "text-center")}>
-                <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[28px] leading-9 text-[#111936]" : pathname === "/backup-restore" || pathname === "/categories" ? "text-2xl leading-8 text-[#111936]" : "text-sm")}>{mobileTitle}</h1>
+              <div className={cn("min-w-0 flex-1", pathname === "/settings" || pathname === "/backup-restore" || pathname === "/reports" ? "text-left" : "text-center")}>
+                <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[28px] leading-9 text-[#111936]" : pathname === "/backup-restore" || pathname === "/categories" || pathname === "/reports" ? "text-2xl leading-8 text-[#111936]" : "text-sm")}>{mobileTitle}</h1>
               </div>
             )}
             <Link href={mobileActionHref} className={cn("relative grid size-9 place-items-center rounded-lg text-[#111936]", pathname === "/categories" && "bg-[#11298f] text-white shadow-[0_10px_20px_rgba(17,41,143,0.22)]")}>
-              {pathname === "/backup-restore" ? <Info size={24} /> : pathname === "/calendar" ? <CalendarDays size={20} /> : pathname === "/budget" || pathname === "/reminders" || pathname === "/categories" ? <Plus size={21} /> : <Bell size={19} />}
-              {pathname !== "/budget" && pathname !== "/reminders" && pathname !== "/calendar" && pathname !== "/categories" && pathname !== "/backup-restore" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
+              {pathname === "/backup-restore" ? <Info size={24} /> : pathname === "/calendar" || pathname === "/reports" ? <CalendarDays size={20} /> : pathname === "/budget" || pathname === "/reminders" || pathname === "/categories" ? <Plus size={21} /> : <Bell size={19} />}
+              {pathname !== "/budget" && pathname !== "/reminders" && pathname !== "/calendar" && pathname !== "/categories" && pathname !== "/backup-restore" && pathname !== "/reports" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
             </Link>
           </div>
 
