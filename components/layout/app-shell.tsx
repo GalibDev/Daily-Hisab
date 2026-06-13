@@ -59,7 +59,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/budget": "Category Budget",
     "/calendar": "Calendar",
     "/entries": "Today's Entries",
-    "/settings": "More",
+    "/settings": "Profile",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
@@ -148,9 +148,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       <main className="pb-28 lg:ml-[228px] lg:pb-0">
         <header className="sticky top-0 z-20 bg-white px-6 py-4 md:px-7 lg:border-b lg:border-[#ece8ff]/80 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4 lg:backdrop-blur">
           <div className="flex items-center gap-4 lg:hidden">
-            <Link href={isHome ? "/settings" : "/"} className="grid size-9 place-items-center rounded-lg text-[#111936]">
-              {isHome ? <Menu size={21} /> : <ArrowLeft size={21} />}
-            </Link>
+            {pathname !== "/settings" && (
+              <Link href={isHome ? "/settings" : "/"} className="grid size-9 place-items-center rounded-lg text-[#111936]">
+                {isHome ? <Menu size={21} /> : <ArrowLeft size={21} />}
+              </Link>
+            )}
             {isHome ? (
               <Link href="/" className="flex min-w-0 flex-1 items-center gap-3">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#11298f] text-white shadow-[0_8px_18px_rgba(17,41,143,0.22)]">
@@ -162,8 +164,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 </span>
               </Link>
             ) : (
-              <div className="min-w-0 flex-1 text-center">
-                <h1 className="truncate text-sm font-bold">{mobileTitle}</h1>
+              <div className={cn("min-w-0 flex-1", pathname === "/settings" ? "text-left" : "text-center")}>
+                <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[28px] leading-9 text-[#111936]" : "text-sm")}>{mobileTitle}</h1>
               </div>
             )}
             <Link href={mobileActionHref} className="relative grid size-9 place-items-center rounded-lg text-[#111936]">

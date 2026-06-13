@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Bell, Bus, CalendarDays, CheckCircle2, ChevronRight, Download, Edit2, FileSpreadsheet, Plus, Receipt, Upload, User, Wallet } from "lucide-react";
+import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Globe2, HelpCircle, Info, LogOut, MessageCircle, Palette, Plus, Receipt, ShieldCheck, Upload, User, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -398,59 +398,122 @@ export function NotesPage() {
   );
 }
 
+function ProfileMenuSection({
+  items,
+  title,
+}: Readonly<{
+  items: { href?: string; icon: React.ReactNode; label: string; meta?: string; onClick?: () => void; tone: string }[];
+  title: string;
+}>) {
+  return (
+    <section>
+      <h2 className="mb-3 px-1 text-base font-extrabold text-[#111936]">{title}</h2>
+      <Card className="overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        {items.map((item) => {
+          const content = (
+            <>
+              <span className={`grid size-11 shrink-0 place-items-center rounded-2xl ${item.tone}`}>{item.icon}</span>
+              <span className="min-w-0 flex-1 text-sm font-extrabold text-[#111936]">{item.label}</span>
+              {item.meta && <span className="text-sm font-semibold text-[#59627a]">{item.meta}</span>}
+              <ChevronRight size={18} className="text-[#7b8499]" />
+            </>
+          );
+
+          const className = "flex w-full items-center gap-3 border-b border-[#eef0f8] px-4 py-3.5 text-left last:border-b-0";
+
+          if (item.href) {
+            return <Link key={item.label} href={item.href} className={className}>{content}</Link>;
+          }
+
+          return <button key={item.label} type="button" onClick={item.onClick} className={className}>{content}</button>;
+        })}
+      </Card>
+    </section>
+  );
+}
+
 export function SettingsPage() {
   const { signOut, user } = useAuth();
   const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData, syncEnabled, syncError } = useFinance();
   const { notify } = useToast();
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
-  const mobileSettingsLinks = [
-    { href: user ? "/settings" : "/login", label: "Profile", icon: User },
-    { href: "/budget", label: "Budget", icon: CalendarDays },
-    { href: "/recurring", label: "Recurring Expenses", icon: CheckCircle2 },
-    { href: "/receipts", label: "Receipts", icon: Receipt },
-    { href: "/notes", label: "Notes", icon: Edit2 },
-    { href: "/reports", label: "Export Data", icon: Download },
+  const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
+  const dailyAverage = daysWithExpense > 0 ? totalExpense / daysWithExpense : 0;
+  const profileName = user?.name ?? (user?.email ? "Firebase User" : "Guest User");
+  const profileEmail = user?.email ?? "Login to sync your data";
+  const accountItems = [
+    { href: user ? "/settings" : "/login", icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
+    { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
+    { href: "/settings", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
+  ];
+  const preferenceItems = [
+    { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },
+    { href: "/settings", icon: <Palette size={20} />, label: "Theme", meta: "Light", tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { href: "/settings", icon: <Globe2 size={20} />, label: "Language", meta: "English", tone: "bg-[#eafbf0] text-[#16a34a]" },
+    { href: "/settings", icon: <CreditCard size={20} />, label: "Currency", meta: "BDT", tone: "bg-[#eef4ff] text-[#2563eb]" },
+  ];
+  const supportItems = [
+    { href: "/settings", icon: <HelpCircle size={20} />, label: "Help Center", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { href: "/settings", icon: <MessageCircle size={20} />, label: "Contact Us", tone: "bg-[#eafbf0] text-[#16a34a]" },
+    { href: "/settings", icon: <Info size={20} />, label: "About Daily Hisab", meta: "v1.0.0", tone: "bg-[#f5efff] text-[#7c3aed]" },
   ];
 
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
-      <div className="grid gap-3 md:hidden">
-        <Card className="flex items-center gap-3 bg-[#fbfaff] p-4">
-          <div className="grid size-12 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
-            {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={48} height={48} className="size-full object-cover" /> : "U"}
+      <div className="grid gap-5 md:hidden">
+        <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
+          <div className="flex items-center gap-4">
+            <div className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb]">
+              {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={96} height={96} className="size-full object-cover" /> : <User size={56} fill="currentColor" strokeWidth={1.5} />}
+              <span className="absolute bottom-0 right-0 grid size-10 place-items-center rounded-full bg-[#3153c9] text-white ring-4 ring-[#11298f]"><Camera size={18} /></span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-[22px] font-extrabold leading-7">{profileName}</h2>
+              <p className="mt-1 truncate text-sm font-semibold text-white/82">{profileEmail}</p>
+              <span className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#422d77]/55 px-3 py-2 text-xs font-extrabold text-[#ffb347]"><Crown size={16} fill="currentColor" /> {syncEnabled ? "Premium User" : "Local User"}</span>
+            </div>
+            <ChevronRight size={24} />
           </div>
+          <div className="mt-6 grid grid-cols-3 border-t border-white/15 pt-5 text-center">
+            <div>
+              <p className="text-xs font-semibold text-white/78">Total Expense</p>
+              <strong className="mt-2 block text-xl font-extrabold">{takaShort(totalExpense)}</strong>
+              <span className="mt-1 block text-xs text-white/78">This Month</span>
+            </div>
+            <div className="border-x border-white/15 px-2">
+              <p className="text-xs font-semibold text-white/78">Daily Average</p>
+              <strong className="mt-2 block text-xl font-extrabold">{takaShort(dailyAverage)}</strong>
+              <span className="mt-1 block text-xs text-white/78">This Month</span>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white/78">Total Days</p>
+              <strong className="mt-2 block text-xl font-extrabold">{daysWithExpense} Days</strong>
+              <span className="mt-1 block text-xs text-white/78">Expenses Added</span>
+            </div>
+          </div>
+        </section>
+
+        <Card className="grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+          <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-[#fff2e8] text-[#f97316]"><Crown size={28} fill="currentColor" /></span>
           <div className="min-w-0 flex-1">
-            <p className="font-bold">{user?.name ?? (user?.email ? "Firebase User" : "Guest User")}</p>
-            <p className="truncate text-xs text-[#746d86]">{user?.email ?? "Login to sync your data"}</p>
+            <h3 className="whitespace-nowrap text-sm font-extrabold text-[#111936]">You&apos;re Premium!</h3>
+            <p className="text-sm font-medium text-[#59627a]">Enjoy all premium features</p>
           </div>
-          <span className={syncEnabled ? "rounded-lg bg-[#eafbf0] px-3 py-1 text-xs font-bold text-[#22C55E]" : "rounded-lg bg-[#efeaff] px-3 py-1 text-xs font-bold text-[#6C4CF1]"}>
-            {syncEnabled ? "Synced" : "Local"}
-          </span>
+          <Link href="/settings" className="shrink-0 rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Plan</Link>
         </Card>
-        {user && <ProfileImageUploader />}
+
         {syncError && <div className="rounded-xl bg-[#fff4e2] p-3 text-xs font-medium text-[#8a5a00]">{syncError}</div>}
-        {mobileSettingsLinks.map(({ href, label, icon: Icon }) => (
-          <Link key={label} href={href} className="flex items-center gap-3 rounded-lg border border-[#ece8ff] bg-white p-3">
-            <Icon size={17} className="text-[#746d86]" />
-            <span className="flex-1 text-sm font-semibold">{label}</span>
-            <ChevronRight size={16} className="text-[#746d86]" />
-          </Link>
-        ))}
-        <button className="flex items-center gap-3 rounded-lg border border-[#ece8ff] bg-white p-3" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>
-          <FileSpreadsheet size={17} className="text-[#746d86]" />
-          <span className="flex-1 text-left text-sm font-semibold">Export JSON</span>
-          <ChevronRight size={16} className="text-[#746d86]" />
-        </button>
-        <button className="flex items-center gap-3 rounded-lg border border-[#ece8ff] bg-white p-3" onClick={() => { resetAllData(); notify("Data reset successfully", "info"); }}>
-          <Bell size={17} className="text-[#746d86]" />
-          <span className="flex-1 text-left text-sm font-semibold">Reset Data</span>
-          <ChevronRight size={16} className="text-[#746d86]" />
-        </button>
+        <ProfileMenuSection title="Account" items={accountItems} />
+        <ProfileMenuSection title="Preferences" items={preferenceItems} />
+        <ProfileMenuSection title="Support" items={supportItems} />
         {user ? (
-          <button onClick={() => void signOut()} className="mt-2 flex items-center gap-2 px-2 py-3 text-sm font-bold text-[#EF4444]">Logout</button>
+          <button onClick={() => void signOut()} className="flex h-14 items-center justify-center gap-3 rounded-2xl border border-[#fee2e2] bg-[#fff5f6] text-sm font-extrabold text-[#ef4444]"><LogOut size={20} /> Logout</button>
         ) : (
-          <Link href="/login" className="mt-2 flex items-center gap-2 px-2 py-3 text-sm font-bold text-[#6C4CF1]">Login</Link>
+          <Link href="/login" className="flex h-14 items-center justify-center gap-3 rounded-2xl border border-[#dbe4ff] bg-[#f5f7ff] text-sm font-extrabold text-[#11298f]"><LogOut size={20} /> Login</Link>
         )}
       </div>
       <div className="hidden gap-5 md:grid lg:grid-cols-2">
@@ -462,7 +525,7 @@ export function SettingsPage() {
           {user && <ProfileImageUploader />}
         </Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
-        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT ৳</span><Button variant="outline">Manage</Button></Card>
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Export data</span><div className="flex gap-2"><Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>JSON</Button><Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button></div></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Reset all data</span><ConfirmDeleteButton label="Reset all data" triggerText="Reset" onConfirm={() => { resetAllData(); notify("Data reset successfully", "info"); }} /></Card>
         <Card className="flex items-center justify-between p-5">
