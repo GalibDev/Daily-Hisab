@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -8,10 +9,14 @@ import {
   Bell,
   CalendarDays,
   ChartColumn,
+  ChevronRight,
   ClipboardList,
+  CloudUpload,
   CreditCard,
   FileText,
+  Folder,
   Grid2X2,
+  HelpCircle,
   Home,
   Info,
   LogOut,
@@ -23,12 +28,17 @@ import {
   RefreshCcw,
   Search,
   Settings,
+  Shield,
+  Star,
   Sun,
+  Target,
+  User,
   Wallet,
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useFinance } from "@/components/state/finance-store";
 import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
 
 const nav = [
@@ -51,8 +61,14 @@ const nav = [
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const { signOut, user } = useAuth();
+  const { entries } = useFinance();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const today = getTodayIso();
   const current = nav.find((item) => item.href === pathname);
+  const monthPrefix = today.slice(0, 7);
+  const monthExpense = entries
+    .filter((entry) => entry.type === "expense" && entry.date.startsWith(monthPrefix))
+    .reduce((sum, entry) => sum + entry.amount, 0);
   const mobileTitles: Record<string, string> = {
     "/": "Daily Hisab",
     "/add-expense": "Add New Expense",
@@ -72,6 +88,46 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const setTheme = (theme: "light" | "dark") => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   };
+
+  useEffect(() => {
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
+  const drawerGroups = [
+    {
+      items: [
+        { href: "/", icon: Home, label: "Dashboard", tone: "text-[#11298f]" },
+        { href: "/entries", icon: ClipboardList, label: "All Expenses", tone: "text-[#59627a]" },
+        { href: "/categories", icon: Folder, label: "Categories", tone: "text-[#f97316]" },
+        { href: "/budget", icon: Target, label: "Budget Management", tone: "text-[#ec4899]" },
+      ],
+      title: "MAIN",
+    },
+    {
+      items: [
+        { href: "/reports", icon: BarChart3, label: "Reports & Analytics", tone: "text-[#16a34a]" },
+        { href: "/calendar", icon: CalendarDays, label: "Calendar View", tone: "text-[#7c3aed]" },
+      ],
+    },
+    {
+      items: [
+        { href: "/backup-restore", icon: CloudUpload, label: "Backup & Restore", tone: "text-[#2563eb]" },
+        { href: "/reminders", icon: Bell, label: "Notifications", tone: "text-[#f59e0b]" },
+      ],
+      title: "TOOLS",
+    },
+    {
+      items: [
+        { href: "/settings", icon: HelpCircle, label: "Help Center", tone: "text-[#7c3aed]" },
+        { href: "/settings", icon: Star, label: "Rate App", tone: "text-[#f59e0b]" },
+        { href: "/settings", icon: Shield, label: "Privacy Policy", tone: "text-[#2563eb]" },
+      ],
+      title: "SUPPORT & MORE",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#F8F7FF] text-[#171424]">
@@ -153,9 +209,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         <header className="sticky top-0 z-20 bg-white px-6 py-4 md:px-7 lg:border-b lg:border-[#ece8ff]/80 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4 lg:backdrop-blur">
           <div className="flex items-center gap-4 lg:hidden">
             {pathname !== "/settings" && (
-              <Link href={isHome ? "/settings" : "/"} className="grid size-9 place-items-center rounded-lg text-[#111936]">
-                {isHome ? <Menu size={21} /> : <ArrowLeft size={21} />}
-              </Link>
+              isHome ? (
+                <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="grid size-9 place-items-center rounded-lg text-[#111936]">
+                  <Menu size={21} />
+                </button>
+              ) : (
+                <Link href="/" className="grid size-9 place-items-center rounded-lg text-[#111936]">
+                  <ArrowLeft size={21} />
+                </Link>
+              )
             )}
             {isHome ? (
               <Link href="/" className="flex min-w-0 flex-1 items-center gap-3">
@@ -207,6 +269,68 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         </header>
         <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">{children}</div>
       </main>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-label="Main menu">
+          <button type="button" aria-label="Close menu" onClick={() => setMobileMenuOpen(false)} className="absolute inset-0 bg-black/20" />
+          <aside className="thin-scrollbar relative z-10 flex h-full w-[78vw] max-w-[392px] flex-col overflow-y-auto rounded-r-[22px] bg-white px-8 pb-7 pt-10 shadow-[18px_0_42px_rgba(17,24,39,0.18)]">
+            <div className="mb-8 flex items-center gap-4">
+              <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-[#eef2ff] text-[#2563eb]">
+                {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={80} height={80} className="size-full object-cover" /> : <User size={48} fill="currentColor" strokeWidth={1.4} />}
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-xl font-extrabold text-[#111936]">{user?.name ?? "Guest User"}</h2>
+                <p className="mt-1 truncate text-sm font-semibold text-[#59627a]">{user?.email ?? "Login to sync your data"}</p>
+              </div>
+            </div>
+
+            <Link href="/reports" onClick={() => setMobileMenuOpen(false)} className="mb-8 flex items-center gap-4 rounded-[18px] bg-[#f3f6ff] p-4">
+              <span className="grid size-12 shrink-0 place-items-center rounded-xl text-[#11298f]"><Wallet size={29} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-extrabold text-[#111936]">This Month Expense</span>
+                <strong className="mt-1 block text-2xl text-[#11298f]">৳ {monthExpense.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong>
+              </span>
+              <ChevronRight size={25} className="text-[#11298f]" />
+            </Link>
+
+            <nav className="grid gap-7">
+              {drawerGroups.map((group) => (
+                <section key={group.title ?? group.items[0].label} className="border-b border-[#eef0f4] pb-5 last:border-b-0">
+                  {group.title && <h3 className="mb-3 text-sm font-extrabold tracking-wide text-[#6b7280]">{group.title}</h3>}
+                  <div className="grid gap-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = pathname === item.href;
+
+                      return (
+                        <Link key={item.label} href={item.href} onClick={() => setMobileMenuOpen(false)} className={cn("flex items-center gap-4 rounded-[16px] px-4 py-3 text-[17px] font-extrabold text-[#111936]", active && "bg-[#f0f3fb]")}>
+                          <Icon size={24} className={item.tone} />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </nav>
+
+            <div className="mt-auto pt-6">
+              {user ? (
+                <button type="button" onClick={() => { setMobileMenuOpen(false); void signOut(); }} className="flex items-center gap-4 px-4 py-3 text-[17px] font-extrabold text-[#dc2626]">
+                  <LogOut size={24} />
+                  Logout
+                </button>
+              ) : (
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 text-[17px] font-extrabold text-[#dc2626]">
+                  <LogOut size={24} />
+                  Login
+                </Link>
+              )}
+              <p className="mt-8 text-center text-sm font-semibold text-[#59627a]">Version 1.0.0</p>
+            </div>
+          </aside>
+        </div>
+      )}
 
       <nav className="fixed bottom-3 left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-5 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] lg:hidden">
         {[
