@@ -14,6 +14,7 @@ import {
   Eye,
   FileText,
   Fuel,
+  Grid2X2,
   Home,
   MoreHorizontal,
   MoreVertical,
@@ -43,6 +44,7 @@ import type { Entry, EntryType, PaymentMethod, Reminder } from "@/types";
 import { CategoryPieChart, ExpenseTrendChart } from "./charts";
 
 const CUSTOM_SHORTCUTS_STORAGE_KEY = "daily-hisab.mobile-expense-shortcuts.v1";
+const FRONT_SHORTCUTS_STORAGE_KEY = "daily-hisab.mobile-front-shortcuts.v1";
 
 function StatCard({
   title,
@@ -440,6 +442,20 @@ function MobileDashboard({
   const [selectedShortcutCategory, setSelectedShortcutCategory] = useState<string | null>(null);
   const [customCategoryName, setCustomCategoryName] = useState("");
   const [customIconName, setCustomIconName] = useState("shopping");
+  const defaultFrontShortcuts = ["সকালের নাস্তা", "দুপুরের খাবার", "যাতায়াত ভাড়া", "ক্যাটাগরি"];
+  const [frontShortcutCategories, setFrontShortcutCategories] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return defaultFrontShortcuts;
+    }
+
+    try {
+      const saved = window.localStorage.getItem(FRONT_SHORTCUTS_STORAGE_KEY);
+      const parsed = saved ? JSON.parse(saved) as string[] : defaultFrontShortcuts;
+      return parsed.map((category) => (category === "বিকালের নাস্তা" ? "ক্যাটাগরি" : category));
+    } catch {
+      return defaultFrontShortcuts;
+    }
+  });
   const [customShortcuts, setCustomShortcuts] = useState<Array<{ category: string; iconName: string }>>(() => {
     if (typeof window === "undefined") {
       return [];
@@ -478,7 +494,6 @@ function MobileDashboard({
     { category: "সকালের নাস্তা", iconName: "coffee" },
     { category: "দুপুরের খাবার", iconName: "food" },
     { category: "যাতায়াত ভাড়া", iconName: "bus" },
-    { category: "বিকালের নাস্তা", iconName: "coffee" },
     { category: "বাজার খরচ", iconName: "shopping" },
     { category: "মোবাইল / রিচার্জ", iconName: "mobile" },
     { category: "বাসা ভাড়া", iconName: "home" },
@@ -489,7 +504,13 @@ function MobileDashboard({
     .filter((category) => !baseShortcuts.some((shortcut) => shortcut.category === category) && !customShortcuts.some((shortcut) => shortcut.category === category))
     .map((category) => ({ category, iconName: "receipt" }));
   const allExpenseShortcuts = [...baseShortcuts, ...customShortcuts, ...entryShortcuts];
-  const visibleShortcuts = allExpenseShortcuts.slice(0, 4);
+  const categoryShortcut = { category: "ক্যাটাগরি", iconName: "category" };
+  const allShortcutOptions = [categoryShortcut, ...allExpenseShortcuts];
+  const visibleShortcuts = [...frontShortcutCategories, ...defaultFrontShortcuts]
+    .map((category) => allShortcutOptions.find((shortcut) => shortcut.category === category))
+    .filter((shortcut): shortcut is { category: string; iconName: string } => Boolean(shortcut))
+    .filter((shortcut, index, current) => current.findIndex((item) => item.category === shortcut.category) === index)
+    .slice(0, 4);
   const dailyExpenseSlots = [
     { category: "সকালের নাস্তা", icon: Utensils, tone: "bg-[#fff5ec] text-[#f59e0b]" },
     { category: "যাতায়াত ভাড়া", icon: Bus, tone: "bg-[#f0f5ff] text-[#0d4fb8]" },
@@ -502,7 +523,15 @@ function MobileDashboard({
     window.localStorage.setItem(CUSTOM_SHORTCUTS_STORAGE_KEY, JSON.stringify(customShortcuts));
   }, [customShortcuts]);
 
+  useEffect(() => {
+    window.localStorage.setItem(FRONT_SHORTCUTS_STORAGE_KEY, JSON.stringify(frontShortcutCategories));
+  }, [frontShortcutCategories]);
+
   function getShortcutIcon(iconName: string) {
+    if (iconName === "category") {
+      return { name: "category", icon: Grid2X2, label: "ক্যাটাগরি", tone: "bg-[#eef4ff] text-[#11298f]" };
+    }
+
     return shortcutIconOptions.find((option) => option.name === iconName) ?? shortcutIconOptions[shortcutIconOptions.length - 1];
   }
 
@@ -515,8 +544,20 @@ function MobileDashboard({
   const selectedShortcutTotal = selectedShortcutEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
   function openShortcutCategory(category: string) {
+    if (category === categoryShortcut.category) {
+      return;
+    }
+
     setSelectedShortcutCategory((current) => (current === category ? null : category));
     setShortcutPanelOpen(false);
+  }
+
+  function pinFrontShortcut(category: string) {
+    setFrontShortcutCategories((current) => {
+      const next = [category, ...current.filter((item) => item !== category)];
+      return next.slice(0, 4);
+    });
+    notify("সামনের icon update হয়েছে", "success");
   }
 
   function addCustomShortcut() {
@@ -611,10 +652,20 @@ function MobileDashboard({
             const option = getShortcutIcon(shortcut.iconName);
             const Icon = option.icon;
             const active = selectedShortcutCategory === shortcut.category;
-            return (
-              <button key={shortcut.category} type="button" onClick={() => openShortcutCategory(shortcut.category)} className="grid justify-items-center gap-2 text-center">
+            const content = (
+              <>
                 <span className={`grid size-12 place-items-center rounded-2xl ${option.tone} ${active ? "ring-2 ring-[#11298f]" : ""}`}><Icon size={22} /></span>
                 <span className="line-clamp-2 text-[11px] font-bold leading-4 text-[#20263a]">{shortcut.category}</span>
+              </>
+            );
+
+            return shortcut.category === categoryShortcut.category ? (
+              <Link key={shortcut.category} href="/categories" className="grid justify-items-center gap-2 text-center">
+                {content}
+              </Link>
+            ) : (
+              <button key={shortcut.category} type="button" onClick={() => openShortcutCategory(shortcut.category)} className="grid justify-items-center gap-2 text-center">
+                {content}
               </button>
             );
           })}
@@ -626,14 +677,32 @@ function MobileDashboard({
         {shortcutPanelOpen && (
           <div className="mt-4 grid gap-4 border-t border-[#eef0f8] pt-4">
             <div className="grid grid-cols-3 gap-2">
-              {allExpenseShortcuts.map((shortcut) => {
+              {allShortcutOptions.map((shortcut) => {
                 const option = getShortcutIcon(shortcut.iconName);
                 const Icon = option.icon;
-                return (
-                  <button key={shortcut.category} type="button" onClick={() => openShortcutCategory(shortcut.category)} className="grid justify-items-center gap-2 rounded-xl border border-[#eef0f8] p-2 text-center">
+                const isPinned = frontShortcutCategories.includes(shortcut.category);
+                const shortcutButtonContent = (
+                  <>
                     <span className={`grid size-10 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span>
                     <span className="line-clamp-2 text-[10px] font-bold leading-4 text-[#20263a]">{shortcut.category}</span>
-                  </button>
+                  </>
+                );
+
+                return (
+                  <div key={shortcut.category} className="grid justify-items-center gap-2 rounded-xl border border-[#eef0f8] p-2 text-center">
+                    {shortcut.category === categoryShortcut.category ? (
+                      <Link href="/categories" className="grid justify-items-center gap-2">
+                        {shortcutButtonContent}
+                      </Link>
+                    ) : (
+                      <button type="button" onClick={() => openShortcutCategory(shortcut.category)} className="grid justify-items-center gap-2">
+                        {shortcutButtonContent}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => pinFrontShortcut(shortcut.category)} className={isPinned ? "rounded-lg bg-[#11298f] px-2 py-1 text-[9px] font-extrabold text-white" : "rounded-lg bg-[#f3f1ff] px-2 py-1 text-[9px] font-extrabold text-[#11298f]"}>
+                      {isPinned ? "সামনে আছে" : "সামনে রাখুন"}
+                    </button>
+                  </div>
                 );
               })}
             </div>

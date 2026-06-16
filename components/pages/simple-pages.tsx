@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Globe2, Grid2X2, HelpCircle, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, Shirt, Trash2, TrendingUp, Upload, User, Utensils, Wallet } from "lucide-react";
+import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Trash2, TrendingUp, Upload, User, Utensils, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -31,6 +31,7 @@ import { displayDate, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from "@/types";
 
 type EntryFormMode = "expense" | "income";
+const CATEGORY_ICON_STORAGE_KEY = "daily-hisab.category-icons.v1";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry, categories } = useFinance();
@@ -181,6 +182,21 @@ export function CategoriesPage() {
   const { addCategory, categories, deleteCategory, entries, updateCategory } = useFinance();
   const { notify } = useToast();
   const [activeType, setActiveType] = useState<"expense" | "income">("expense");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [selectedCategoryIcon, setSelectedCategoryIcon] = useState("receipt");
+  const [showAddCategoryForm, setShowAddCategoryForm] = useState(false);
+  const [categoryIconMap, setCategoryIconMap] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") {
+      return {};
+    }
+
+    try {
+      const saved = window.localStorage.getItem(CATEGORY_ICON_STORAGE_KEY);
+      return saved ? JSON.parse(saved) as Record<string, string> : {};
+    } catch {
+      return {};
+    }
+  });
   const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
   const incomeCategories = useMemo(
     () => Array.from(new Set(entries.filter((entry) => entry.type === "income").map((entry) => entry.category).filter(Boolean))),
@@ -188,13 +204,26 @@ export function CategoriesPage() {
   );
   const visibleCategories = activeType === "expense" ? categories : incomeCategories;
   const categoryIconStyles = [
-    { icon: <Receipt size={29} />, tone: "bg-[#fff0e6] text-[#f97316]" },
-    { icon: <Bus size={29} />, tone: "bg-[#edf4ff] text-[#2563eb]" },
-    { icon: <Utensils size={29} />, tone: "bg-[#fff0e6] text-[#f97316]" },
-    { icon: <FileSpreadsheet size={29} />, tone: "bg-[#f2e9ff] text-[#7c3aed]" },
-    { icon: <Shirt size={29} />, tone: "bg-[#ffe6f6] text-[#db2777]" },
-    { icon: <Folder size={29} />, tone: "bg-[#fff7e8] text-[#c77800]" },
+    { name: "receipt", icon: Receipt, label: "অন্যান্য", tone: "bg-[#fff0e6] text-[#f97316]" },
+    { name: "food", icon: Utensils, label: "খাবার", tone: "bg-[#fff0e6] text-[#f97316]" },
+    { name: "coffee", icon: Coffee, label: "নাস্তা", tone: "bg-[#fff7ed] text-[#f59e0b]" },
+    { name: "bus", icon: Bus, label: "ভাড়া", tone: "bg-[#edf4ff] text-[#2563eb]" },
+    { name: "shopping", icon: ShoppingCart, label: "বাজার", tone: "bg-[#fff2ed] text-[#f97316]" },
+    { name: "mobile", icon: Smartphone, label: "মোবাইল", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { name: "fuel", icon: Fuel, label: "তেল", tone: "bg-[#fff7ed] text-[#ea580c]" },
+    { name: "bag", icon: ShoppingBag, label: "কেনাকাটা", tone: "bg-[#ffe6f6] text-[#db2777]" },
+    { name: "home", icon: Home, label: "বাসা", tone: "bg-[#ecfdf5] text-[#059669]" },
+    { name: "folder", icon: Folder, label: "ফোল্ডার", tone: "bg-[#fff7e8] text-[#c77800]" },
   ];
+
+  useEffect(() => {
+    window.localStorage.setItem(CATEGORY_ICON_STORAGE_KEY, JSON.stringify(categoryIconMap));
+  }, [categoryIconMap]);
+
+  function getCategoryIconStyle(category: string) {
+    const iconName = categoryIconMap[category] ?? "receipt";
+    return categoryIconStyles.find((style) => style.name === iconName) ?? categoryIconStyles[0];
+  }
 
   function countByCategory(category: string, type: EntryType) {
     return entries.filter((entry) => entry.type === type && entry.category === category).length;
@@ -206,9 +235,14 @@ export function CategoriesPage() {
       return;
     }
 
-    const category = window.prompt("New category name");
-    if (category === null) return;
+    const category = newCategoryName.trim();
     const added = addCategory(category);
+    if (added) {
+      setCategoryIconMap((current) => ({ ...current, [category]: selectedCategoryIcon }));
+      setNewCategoryName("");
+      setSelectedCategoryIcon("receipt");
+      setShowAddCategoryForm(false);
+    }
     notify(added ? "Category added" : "Category already exists or empty", added ? "success" : "danger");
   }
 
@@ -221,6 +255,13 @@ export function CategoriesPage() {
     const nextCategory = window.prompt("Edit category name", category);
     if (nextCategory === null) return;
     const updated = updateCategory(category, nextCategory);
+    if (updated) {
+      setCategoryIconMap((current) => {
+        const next = { ...current, [nextCategory]: current[category] ?? "receipt" };
+        delete next[category];
+        return next;
+      });
+    }
     notify(updated ? "Category updated" : "Category already exists or empty", updated ? "success" : "danger");
   }
 
@@ -232,6 +273,11 @@ export function CategoriesPage() {
 
     if (window.confirm(`Delete ${category}? Existing entries will stay saved.`)) {
       deleteCategory(category);
+      setCategoryIconMap((current) => {
+        const next = { ...current };
+        delete next[category];
+        return next;
+      });
       notify("Category deleted", "success");
     }
   }
@@ -239,7 +285,7 @@ export function CategoriesPage() {
   useEffect(() => {
     function handleHashAdd() {
       if (window.location.hash === "#add-category") {
-        handleAddCategory();
+        setShowAddCategoryForm(true);
         window.history.replaceState(null, "", window.location.pathname);
       }
     }
@@ -278,13 +324,14 @@ export function CategoriesPage() {
               No {activeType} categories yet. Tap + to add one.
             </Card>
           )}
-          {visibleCategories.map((category, index) => {
-            const style = categoryIconStyles[index % categoryIconStyles.length];
+          {visibleCategories.map((category) => {
+            const style = getCategoryIconStyle(category);
+            const Icon = style.icon;
             const count = countByCategory(category, activeType);
 
             return (
               <Card key={category} className="flex items-center gap-4 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_30px_rgba(20,35,90,0.06)]">
-                <span className={`grid size-16 shrink-0 place-items-center rounded-[18px] ${style.tone}`}>{style.icon}</span>
+                <span className={`grid size-16 shrink-0 place-items-center rounded-[18px] ${style.tone}`}><Icon size={29} /></span>
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate text-lg font-extrabold text-[#111936]">{category}</h2>
                   <p className="mt-1 text-sm font-semibold text-[#59627a]">{count} {activeType === "expense" ? "expenses" : "income"}</p>
@@ -296,7 +343,28 @@ export function CategoriesPage() {
           })}
         </div>
 
-        <button id="add-category" type="button" onClick={handleAddCategory} className="flex items-center gap-4 rounded-[18px] border border-dashed border-[#cfd6e6] bg-white p-5 text-left">
+        {showAddCategoryForm && activeType === "expense" && (
+          <Card className="grid gap-3 rounded-[18px] border-[#eef0f8] p-4">
+            <input className={inputClass} value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="নতুন ক্যাটাগরির নাম" />
+            <div className="grid grid-cols-5 gap-2">
+              {categoryIconStyles.map((style) => {
+                const Icon = style.icon;
+                const selected = selectedCategoryIcon === style.name;
+                return (
+                  <button key={style.name} type="button" onClick={() => setSelectedCategoryIcon(style.name)} aria-label={style.label} className={`grid size-11 place-items-center rounded-xl ${style.tone} ${selected ? "ring-2 ring-[#11298f]" : ""}`}>
+                    <Icon size={20} />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" onClick={handleAddCategory} className="w-full">Add</Button>
+              <Button type="button" variant="outline" onClick={() => setShowAddCategoryForm(false)} className="w-full">Cancel</Button>
+            </div>
+          </Card>
+        )}
+
+        <button id="add-category" type="button" onClick={() => setShowAddCategoryForm((open) => !open)} className="flex items-center gap-4 rounded-[18px] border border-dashed border-[#cfd6e6] bg-white p-5 text-left">
           <span className="grid size-16 shrink-0 place-items-center rounded-full bg-[#f2e9ff] text-[#7c3aed]"><Lightbulb size={28} /></span>
           <span>
             <strong className="block text-base font-extrabold text-[#111936]">Manage your categories</strong>
@@ -307,14 +375,39 @@ export function CategoriesPage() {
 
       <div className="hidden gap-5 md:grid xl:grid-cols-[1fr_360px]">
         <Card className="p-5">
-          <h2 className="mb-4 text-lg font-bold">Expense Categories</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">Expense Categories</h2>
+            <Button type="button" variant="outline" onClick={() => setShowAddCategoryForm((open) => !open)}><Plus size={16} /> Add</Button>
+          </div>
+          {showAddCategoryForm && (
+            <div className="mb-5 grid gap-3 rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-4">
+              <input className={inputClass} value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="New category name" />
+              <div className="flex flex-wrap gap-2">
+                {categoryIconStyles.map((style) => {
+                  const Icon = style.icon;
+                  const selected = selectedCategoryIcon === style.name;
+                  return (
+                    <button key={style.name} type="button" onClick={() => setSelectedCategoryIcon(style.name)} aria-label={style.label} className={`grid size-10 place-items-center rounded-xl ${style.tone} ${selected ? "ring-2 ring-[#11298f]" : ""}`}>
+                      <Icon size={18} />
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" onClick={handleAddCategory}>Save Category</Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddCategoryForm(false)}>Cancel</Button>
+              </div>
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             {categories.length === 0 && <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86] md:col-span-2">No categories yet.</div>}
             {categories.map((category) => {
               const spent = categoryData.find((data) => data.name === category)?.value ?? 0;
+              const style = getCategoryIconStyle(category);
+              const Icon = style.icon;
               return (
                 <div key={category} className="rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-4">
-                  <div className="mb-3 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-[#efeaff] text-[#6C4CF1]"><Receipt size={18} /></span><div><h3 className="font-bold">{category}</h3><p className="text-sm text-[#746d86]">Monthly spent {takaShort(spent)}</p></div></div>
+                  <div className="mb-3 flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-lg ${style.tone}`}><Icon size={18} /></span><div><h3 className="font-bold">{category}</h3><p className="text-sm text-[#746d86]">Monthly spent {takaShort(spent)}</p></div></div>
                   <div className="h-2 rounded-full bg-[#eeeafb]"><div className="h-full rounded-full bg-[#6C4CF1]" style={{ width: `${Math.min((spent / 5000) * 100, 100)}%` }} /></div>
                 </div>
               );
