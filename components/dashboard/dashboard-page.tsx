@@ -2,21 +2,26 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Banknote,
-  BookOpen,
   Bus,
   CalendarCheck,
+  Coffee,
   Download,
   Edit2,
   Eye,
   FileText,
+  Fuel,
+  Home,
   MoreHorizontal,
   MoreVertical,
   Plus,
   Receipt,
+  ShoppingBag,
+  ShoppingCart,
+  Smartphone,
   TrendingDown,
   TrendingUp,
   Utensils,
@@ -36,6 +41,8 @@ import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, s
 import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod, Reminder } from "@/types";
 import { CategoryPieChart, ExpenseTrendChart } from "./charts";
+
+const CUSTOM_SHORTCUTS_STORAGE_KEY = "daily-hisab.mobile-expense-shortcuts.v1";
 
 function StatCard({
   title,
@@ -429,19 +436,60 @@ function MobileDashboard({
   const { notify } = useToast();
   const today = getTodayIso();
   const [activeDailySlot, setActiveDailySlot] = useState<string | null>(null);
+  const [shortcutPanelOpen, setShortcutPanelOpen] = useState(false);
+  const [selectedShortcutCategory, setSelectedShortcutCategory] = useState<string | null>(null);
+  const [customCategoryName, setCustomCategoryName] = useState("");
+  const [customIconName, setCustomIconName] = useState("shopping");
+  const [customShortcuts, setCustomShortcuts] = useState<Array<{ category: string; iconName: string }>>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    try {
+      const saved = window.localStorage.getItem(CUSTOM_SHORTCUTS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) as Array<{ category: string; iconName: string }> : [];
+    } catch {
+      return [];
+    }
+  });
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const todayExpenseEntries = expenseEntries.filter((entry) => entry.date === today);
+  const monthPrefix = today.slice(0, 7);
+  const monthlyExpenseEntries = expenseEntries.filter((entry) => entry.date.startsWith(monthPrefix));
   const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
   const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
-  const shortcutIcons = [Utensils, Bus, Receipt, BookOpen, MoreHorizontal];
-  const shortcutTones = ["bg-[#fff5ec] text-[#f59e0b]", "bg-[#f0f5ff] text-[#0d4fb8]", "bg-[#fff2ed] text-[#f97316]", "bg-[#f5efff] text-[#6d5adf]", "bg-[#f2f6ff] text-[#0d2c88]"];
-  const shortcuts = (categoryData.length > 0 ? categoryData.map((item) => item.name) : ["Add", "Income", "Entries", "Reports", "Others"]).slice(0, 5);
-  const shortcutHrefs = ["/add-expense", "/add-income", "/entries", "/reports", "/settings"];
   const totalCategoryValue = categoryData.reduce((sum, item) => sum + item.value, 0);
   const todayExpenseTitle = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a";
   const emptyDailyExpenseText = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a add \u0995\u09b0\u09c1\u09a8";
   const addAmountText = "\u099f\u09be\u0995\u09be \u09af\u09cb\u0997 \u0995\u09b0\u09c1\u09a8";
+  const shortcutIconOptions = [
+    { name: "food", icon: Utensils, label: "খাবার", tone: "bg-[#fff5ec] text-[#f59e0b]" },
+    { name: "coffee", icon: Coffee, label: "নাস্তা", tone: "bg-[#fff5ec] text-[#f59e0b]" },
+    { name: "bus", icon: Bus, label: "ভাড়া", tone: "bg-[#f0f5ff] text-[#0d4fb8]" },
+    { name: "shopping", icon: ShoppingCart, label: "বাজার", tone: "bg-[#fff2ed] text-[#f97316]" },
+    { name: "mobile", icon: Smartphone, label: "মোবাইল", tone: "bg-[#f2f6ff] text-[#0d2c88]" },
+    { name: "fuel", icon: Fuel, label: "তেল", tone: "bg-[#fff7ed] text-[#ea580c]" },
+    { name: "bag", icon: ShoppingBag, label: "কেনাকাটা", tone: "bg-[#fdf2f8] text-[#db2777]" },
+    { name: "home", icon: Home, label: "বাসা", tone: "bg-[#ecfdf5] text-[#059669]" },
+    { name: "receipt", icon: Receipt, label: "অন্যান্য", tone: "bg-[#f5efff] text-[#6d5adf]" },
+  ];
+  const baseShortcuts = [
+    { category: "সকালের নাস্তা", iconName: "coffee" },
+    { category: "দুপুরের খাবার", iconName: "food" },
+    { category: "যাতায়াত ভাড়া", iconName: "bus" },
+    { category: "বিকালের নাস্তা", iconName: "coffee" },
+    { category: "বাজার খরচ", iconName: "shopping" },
+    { category: "মোবাইল / রিচার্জ", iconName: "mobile" },
+    { category: "বাসা ভাড়া", iconName: "home" },
+    { category: "তেল / গ্যাস", iconName: "fuel" },
+    { category: "অন্যান্য খরচ", iconName: "receipt" },
+  ];
+  const entryShortcuts = Array.from(new Set(monthlyExpenseEntries.map((entry) => entry.category)))
+    .filter((category) => !baseShortcuts.some((shortcut) => shortcut.category === category) && !customShortcuts.some((shortcut) => shortcut.category === category))
+    .map((category) => ({ category, iconName: "receipt" }));
+  const allExpenseShortcuts = [...baseShortcuts, ...customShortcuts, ...entryShortcuts];
+  const visibleShortcuts = allExpenseShortcuts.slice(0, 4);
   const dailyExpenseSlots = [
     { category: "সকালের নাস্তা", icon: Utensils, tone: "bg-[#fff5ec] text-[#f59e0b]" },
     { category: "যাতায়াত ভাড়া", icon: Bus, tone: "bg-[#f0f5ff] text-[#0d4fb8]" },
@@ -449,6 +497,47 @@ function MobileDashboard({
     { category: "বিকেলের নাস্তা", icon: Utensils, tone: "bg-[#fff5ec] text-[#f59e0b]" },
     { category: "অন্যান্য খরচ", icon: MoreHorizontal, tone: "bg-[#f2f6ff] text-[#0d2c88]" },
   ];
+
+  useEffect(() => {
+    window.localStorage.setItem(CUSTOM_SHORTCUTS_STORAGE_KEY, JSON.stringify(customShortcuts));
+  }, [customShortcuts]);
+
+  function getShortcutIcon(iconName: string) {
+    return shortcutIconOptions.find((option) => option.name === iconName) ?? shortcutIconOptions[shortcutIconOptions.length - 1];
+  }
+
+  function getMonthlyEntriesForCategory(category: string) {
+    return monthlyExpenseEntries.filter((entry) => entry.category === category);
+  }
+
+  const selectedShortcut = allExpenseShortcuts.find((shortcut) => shortcut.category === selectedShortcutCategory);
+  const selectedShortcutEntries = selectedShortcut ? getMonthlyEntriesForCategory(selectedShortcut.category) : [];
+  const selectedShortcutTotal = selectedShortcutEntries.reduce((sum, entry) => sum + entry.amount, 0);
+
+  function openShortcutCategory(category: string) {
+    setSelectedShortcutCategory((current) => (current === category ? null : category));
+    setShortcutPanelOpen(false);
+  }
+
+  function addCustomShortcut() {
+    const nextCategory = customCategoryName.trim();
+
+    if (!nextCategory) {
+      notify("Category name add korun", "danger");
+      return;
+    }
+
+    if (allExpenseShortcuts.some((shortcut) => shortcut.category.toLowerCase() === nextCategory.toLowerCase())) {
+      notify("Category already exists", "danger");
+      return;
+    }
+
+    setCustomShortcuts((current) => [...current, { category: nextCategory, iconName: customIconName }]);
+    setSelectedShortcutCategory(nextCategory);
+    setCustomCategoryName("");
+    setShortcutPanelOpen(false);
+    notify("Icon category added", "success");
+  }
 
   function saveDailyExpense(category: string, entry: Entry | undefined, formData: FormData) {
     const amount = Number(formData.get("amount"));
@@ -518,16 +607,73 @@ function MobileDashboard({
 
       <Card className="rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="grid grid-cols-5 gap-2">
-          {shortcuts.map((label, index) => {
-            const Icon = shortcutIcons[index] ?? MoreHorizontal;
+          {visibleShortcuts.map((shortcut) => {
+            const option = getShortcutIcon(shortcut.iconName);
+            const Icon = option.icon;
+            const active = selectedShortcutCategory === shortcut.category;
             return (
-              <Link key={`${label}-${index}`} href={shortcutHrefs[index] ?? "/settings"} className="grid justify-items-center gap-2 text-center">
-                <span className={`grid size-12 place-items-center rounded-2xl ${shortcutTones[index] ?? shortcutTones[4]}`}><Icon size={22} /></span>
-                <span className="line-clamp-2 text-[11px] font-bold leading-4 text-[#20263a]">{label}</span>
-              </Link>
+              <button key={shortcut.category} type="button" onClick={() => openShortcutCategory(shortcut.category)} className="grid justify-items-center gap-2 text-center">
+                <span className={`grid size-12 place-items-center rounded-2xl ${option.tone} ${active ? "ring-2 ring-[#11298f]" : ""}`}><Icon size={22} /></span>
+                <span className="line-clamp-2 text-[11px] font-bold leading-4 text-[#20263a]">{shortcut.category}</span>
+              </button>
             );
           })}
+          <button type="button" onClick={() => { setShortcutPanelOpen((open) => !open); setSelectedShortcutCategory(null); }} className="grid justify-items-center gap-2 text-center">
+            <span className={`grid size-12 place-items-center rounded-2xl bg-[#f2f6ff] text-[#0d2c88] ${shortcutPanelOpen ? "ring-2 ring-[#11298f]" : ""}`}><MoreHorizontal size={22} /></span>
+            <span className="line-clamp-2 text-[11px] font-bold leading-4 text-[#20263a]">আরও</span>
+          </button>
         </div>
+        {shortcutPanelOpen && (
+          <div className="mt-4 grid gap-4 border-t border-[#eef0f8] pt-4">
+            <div className="grid grid-cols-3 gap-2">
+              {allExpenseShortcuts.map((shortcut) => {
+                const option = getShortcutIcon(shortcut.iconName);
+                const Icon = option.icon;
+                return (
+                  <button key={shortcut.category} type="button" onClick={() => openShortcutCategory(shortcut.category)} className="grid justify-items-center gap-2 rounded-xl border border-[#eef0f8] p-2 text-center">
+                    <span className={`grid size-10 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span>
+                    <span className="line-clamp-2 text-[10px] font-bold leading-4 text-[#20263a]">{shortcut.category}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="grid gap-3 rounded-xl bg-[#fbfaff] p-3">
+              <input className={inputClass} value={customCategoryName} onChange={(event) => setCustomCategoryName(event.target.value)} placeholder="নতুন খরচের নাম" />
+              <div className="grid grid-cols-5 gap-2">
+                {shortcutIconOptions.map((option) => {
+                  const Icon = option.icon;
+                  const selected = customIconName === option.name;
+                  return (
+                    <button key={option.name} type="button" onClick={() => setCustomIconName(option.name)} aria-label={option.label} className={`grid size-10 place-items-center rounded-xl ${option.tone} ${selected ? "ring-2 ring-[#11298f]" : ""}`}>
+                      <Icon size={18} />
+                    </button>
+                  );
+                })}
+              </div>
+              <Button type="button" onClick={addCustomShortcut} className="w-full"><Plus size={16} /> Add icon</Button>
+            </div>
+          </div>
+        )}
+        {selectedShortcut && (
+          <div className="mt-4 border-t border-[#eef0f8] pt-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-extrabold text-[#111936]">{selectedShortcut.category}</p>
+                <p className="text-[11px] font-semibold text-[#69718a]">This month date-wise list</p>
+              </div>
+              <strong className="text-sm text-[#11298f]">{takaShort(selectedShortcutTotal)}</strong>
+            </div>
+            <div className="grid gap-2">
+              {selectedShortcutEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fbfaff] px-3 py-2 text-xs">
+                  <span className="min-w-0 truncate font-semibold text-[#59627a]">{displayDate(entry.date)} - {entry.time}</span>
+                  <strong className="text-[#111936]">{takaShort(entry.amount)}</strong>
+                </div>
+              ))}
+              {selectedShortcutEntries.length === 0 && <div className="rounded-xl border border-dashed border-[#d8dff2] p-3 text-center text-xs font-semibold text-[#69718a]">এই মাসে কোনো খরচ নেই</div>}
+            </div>
+          </div>
+        )}
       </Card>
 
       <div className="grid grid-cols-3 gap-3">
