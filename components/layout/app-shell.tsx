@@ -338,7 +338,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           { href: "/reports", label: "Reports", icon: BarChart3 },
           { href: "/add-expense", label: "Add", icon: Plus, primary: true },
           { href: "/calendar", label: "Calendar", icon: CalendarDays },
-          { href: "/settings", label: "Profile", icon: Settings },
+          { href: "/settings", label: "Profile", icon: User },
         ].map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;

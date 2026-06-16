@@ -207,17 +207,48 @@ function TodayEntries({ entries, today }: Readonly<{ entries: Entry[]; today: st
       <div className="grid gap-3 md:hidden">
         {todayEntries.map((entry) => (
           <div key={entry.id} className="rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-4">
-            <div className="flex justify-between gap-3">
-              <div>
-                <p className="font-bold">{entry.category}</p>
-                <p className="text-sm text-[#746d86]">{entry.description} · {entry.time}</p>
-              </div>
-              <p className={entry.type === "income" ? "font-bold text-[#22C55E]" : "font-bold text-[#EF4444]"}>{takaShort(entry.amount)}</p>
-            </div>
-            <div className="mt-3 flex gap-3 text-[#6C4CF1]">
-              <Link href="/entries" aria-label="Edit entry"><Edit2 size={17} /></Link>
-              <ConfirmDeleteButton onConfirm={() => handleDelete(entry.id)} />
-            </div>
+            {editingId === entry.id ? (
+              <form action={(formData) => saveEdit(entry, formData)} className="grid gap-3">
+                <Field label="Date">
+                  <input name="date" type="date" className={inputClass} defaultValue={entry.date} />
+                </Field>
+                <Field label="Category">
+                  <input name="category" className={inputClass} defaultValue={entry.category} />
+                </Field>
+                <Field label="Description">
+                  <input name="description" className={inputClass} defaultValue={entry.description} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Amount">
+                    <input name="amount" className={inputClass} defaultValue={entry.amount} inputMode="decimal" />
+                  </Field>
+                  <Field label="Type">
+                    <select name="type" className={inputClass} defaultValue={entry.type}><option value="expense">expense</option><option value="income">income</option></select>
+                  </Field>
+                </div>
+                <Field label="Method">
+                  <select name="method" className={inputClass} defaultValue={entry.method}>{paymentMethods.map((method) => <option key={method}>{method}</option>)}</select>
+                </Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="submit" className="w-full">Save</Button>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => setEditingId(null)}>Cancel</Button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <p className="font-bold">{entry.category}</p>
+                    <p className="text-sm text-[#746d86]">{entry.description} - {entry.time}</p>
+                  </div>
+                  <p className={entry.type === "income" ? "font-bold text-[#22C55E]" : "font-bold text-[#EF4444]"}>{takaShort(entry.amount)}</p>
+                </div>
+                <div className="mt-3 flex gap-3 text-[#6C4CF1]">
+                  <button type="button" aria-label="Edit entry" onClick={() => setEditingId(entry.id)}><Edit2 size={17} /></button>
+                  <ConfirmDeleteButton onConfirm={() => handleDelete(entry.id)} />
+                </div>
+              </>
+            )}
           </div>
         ))}
         {todayEntries.length === 0 && <div className="rounded-xl border border-dashed border-[#d8d1ff] p-6 text-center text-sm text-[#746d86]">No entries found.</div>}
@@ -394,8 +425,12 @@ function MobileDashboard({
   entries: Entry[];
   monthExpense: number;
 }>) {
+  const { addEntry, updateEntry } = useFinance();
+  const { notify } = useToast();
+  const today = getTodayIso();
+  const [activeDailySlot, setActiveDailySlot] = useState<string | null>(null);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
-  const recentExpenses = expenseEntries.slice(0, 5);
+  const todayExpenseEntries = expenseEntries.filter((entry) => entry.date === today);
   const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
   const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
@@ -404,6 +439,51 @@ function MobileDashboard({
   const shortcuts = (categoryData.length > 0 ? categoryData.map((item) => item.name) : ["Add", "Income", "Entries", "Reports", "Others"]).slice(0, 5);
   const shortcutHrefs = ["/add-expense", "/add-income", "/entries", "/reports", "/settings"];
   const totalCategoryValue = categoryData.reduce((sum, item) => sum + item.value, 0);
+  const todayExpenseTitle = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a";
+  const emptyDailyExpenseText = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a add \u0995\u09b0\u09c1\u09a8";
+  const addAmountText = "\u099f\u09be\u0995\u09be \u09af\u09cb\u0997 \u0995\u09b0\u09c1\u09a8";
+  const dailyExpenseSlots = [
+    { category: "সকালের নাস্তা", icon: Utensils, tone: "bg-[#fff5ec] text-[#f59e0b]" },
+    { category: "যাতায়াত ভাড়া", icon: Bus, tone: "bg-[#f0f5ff] text-[#0d4fb8]" },
+    { category: "দুপুরের খরচ", icon: Receipt, tone: "bg-[#fff2ed] text-[#f97316]" },
+    { category: "বিকেলের নাস্তা", icon: Utensils, tone: "bg-[#fff5ec] text-[#f59e0b]" },
+    { category: "অন্যান্য খরচ", icon: MoreHorizontal, tone: "bg-[#f2f6ff] text-[#0d2c88]" },
+  ];
+
+  function saveDailyExpense(category: string, entry: Entry | undefined, formData: FormData) {
+    const amount = Number(formData.get("amount"));
+
+    if (!amount || amount <= 0) {
+      notify("Amount add korun", "danger");
+      return;
+    }
+
+    if (entry) {
+      updateEntry(entry.id, {
+        date: today,
+        category,
+        description: category,
+        amount,
+        method: entry.method,
+        type: "expense",
+        note: entry.note,
+      });
+      notify("আজকের খরচ আপডেট হয়েছে", "info");
+    } else {
+      addEntry({
+        date: today,
+        category,
+        description: category,
+        amount,
+        method: "Cash",
+        type: "expense",
+        note: "",
+      });
+      notify("আজকের খরচ যোগ হয়েছে", "success");
+    }
+
+    setActiveDailySlot(null);
+  }
 
   return (
     <div className="grid gap-4 bg-white pb-6 lg:hidden">
@@ -458,26 +538,39 @@ function MobileDashboard({
 
       <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-extrabold text-[#111936]">Recent Expenses</h2>
+          <h2 className="text-base font-extrabold text-[#111936]">{todayExpenseTitle}</h2>
           <Link href="/entries" className="text-xs font-bold text-[#0d2c88]">View All</Link>
         </div>
         <div className="divide-y divide-[#eef0f8]">
-          {recentExpenses.map((entry, index) => {
-            const Icon = shortcutIcons[index] ?? Receipt;
+          {dailyExpenseSlots.map((slot) => {
+            const entry = todayExpenseEntries.find((item) => item.category === slot.category);
+            const Icon = slot.icon;
             return (
-              <div key={entry.id} className="flex items-center gap-3 py-3 first:pt-0">
-                <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${shortcutTones[index] ?? shortcutTones[0]}`}><Icon size={18} /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-extrabold text-[#18203a]">{entry.category}</p>
-                  <p className="truncate text-[11px] text-[#69718a]">{displayDate(entry.date)} · {entry.time}</p>
+              <div key={slot.category} className="py-3 first:pt-0">
+                <div className="flex items-center gap-3">
+                  <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${slot.tone}`}><Icon size={18} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-extrabold text-[#18203a]">{slot.category}</p>
+                    <p className="truncate text-[11px] text-[#69718a]">{entry ? `${displayDate(entry.date)} - ${entry.time}` : emptyDailyExpenseText}</p>
+                  </div>
+                  {entry ? (
+                    <button type="button" className="text-sm font-extrabold text-[#111936]" onClick={() => setActiveDailySlot(slot.category)}>{takaShort(entry.amount)}</button>
+                  ) : (
+                    <button type="button" className="rounded-lg bg-[#f3f1ff] px-3 py-2 text-xs font-extrabold text-[#0d2c88]" onClick={() => setActiveDailySlot(slot.category)}>{addAmountText}</button>
+                  )}
                 </div>
-                <strong className="text-sm text-[#111936]">{takaShort(entry.amount)}</strong>
+                {activeDailySlot === slot.category && (
+                  <form action={(formData) => saveDailyExpense(slot.category, entry, formData)} className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+                    <input name="amount" className={inputClass} defaultValue={entry?.amount ?? ""} inputMode="decimal" placeholder="0" />
+                    <Button type="submit" className="h-11 px-3">Save</Button>
+                    <Button type="button" variant="outline" className="h-11 px-3" onClick={() => setActiveDailySlot(null)}>Cancel</Button>
+                  </form>
+                )}
               </div>
             );
           })}
-          {recentExpenses.length === 0 && <div className="rounded-2xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-medium text-[#69718a]">No expenses yet.</div>}
         </div>
-        <Link href="/add-expense" className="mt-4 flex h-11 items-center justify-center gap-3 rounded-xl bg-[#f3f1ff] text-sm font-extrabold text-[#0d2c88]"><Plus size={19} /> Add Expense</Link>
+        <Link href="/add-expense" className="mt-4 flex h-11 items-center justify-center gap-3 rounded-xl bg-[#f3f1ff] text-sm font-extrabold text-[#0d2c88]"><Plus size={19} /> {emptyDailyExpenseText}</Link>
       </Card>
 
       <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">

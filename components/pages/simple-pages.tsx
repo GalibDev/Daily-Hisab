@@ -94,11 +94,14 @@ export function IncomePage() {
 
 export function EntriesPage() {
   const { categories, entries } = useFinance();
+  const today = getTodayIso();
   const [date, setDate] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => filterEntries(entries, { date, category, search }), [entries, date, category, search]);
   const total = filtered.reduce((sum, item) => sum + (item.type === "income" ? item.amount : -item.amount), 0);
+  const todayExpenseTotal = entries.filter((entry) => entry.date === today && entry.type === "expense").reduce((sum, entry) => sum + entry.amount, 0);
+  const todayIncomeTotal = entries.filter((entry) => entry.date === today && entry.type === "income").reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
     <AppShell>
@@ -113,6 +116,16 @@ export function EntriesPage() {
           <input className={inputClass} placeholder="Search entries..." value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
         <ResponsiveEntries entries={filtered} editable />
+        <div className="mt-5 grid gap-3 border-t border-[#eef0f8] pt-4">
+          <div className="flex items-center justify-between rounded-xl bg-[#fff7f7] px-4 py-3">
+            <span className="text-sm font-extrabold text-[#111936]">আজকের মোট খরচ</span>
+            <strong className="text-base text-[#EF4444]">{taka(todayExpenseTotal)}</strong>
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-[#f0fff6] px-4 py-3">
+            <span className="text-sm font-extrabold text-[#111936]">আজকের মোট income</span>
+            <strong className="text-base text-[#22C55E]">{taka(todayIncomeTotal)}</strong>
+          </div>
+        </div>
       </Card>
     </AppShell>
   );
@@ -1149,7 +1162,52 @@ function ResponsiveEntries({ entries, editable }: Readonly<{ entries: Entry[]; e
           ))}</tbody>
         </table>
       </div>
-      <div className="grid gap-3 md:hidden">{entries.map((e) => <Card key={e.id} className="p-4"><div className="flex justify-between gap-3"><div><b>{e.category}</b><p className="text-sm text-[#746d86]">{e.description} · {displayDate(e.date)}</p><p className="text-xs text-[#746d86]">{e.method} · {e.type}</p></div><strong className={e.type === "income" ? "text-[#22C55E]" : "text-[#EF4444]"}>{takaShort(e.amount)}</strong></div>{editable && <div className="mt-3 flex gap-3 text-[#6C4CF1]"><button type="button" onClick={() => setEditingId(e.id)}><Edit2 size={17} /></button><ConfirmDeleteButton onConfirm={() => handleDelete(e.id)} /></div>}</Card>)}</div>
+      <div className="grid gap-3 md:hidden">
+        {entries.map((e) => (
+          <Card key={e.id} className="p-4">
+            {editingId === e.id ? (
+              <form action={(formData) => saveEdit(e, formData)} className="grid gap-3">
+                <Field label="Date">
+                  <input name="date" type="date" className={inputClass} defaultValue={e.date} />
+                </Field>
+                <Field label="Category">
+                  <input name="category" className={inputClass} defaultValue={e.category} />
+                </Field>
+                <Field label="Description">
+                  <input name="description" className={inputClass} defaultValue={e.description} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Type">
+                    <select name="type" className={inputClass} defaultValue={e.type}><option value="expense">expense</option><option value="income">income</option></select>
+                  </Field>
+                  <Field label="Amount">
+                    <input name="amount" className={inputClass} defaultValue={e.amount} inputMode="decimal" />
+                  </Field>
+                </div>
+                <Field label="Method">
+                  <select name="method" className={inputClass} defaultValue={e.method}>{paymentMethods.map((m) => <option key={m}>{m}</option>)}</select>
+                </Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="submit" className="w-full">Save</Button>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => setEditingId(null)}>Cancel</Button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <b>{e.category}</b>
+                    <p className="text-sm text-[#746d86]">{e.description} - {displayDate(e.date)}</p>
+                    <p className="text-xs text-[#746d86]">{e.method} - {e.type}</p>
+                  </div>
+                  <strong className={e.type === "income" ? "text-[#22C55E]" : "text-[#EF4444]"}>{takaShort(e.amount)}</strong>
+                </div>
+                {editable && <div className="mt-3 flex gap-3 text-[#6C4CF1]"><button type="button" aria-label="Edit entry" onClick={() => setEditingId(e.id)}><Edit2 size={17} /></button><ConfirmDeleteButton onConfirm={() => handleDelete(e.id)} /></div>}
+              </>
+            )}
+          </Card>
+        ))}
+      </div>
     </>
   );
 }
