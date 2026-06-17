@@ -61,14 +61,14 @@ export function AuthPage() {
             <Wallet />
           </div>
           <h1 className="text-2xl font-bold">Daily Hisab</h1>
-          <p className="text-sm text-[#746d86]">Firebase account দিয়ে login করুন</p>
+          <p className="text-sm text-[#746d86]">Sign in with your email or continue with Google</p>
         </div>
-        {!configured && <div className="mb-4 rounded-lg bg-[#fff4e2] p-3 text-sm text-[#8a5a00]">Firebase env missing. `.env.local` check করুন।</div>}
+        {!configured && <div className="mb-4 rounded-lg bg-[#fff4e2] p-3 text-sm text-[#8a5a00]">Authentication is not configured. Please check your `.env.local` file.</div>}
         <form onSubmit={handleSubmit} className="grid gap-4">
           {mode === "signup" && <input name="name" className={inputClass} placeholder="Full name" />}
           <input name="email" type="email" className={inputClass} placeholder="Email" required />
           <input name="password" type="password" className={inputClass} placeholder="Password" required minLength={6} />
-          <Button type="submit" disabled={loading || !configured}>{loading ? "Please wait..." : mode === "login" ? "Login" : "Create account"}</Button>
+          <Button type="submit" disabled={loading || !configured}>{loading ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}</Button>
         </form>
         <div className="my-4 flex items-center gap-3 text-xs font-semibold text-[#9a93ac]">
           <span className="h-px flex-1 bg-[#ece8ff]" /> OR <span className="h-px flex-1 bg-[#ece8ff]" />
@@ -78,7 +78,7 @@ export function AuthPage() {
           Continue with Google
         </Button>
         <button type="button" className="mt-4 w-full text-sm font-semibold text-[#6C4CF1]" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
-          {mode === "login" ? "New account create korun" : "Already account ache? Login"}
+          {mode === "login" ? "Create a new account" : "Already have an account? Log in"}
         </button>
       </Card>
     </main>
