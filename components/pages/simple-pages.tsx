@@ -1129,9 +1129,11 @@ function ProfileMenuSection({
 }
 
 export function SettingsPage() {
-  const { signOut, user } = useAuth();
+  const { signOut, uploadProfileImage, user } = useAuth();
   const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData, syncEnabled, syncError } = useFinance();
   const { notify } = useToast();
+  const mobileProfileInputRef = useRef<HTMLInputElement>(null);
+  const [mobileProfileUploading, setMobileProfileUploading] = useState(false);
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -1159,16 +1161,38 @@ export function SettingsPage() {
     { href: "/settings", icon: <Info size={20} />, label: "About Daily Hisab", meta: "v1.0.0", tone: "bg-[#f5efff] text-[#7c3aed]" },
   ];
 
+  async function handleMobileProfileImage(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      notify("Only image files are allowed", "danger");
+      return;
+    }
+
+    try {
+      setMobileProfileUploading(true);
+      await uploadProfileImage(file);
+      notify("Profile image updated", "success");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Image upload failed", "danger");
+    } finally {
+      setMobileProfileUploading(false);
+      if (mobileProfileInputRef.current) {
+        mobileProfileInputRef.current.value = "";
+      }
+    }
+  }
+
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
       <div className="grid gap-5 md:hidden">
         <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
           <div className="flex items-center gap-4">
-            <div className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb]">
+            <input ref={mobileProfileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void handleMobileProfileImage(event.target.files?.[0])} />
+            <button type="button" disabled={!user || mobileProfileUploading} onClick={() => mobileProfileInputRef.current?.click()} className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb] disabled:opacity-70" aria-label="Upload profile image">
               {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={96} height={96} className="size-full object-cover" /> : <User size={56} fill="currentColor" strokeWidth={1.5} />}
-              <span className="absolute bottom-0 right-0 grid size-10 place-items-center rounded-full bg-[#3153c9] text-white ring-4 ring-[#11298f]"><Camera size={18} /></span>
-            </div>
+              <span className="absolute bottom-0 right-0 grid size-10 place-items-center rounded-full bg-[#3153c9] text-white ring-4 ring-[#11298f]">{mobileProfileUploading ? <Upload size={17} /> : <Camera size={18} />}</span>
+            </button>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-[22px] font-extrabold leading-7">{profileName}</h2>
               <p className="mt-1 truncate text-sm font-semibold text-white/82">{profileEmail}</p>

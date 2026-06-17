@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Banknote,
@@ -445,6 +445,8 @@ function MobileDashboard({
   const [selectedShortcutCategory, setSelectedShortcutCategory] = useState<string | null>(null);
   const [customCategoryName, setCustomCategoryName] = useState("");
   const [customIconName, setCustomIconName] = useState("shopping");
+  const summarySliderRef = useRef<HTMLDivElement>(null);
+  const [summarySlideIndex, setSummarySlideIndex] = useState(0);
   const defaultFrontShortcuts = ["সকালের নাস্তা", "দুপুরের খাবার", "যাতায়াত ভাড়া", "ক্যাটাগরি"];
   const [frontShortcutCategories, setFrontShortcutCategories] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -623,9 +625,27 @@ function MobileDashboard({
     setActiveDailySlot(null);
   }
 
+  function scrollSummarySlider(index: number) {
+    const slider = summarySliderRef.current;
+    if (!slider) return;
+    const target = slider.children[index] as HTMLElement | undefined;
+
+    slider.scrollTo({ left: target?.offsetLeft ?? index * slider.clientWidth, behavior: "smooth" });
+    setSummarySlideIndex(index);
+  }
+
   return (
     <div className="grid gap-4 bg-white pb-6 lg:hidden">
-      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Summary slider">
+      <div
+        ref={summarySliderRef}
+        onScroll={(event) => {
+          const slider = event.currentTarget;
+          const nextIndex = Math.round(slider.scrollLeft / Math.max(slider.clientWidth, 1));
+          setSummarySlideIndex(Math.min(1, Math.max(0, nextIndex)));
+        }}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="Summary slider"
+      >
         <section className="w-full shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
           <div className="grid grid-cols-[1fr_112px] gap-4">
             <div className="min-w-0">
@@ -683,6 +703,17 @@ function MobileDashboard({
             </div>
           </div>
         </section>
+      </div>
+      <div className="-mt-1 flex justify-center gap-2" aria-label="Slider pages">
+        {[0, 1].map((index) => (
+          <button
+            key={index}
+            type="button"
+            onClick={() => scrollSummarySlider(index)}
+            aria-label={`Go to slide ${index + 1}`}
+            className={summarySlideIndex === index ? "h-2.5 w-6 rounded-full bg-[#11298f]" : "size-2.5 rounded-full bg-[#cfd6e8]"}
+          />
+        ))}
       </div>
 
       <Card className="rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
