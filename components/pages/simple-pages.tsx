@@ -459,19 +459,77 @@ function MobileReportsAnalytics({
   entries: Entry[];
   today: string;
 }>) {
+  type AnalyticsFilter = "thisMonth" | "lastMonth" | "thisYear" | "custom";
+
+  const { notify } = useToast();
   const [analyticsTab, setAnalyticsTab] = useState<"overview" | "expense" | "income" | "budget">("overview");
-  const monthEntries = useMemo(() => filterEntriesByReportPeriod(entries, "monthly", today), [entries, today]);
-  const summary = useMemo(() => summarizeEntries(monthEntries), [monthEntries]);
-  const categoryData = useMemo(() => buildCategoryExpense(monthEntries, categories), [categories, monthEntries]);
-  const trendData = useMemo(() => buildExpenseTrend(monthEntries), [monthEntries]);
+  const [analyticsFilter, setAnalyticsFilter] = useState<AnalyticsFilter>("thisMonth");
+  const [customMonth, setCustomMonth] = useState(today.slice(0, 7));
+  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+  const filteredEntries = useMemo(() => {
+    const currentDate = new Date(`${today}T00:00:00`);
+    const currentMonth = today.slice(0, 7);
+    const previousMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const previousMonth = `${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth() + 1).padStart(2, "0")}`;
+    const currentYear = String(currentDate.getFullYear());
+
+    if (analyticsFilter === "lastMonth") {
+      return entries.filter((entry) => entry.date.startsWith(previousMonth));
+    }
+
+    if (analyticsFilter === "thisYear") {
+      return entries.filter((entry) => entry.date.startsWith(currentYear));
+    }
+
+    if (analyticsFilter === "custom") {
+      return entries.filter((entry) => entry.date.startsWith(customMonth));
+    }
+
+    return entries.filter((entry) => entry.date.startsWith(currentMonth));
+  }, [analyticsFilter, customMonth, entries, today]);
+  const previousEntries = useMemo(() => {
+    const currentDate = new Date(`${today}T00:00:00`);
+    const previousMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const previousMonth = `${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth() + 1).padStart(2, "0")}`;
+    const previousYear = String(currentDate.getFullYear() - 1);
+
+    if (analyticsFilter === "lastMonth") {
+      const beforeLastMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 2, 1);
+      const beforeLastMonth = `${beforeLastMonthDate.getFullYear()}-${String(beforeLastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+      return entries.filter((entry) => entry.date.startsWith(beforeLastMonth));
+    }
+
+    if (analyticsFilter === "thisYear") {
+      return entries.filter((entry) => entry.date.startsWith(previousYear));
+    }
+
+    if (analyticsFilter === "custom") {
+      const [year, month] = customMonth.split("-").map(Number);
+      const previousCustomDate = new Date(year, month - 2, 1);
+      const previousCustomMonth = `${previousCustomDate.getFullYear()}-${String(previousCustomDate.getMonth() + 1).padStart(2, "0")}`;
+      return entries.filter((entry) => entry.date.startsWith(previousCustomMonth));
+    }
+
+    return entries.filter((entry) => entry.date.startsWith(previousMonth));
+  }, [analyticsFilter, customMonth, entries, today]);
+  const summary = useMemo(() => summarizeEntries(filteredEntries), [filteredEntries]);
+  const previousSummary = useMemo(() => summarizeEntries(previousEntries), [previousEntries]);
+  const categoryData = useMemo(() => buildCategoryExpense(filteredEntries, categories), [categories, filteredEntries]);
+  const trendData = useMemo(() => buildExpenseTrend(filteredEntries), [filteredEntries]);
   const totalExpense = summary.expense;
-  const daysWithExpense = new Set(monthEntries.filter((entry) => entry.type === "expense").map((entry) => entry.date)).size;
+  const daysWithExpense = new Set(filteredEntries.filter((entry) => entry.type === "expense").map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? totalExpense / daysWithExpense : 0;
   const categoryTotal = categoryData.reduce((sum, item) => sum + item.value, 0);
   const todayDate = new Date(`${today}T00:00:00`);
-  const monthLabel = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(todayDate);
-  const daysInMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0).getDate();
-  const conic = categoryData.length > 0
+  const selectedDate = analyticsFilter === "lastMonth"
+    ? new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1)
+    : analyticsFilter === "custom"
+      ? new Date(`${customMonth}-01T00:00:00`)
+      : todayDate;
+  const monthLabel = analyticsFilter === "thisYear" ? String(todayDate.getFullYear()) : new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(selectedDate);
+  const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+  const conic = categoryData.length > 0 && categoryTotal > 0
     ? categoryData
       .map((item, index) => {
         const start = categoryData.slice(0, index).reduce((sum, part) => sum + (part.value / categoryTotal) * 100, 0);
@@ -481,6 +539,28 @@ function MobileReportsAnalytics({
       .join(", ")
     : "#e8edf7 0% 100%";
   const topCategory = categoryData[0];
+  const incomeEntries = filteredEntries.filter((entry) => entry.type === "income");
+  const expenseEntries = filteredEntries.filter((entry) => entry.type === "expense");
+  const budgetRows = budgets.map((budget) => {
+    const dynamicSpent = categoryData.find((item) => budget.category.includes(item.name) || item.name.includes(budget.category))?.value;
+    const spent = dynamicSpent ?? 0;
+    const percent = budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0;
+    return { ...budget, spent, percent };
+  });
+  const overBudgetCount = budgetRows.filter((budget) => budget.percent > 100).length;
+  const filterLabels: Record<AnalyticsFilter, string> = {
+    thisMonth: "This Month",
+    lastMonth: "Last Month",
+    thisYear: "This Year",
+    custom: "Custom",
+  };
+  const filterLabel = filterLabels[analyticsFilter];
+
+  function changePercent(current: number, previous: number) {
+    if (previous <= 0) return current > 0 ? "+100.0%" : "0.0%";
+    const value = ((current - previous) / previous) * 100;
+    return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+  }
 
   return (
     <div className="grid gap-5 md:hidden">
@@ -497,59 +577,119 @@ function MobileReportsAnalytics({
 
       <section className="rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.22)]">
         <div className="mb-7 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-extrabold">This Month Overview</h2>
-          <span className="text-sm font-semibold text-white/88">1 - {daysInMonth} {monthLabel}</span>
+          <h2 className="text-lg font-extrabold">{filterLabel} Overview</h2>
+          <span className="text-sm font-semibold text-white/88">{analyticsFilter === "thisYear" ? monthLabel : `1 - ${daysInMonth} ${monthLabel}`}</span>
         </div>
         <div className="grid grid-cols-3 divide-x divide-white/16">
-          <div className="pr-3"><p className="text-sm font-semibold text-white/85">Total Expense</p><strong className="mt-3 block text-2xl">{takaShort(summary.expense)}</strong><span className="mt-2 block text-xs text-white/80">vs Apr: <b className="text-[#ff8fb1]">+0.0%</b></span></div>
-          <div className="px-3"><p className="text-sm font-semibold text-white/85">Total Income</p><strong className="mt-3 block text-2xl">{takaShort(summary.income)}</strong><span className="mt-2 block text-xs text-white/80">vs Apr: <b className="text-[#5ee18b]">+0.0%</b></span></div>
-          <div className="pl-3"><p className="text-sm font-semibold text-white/85">Net Balance</p><strong className="mt-3 block text-2xl">{takaShort(summary.balance)}</strong><span className="mt-2 block text-xs text-white/80">vs Apr: <b className="text-[#5ee18b]">+0.0%</b></span></div>
+          <div className="pr-3"><p className="text-sm font-semibold text-white/85">Total Expense</p><strong className="mt-3 block text-2xl">{takaShort(summary.expense)}</strong><span className="mt-2 block text-xs text-white/80">vs previous: <b className={summary.expense >= previousSummary.expense ? "text-[#ff8fb1]" : "text-[#5ee18b]"}>{changePercent(summary.expense, previousSummary.expense)}</b></span></div>
+          <div className="px-3"><p className="text-sm font-semibold text-white/85">Total Income</p><strong className="mt-3 block text-2xl">{takaShort(summary.income)}</strong><span className="mt-2 block text-xs text-white/80">vs previous: <b className={summary.income >= previousSummary.income ? "text-[#5ee18b]" : "text-[#ff8fb1]"}>{changePercent(summary.income, previousSummary.income)}</b></span></div>
+          <div className="pl-3"><p className="text-sm font-semibold text-white/85">Net Balance</p><strong className="mt-3 block text-2xl">{takaShort(summary.balance)}</strong><span className="mt-2 block text-xs text-white/80">vs previous: <b className={summary.balance >= previousSummary.balance ? "text-[#5ee18b]" : "text-[#ff8fb1]"}>{changePercent(summary.balance, previousSummary.balance)}</b></span></div>
         </div>
       </section>
 
-      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
-        <div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense by Category</h2><span className="text-sm font-bold text-[#59627a]">This Month</span></div>
-        <div className="grid grid-cols-[120px_1fr] items-center gap-5">
-          <div className="relative grid aspect-square place-items-center rounded-full" style={{ background: `conic-gradient(${conic})` }}>
-            <div className="grid size-[72px] place-items-center rounded-full bg-white text-center shadow-inner"><strong className="text-lg text-[#111936]">{takaShort(totalExpense)}</strong><span className="-mt-5 text-xs font-semibold text-[#59627a]">Total</span></div>
+      {(analyticsTab === "overview" || analyticsTab === "expense") && (
+        <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+          <div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense by Category</h2><span className="text-sm font-bold text-[#59627a]">{filterLabel}</span></div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-5">
+            <div className="relative grid aspect-square place-items-center rounded-full" style={{ background: `conic-gradient(${conic})` }}>
+              <div className="grid size-[72px] place-items-center rounded-full bg-white text-center shadow-inner"><strong className="text-lg text-[#111936]">{takaShort(totalExpense)}</strong><span className="-mt-5 text-xs font-semibold text-[#59627a]">Total</span></div>
+            </div>
+            <div className="grid gap-3">
+              {(categoryData.length > 0 ? categoryData.slice(0, showCategoryDetails ? 12 : 6) : [{ name: "No expenses", value: 0, fill: "#94a3b8" }]).map((item) => {
+                const percent = categoryTotal > 0 ? (item.value / categoryTotal) * 100 : 0;
+                return (
+                  <div key={item.name} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 text-sm">
+                    <span className="flex min-w-0 items-center gap-2 font-extrabold text-[#111936]"><span className="size-3 rounded-full" style={{ background: item.fill }} /> <span className="truncate">{item.name}</span></span>
+                    <span className="font-extrabold text-[#111936]">{takaShort(item.value)}</span>
+                    <span className="w-10 text-right font-semibold text-[#59627a]">{percent.toFixed(1)}%</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="grid gap-3">
-            {(categoryData.length > 0 ? categoryData.slice(0, 6) : [{ name: "No expenses", value: 0, fill: "#94a3b8" }]).map((item) => {
-              const percent = categoryTotal > 0 ? (item.value / categoryTotal) * 100 : 0;
-              return (
-                <div key={item.name} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 text-sm">
-                  <span className="flex min-w-0 items-center gap-2 font-extrabold text-[#111936]"><span className="size-3 rounded-full" style={{ background: item.fill }} /> <span className="truncate">{item.name}</span></span>
-                  <span className="font-extrabold text-[#111936]">{takaShort(item.value)}</span>
-                  <span className="w-10 text-right font-semibold text-[#59627a]">{percent.toFixed(1)}%</span>
+          {showCategoryDetails && (
+            <div className="mt-4 grid gap-2 border-t border-[#eef0f8] pt-4">
+              {expenseEntries.slice(0, 8).map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fbfcff] px-3 py-2 text-sm">
+                  <span className="min-w-0"><b className="block truncate text-[#111936]">{entry.category}</b><small className="text-[#59627a]">{displayDate(entry.date)}</small></span>
+                  <strong className="text-[#ef4444]">{takaShort(entry.amount)}</strong>
                 </div>
-              );
-            })}
+              ))}
+              {expenseEntries.length === 0 && <p className="text-center text-sm font-semibold text-[#59627a]">No expense details found.</p>}
+            </div>
+          )}
+          <button type="button" onClick={() => setShowCategoryDetails((current) => !current)} className="mt-5 flex w-full items-center justify-center gap-2 border-t border-[#eef0f8] pt-4 text-sm font-extrabold text-[#11298f]">{showCategoryDetails ? "Hide Details" : "View Details"} <ChevronRight size={18} className={showCategoryDetails ? "-rotate-90" : ""} /></button>
+        </Card>
+      )}
+
+      {(analyticsTab === "overview" || analyticsTab === "expense") && (
+        <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+          <div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense Trend</h2><span className="text-sm font-bold text-[#59627a]">{filterLabel}</span></div>
+          <MobileTrendLine data={trendData} />
+        </Card>
+      )}
+
+      {analyticsTab === "income" && (
+        <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+          <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Income Details</h2><strong className="text-[#16a34a]">{takaShort(summary.income)}</strong></div>
+          <div className="grid gap-3">
+            {incomeEntries.map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#eef0f8] p-3">
+                <span className="min-w-0"><b className="block truncate text-[#111936]">{entry.category}</b><small className="text-[#59627a]">{entry.description} - {displayDate(entry.date)}</small></span>
+                <strong className="text-[#16a34a]">{takaShort(entry.amount)}</strong>
+              </div>
+            ))}
+            {incomeEntries.length === 0 && <div className="rounded-xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-semibold text-[#59627a]">No income entries found.</div>}
           </div>
+        </Card>
+      )}
+
+      {analyticsTab === "budget" && (
+        <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+          <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Budget Status</h2><span className={overBudgetCount > 0 ? "text-sm font-bold text-[#ef4444]" : "text-sm font-bold text-[#16a34a]"}>{overBudgetCount > 0 ? `${overBudgetCount} Over` : "On Track"}</span></div>
+          <div className="grid gap-4">
+            {budgetRows.map((budget) => (
+              <div key={budget.category} className="rounded-xl border border-[#eef0f8] p-3">
+                <div className="mb-2 flex items-center justify-between gap-3"><b className="truncate text-sm text-[#111936]">{budget.category}</b><span className="text-xs font-bold text-[#59627a]">{budget.percent}%</span></div>
+                <div className="mb-2 flex justify-between text-xs font-semibold text-[#59627a]"><span>{takaShort(budget.spent)}</span><span>{takaShort(budget.limit)}</span></div>
+                <div className="h-2 rounded-full bg-[#eef0f8]"><div className="h-full rounded-full" style={{ width: `${Math.min(budget.percent, 100)}%`, background: budget.percent > 100 ? "#ef4444" : budget.color }} /></div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {(analyticsTab === "overview" || analyticsTab === "expense") && (
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="rounded-[18px] border-[#eef0f8] p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#e9f9f0] text-[#20b26b]"><TrendingUp size={25} /></span><h3 className="mt-3 text-base font-extrabold text-[#111936]">Daily Average</h3><strong className="mt-2 block text-2xl text-[#16a34a]">{takaShort(dailyAverage)}</strong><p className="mt-1 text-xs font-semibold text-[#59627a]">vs previous: {changePercent(dailyAverage, previousSummary.expense)}</p></Card>
+          <Card className="rounded-[18px] border-[#eef0f8] p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#f2e9ff] text-[#7c3aed]"><CalendarDays size={25} /></span><h3 className="mt-3 text-base font-extrabold text-[#111936]">Total Days</h3><strong className="mt-2 block text-2xl text-[#11298f]">{daysWithExpense} Days</strong><p className="mt-1 text-xs font-semibold text-[#59627a]">Expenses Added</p></Card>
         </div>
-        <button type="button" className="mt-5 flex w-full items-center justify-center gap-2 border-t border-[#eef0f8] pt-4 text-sm font-extrabold text-[#11298f]">View Details <ChevronRight size={18} /></button>
-      </Card>
-
-      <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
-        <div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense Trend</h2><span className="text-sm font-bold text-[#59627a]">This Month</span></div>
-        <MobileTrendLine data={trendData} />
-      </Card>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="rounded-[18px] border-[#eef0f8] p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#e9f9f0] text-[#20b26b]"><TrendingUp size={25} /></span><h3 className="mt-3 text-base font-extrabold text-[#111936]">Daily Average</h3><strong className="mt-2 block text-2xl text-[#16a34a]">{takaShort(dailyAverage)}</strong><p className="mt-1 text-xs font-semibold text-[#59627a]">vs Apr: +0.0%</p></Card>
-        <Card className="rounded-[18px] border-[#eef0f8] p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#f2e9ff] text-[#7c3aed]"><CalendarDays size={25} /></span><h3 className="mt-3 text-base font-extrabold text-[#111936]">Total Days</h3><strong className="mt-2 block text-2xl text-[#11298f]">{daysWithExpense} Days</strong><p className="mt-1 text-xs font-semibold text-[#59627a]">Expenses Added</p></Card>
-      </div>
+      )}
 
       <Card className="flex items-center gap-4 rounded-[18px] border-[#efeaff] bg-[#f7f2ff] p-5">
         <span className="grid size-14 shrink-0 place-items-center rounded-full bg-[#efe7ff] text-[#7c3aed]"><Lightbulb size={26} /></span>
         <p className="min-w-0 flex-1 text-sm font-semibold leading-6 text-[#111936]">You spent <b>{takaShort(topCategory?.value ?? 0)}</b> on <b>{topCategory?.name ?? "expenses"}</b> this month, which is <b>{categoryTotal > 0 && topCategory ? ((topCategory.value / categoryTotal) * 100).toFixed(1) : "0.0"}%</b> of your total expenses.</p>
-        <button type="button" className="shrink-0 rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Insights</button>
+        <button type="button" onClick={() => { setShowInsights((current) => !current); notify(showInsights ? "Insights hidden" : "Insights opened", "info"); }} className="shrink-0 rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">{showInsights ? "Hide" : "View Insights"}</button>
       </Card>
+      {showInsights && (
+        <Card className="grid gap-3 rounded-[18px] border-[#eef0f8] p-5 text-sm font-semibold text-[#59627a]">
+          <p><b className="text-[#111936]">Best focus:</b> {topCategory?.name ?? "No category"} is your highest expense area.</p>
+          <p><b className="text-[#111936]">Cash flow:</b> income minus expense is {takaShort(summary.balance)} for {filterLabel.toLowerCase()}.</p>
+          <p><b className="text-[#111936]">Budget:</b> {overBudgetCount > 0 ? `${overBudgetCount} category over budget.` : "All tracked budgets are within limit."}</p>
+        </Card>
+      )}
 
       <section id="reports-filter">
         <h2 className="mb-3 text-lg font-extrabold text-[#111936]">Quick Filters</h2>
         <div className="grid grid-cols-4 gap-2">
-          {["This Month", "Last Month", "This Year", "Custom"].map((item, index) => <button key={item} type="button" className={index === 0 ? "min-h-11 rounded-xl bg-[#11298f] px-2 text-xs font-extrabold text-white" : "min-h-11 rounded-xl border border-[#e4e8f2] bg-white px-2 text-xs font-extrabold text-[#111936]"}><CalendarDays size={15} className="mx-auto mb-1" />{item}</button>)}
+          {([
+            ["thisMonth", "This Month"],
+            ["lastMonth", "Last Month"],
+            ["thisYear", "This Year"],
+            ["custom", "Custom"],
+          ] as Array<[AnalyticsFilter, string]>).map(([key, item]) => <button key={key} type="button" onClick={() => setAnalyticsFilter(key)} className={analyticsFilter === key ? "min-h-11 rounded-xl bg-[#11298f] px-2 text-xs font-extrabold text-white" : "min-h-11 rounded-xl border border-[#e4e8f2] bg-white px-2 text-xs font-extrabold text-[#111936]"}><CalendarDays size={15} className="mx-auto mb-1" />{item}</button>)}
         </div>
+        {analyticsFilter === "custom" && <input type="month" className={`${inputClass} mt-3`} value={customMonth} onChange={(event) => setCustomMonth(event.target.value || today.slice(0, 7))} />}
       </section>
     </div>
   );
