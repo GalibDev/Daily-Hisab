@@ -24,3 +24,4 @@ export const firebaseApp = isFirebaseConfigured && getApps().length === 0 ? init
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 export const firebaseStorage = firebaseApp ? getStorage(firebaseApp) : null;
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });

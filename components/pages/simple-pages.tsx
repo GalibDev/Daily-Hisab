@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet } from "lucide-react";
+import { AlertTriangle, Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -32,6 +32,7 @@ import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from
 
 type EntryFormMode = "expense" | "income";
 const CATEGORY_ICON_STORAGE_KEY = "daily-hisab.category-icons.v1";
+const BUDGET_TARGET_STORAGE_KEY = "daily-hisab.budget-target.v1";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry, categories } = useFinance();
@@ -153,26 +154,134 @@ export function IncomeExpensePage() {
 
 export function BudgetPage() {
   const { categories, entries } = useFinance();
-  const spentByCategory = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
+  const { notify } = useToast();
+  const today = getTodayIso();
+  const [budgetPeriod, setBudgetPeriod] = useState<"daily" | "monthly" | "yearly">(() => {
+    if (typeof window === "undefined") return "monthly";
+
+    try {
+      const saved = window.localStorage.getItem(BUDGET_TARGET_STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as { period?: "daily" | "monthly" | "yearly" }).period ?? "monthly" : "monthly";
+    } catch {
+      return "monthly";
+    }
+  });
+  const [budgetTarget, setBudgetTarget] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+
+    try {
+      const saved = window.localStorage.getItem(BUDGET_TARGET_STORAGE_KEY);
+      return saved ? Number((JSON.parse(saved) as { target?: number }).target ?? 0) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const scopedEntries = useMemo(() => filterEntriesByReportPeriod(entries, budgetPeriod, today), [budgetPeriod, entries, today]);
+  const spentByCategory = useMemo(() => buildCategoryExpense(scopedEntries, categories), [categories, scopedEntries]);
+  const spent = scopedEntries.filter((entry) => entry.type === "expense").reduce((sum, entry) => sum + entry.amount, 0);
+  const remaining = budgetTarget - spent;
+  const percent = budgetTarget > 0 ? Math.round((spent / budgetTarget) * 100) : 0;
+  const currentDate = new Date(`${today}T00:00:00`);
+  const daysLeft = (() => {
+    if (budgetPeriod === "daily") return 1;
+    if (budgetPeriod === "monthly") {
+      return new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() - currentDate.getDate() + 1;
+    }
+    const yearEnd = new Date(currentDate.getFullYear(), 11, 31);
+    return Math.max(1, Math.ceil((yearEnd.getTime() - currentDate.getTime()) / 86400000) + 1);
+  })();
+  const averageAllowed = Math.max(remaining, 0) / Math.max(daysLeft, 1);
+  const alertTone = budgetTarget <= 0 ? "info" : remaining < 0 ? "danger" : percent >= 85 ? "warning" : "good";
+  const periodLabel = budgetPeriod === "daily" ? "Daily" : budgetPeriod === "monthly" ? "Monthly" : "Yearly";
+
+  useEffect(() => {
+    window.localStorage.setItem(BUDGET_TARGET_STORAGE_KEY, JSON.stringify({ period: budgetPeriod, target: budgetTarget }));
+  }, [budgetPeriod, budgetTarget]);
+
+  function saveBudgetTarget(formData: FormData) {
+    const nextPeriod = String(formData.get("period")) as "daily" | "monthly" | "yearly";
+    const nextTarget = Number(formData.get("target"));
+
+    setBudgetPeriod(nextPeriod);
+    setBudgetTarget(nextTarget > 0 ? nextTarget : 0);
+    notify("Budget target saved", "success");
+  }
 
   return (
     <AppShell>
-      <PageTitle title="Budget" subtitle="Category-wise monthly budget" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        {budgets.length === 0 && <Card className="p-6 text-center text-sm text-[#746d86]">No budget data yet.</Card>}
-        {budgets.map((budget) => {
-          const dynamicSpent = spentByCategory.find((item) => budget.category.includes(item.name) || item.name.includes(budget.category))?.value;
-          const spent = dynamicSpent ?? budget.spent;
-          const percent = budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0;
-          const status = percent > 100 ? "Over Budget" : percent > 80 ? "Warning" : "Good";
-          return (
-            <Card key={budget.category} className="p-5">
-              <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-bold">{budget.category}</h2><span className={percent > 100 ? "text-[#EF4444]" : percent > 80 ? "text-[#F59E0B]" : "text-[#22C55E]"}>{status}</span></div>
-              <div className="mb-2 flex justify-between text-sm"><span>Spent {takaShort(spent)}</span><span>Limit {takaShort(budget.limit)}</span></div>
-              <div className="h-3 rounded-full bg-[#eeeafb]"><div className="h-full rounded-full" style={{ width: `${Math.min(percent, 100)}%`, background: budget.color }} /></div>
-            </Card>
-          );
-        })}
+      <PageTitle title="Budget" subtitle="Daily, monthly and yearly spending targets" />
+      <div className="grid gap-5">
+        <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.22)]">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-white/78">{periodLabel} Budget Target</p>
+              <strong className="mt-2 block text-[32px] leading-tight">{budgetTarget > 0 ? taka(budgetTarget) : "Set target"}</strong>
+              <p className="mt-2 text-sm font-semibold text-white/78">Spent: {takaShort(spent)} • Remaining: {takaShort(remaining)}</p>
+            </div>
+            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-white/12"><Target size={34} /></span>
+          </div>
+          <div className="mt-5 h-3 rounded-full bg-white/18">
+            <div className={remaining < 0 ? "h-full rounded-full bg-[#ef4444]" : "h-full rounded-full bg-[#f97316]"} style={{ width: `${Math.min(percent, 100)}%` }} />
+          </div>
+          <div className="mt-4 grid grid-cols-3 divide-x divide-white/15 text-center">
+            <div><span className="block text-xs text-white/75">Used</span><b className="mt-1 block">{percent}%</b></div>
+            <div><span className="block text-xs text-white/75">Days Left</span><b className="mt-1 block">{daysLeft}</b></div>
+            <div><span className="block text-xs text-white/75">Daily Avg</span><b className="mt-1 block">{takaShort(averageAllowed)}</b></div>
+          </div>
+        </section>
+
+        <Card className="p-5">
+          <form action={saveBudgetTarget} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <Field label="Budget period">
+              <select name="period" className={inputClass} defaultValue={budgetPeriod}>
+                <option value="daily">Daily</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </Field>
+            <Field label="Target amount">
+              <input name="target" className={inputClass} defaultValue={budgetTarget || ""} inputMode="decimal" placeholder="৳ 0.00" />
+            </Field>
+            <Button type="submit" className="h-12"><Target size={16} /> Save Target</Button>
+          </form>
+        </Card>
+
+        <Card className={alertTone === "danger" ? "border-[#fecaca] bg-[#fff5f5] p-5" : alertTone === "warning" ? "border-[#fed7aa] bg-[#fff7ed] p-5" : "border-[#bbf7d0] bg-[#f0fff6] p-5"}>
+          <div className="flex gap-3">
+            <span className={alertTone === "danger" ? "grid size-11 shrink-0 place-items-center rounded-xl bg-[#fee2e2] text-[#ef4444]" : alertTone === "warning" ? "grid size-11 shrink-0 place-items-center rounded-xl bg-[#ffedd5] text-[#f97316]" : "grid size-11 shrink-0 place-items-center rounded-xl bg-[#dcfce7] text-[#16a34a]"}>
+              <AlertTriangle size={22} />
+            </span>
+            <div>
+              <h2 className="font-extrabold text-[#111936]">{budgetTarget <= 0 ? "Budget target set korun" : remaining < 0 ? "Khoroch beshi hoye jacche" : percent >= 85 ? "Target-er kachakachi" : "Budget on track"}</h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-[#59627a]">
+                {budgetTarget <= 0
+                  ? "Daily, monthly ba yearly target set korle ekhane remaining taka, daily average and alert dekhabe."
+                  : remaining < 0
+                    ? `Target theke ${takaShort(Math.abs(remaining))} beshi khoroch hoye geche. Next entries komate hobe.`
+                    : `Target puron korte hole aro ${daysLeft} din ache. Prottek din average ${takaShort(averageAllowed)} er moddhe khoroch korte hobe. Remaining ache ${takaShort(remaining)}.`}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="mb-4 text-lg font-extrabold text-[#111936]">Category spending in this target</h2>
+          <div className="grid gap-3">
+            {spentByCategory.map((item) => {
+              const share = spent > 0 ? Math.round((item.value / spent) * 100) : 0;
+              return (
+                <div key={item.name} className="rounded-xl border border-[#eef0f8] p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="truncate font-extrabold text-[#111936]">{item.name}</span>
+                    <strong className="text-[#ef4444]">{takaShort(item.value)}</strong>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#eef0f8]"><div className="h-full rounded-full bg-[#f97316]" style={{ width: `${Math.min(share, 100)}%` }} /></div>
+                </div>
+              );
+            })}
+            {spentByCategory.length === 0 && <div className="rounded-xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-semibold text-[#59627a]">Ei target period-e kono expense nei.</div>}
+          </div>
+        </Card>
       </div>
     </AppShell>
   );

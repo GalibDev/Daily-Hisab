@@ -31,6 +31,7 @@ const CATEGORY_STORAGE_KEY = "daily-hisab.categories.v1";
 const SUMMARY_STORAGE_KEY = "daily-hisab.hidden-summary-dates.v1";
 const RECURRING_STORAGE_KEY = "daily-hisab.recurring.v1";
 const REMINDER_STORAGE_KEY = "daily-hisab.reminders.v1";
+const STORAGE_OWNER_GUEST = "guest";
 
 type FinanceStore = {
   entries: Entry[];
@@ -90,8 +91,16 @@ function isLegacyDemoList(items: { id: number }[], ids: number[]) {
   return items.length === ids.length && items.every((item, index) => item.id === ids[index]);
 }
 
+function scopedStorageKey(ownerId: string, key: string) {
+  return `${key}.${ownerId}`;
+}
+
+function getScopedItem(ownerId: string, key: string) {
+  return window.localStorage.getItem(scopedStorageKey(ownerId, key));
+}
+
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { user } = useAuth();
+  const { loading: authLoading, user } = useAuth();
   const canSyncSupabase = false as boolean;
   const [entries, setEntries] = useState<Entry[]>(() => moveDemoEntriesToToday(initialEntries));
   const [categories, setCategories] = useState<string[]>(initialCategories);
@@ -99,53 +108,77 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>(initialRecurringExpenses);
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [hydrated, setHydrated] = useState(false);
+  const [activeStorageOwner, setActiveStorageOwner] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const storageOwner = user?.id ?? STORAGE_OWNER_GUEST;
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsedEntries = JSON.parse(saved) as Entry[];
-        if (isLegacyDemoEntries(parsedEntries)) {
-          window.localStorage.removeItem(STORAGE_KEY);
-          setEntries([]);
+    if (authLoading) {
+      return;
+    }
+
+    const ownerId = user?.id ?? STORAGE_OWNER_GUEST;
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      setHydrated(false);
+
+      try {
+        const saved = getScopedItem(ownerId, STORAGE_KEY);
+        if (saved) {
+          const parsedEntries = JSON.parse(saved) as Entry[];
+          setEntries(isLegacyDemoEntries(parsedEntries) ? [] : moveDemoEntriesToToday(parsedEntries));
         } else {
-          setEntries(moveDemoEntriesToToday(parsedEntries));
+          setEntries([]);
         }
+        const savedCategories = getScopedItem(ownerId, CATEGORY_STORAGE_KEY);
+        if (savedCategories) {
+          const parsedCategories = JSON.parse(savedCategories) as string[];
+          setCategories(parsedCategories.some((category) => category.includes("à")) ? [] : parsedCategories);
+        } else {
+          setCategories([]);
+        }
+        const savedHiddenSummaryDates = getScopedItem(ownerId, SUMMARY_STORAGE_KEY);
+        setHiddenSummaryDates(savedHiddenSummaryDates ? (JSON.parse(savedHiddenSummaryDates) as string[]) : []);
+
+        const savedRecurringExpenses = getScopedItem(ownerId, RECURRING_STORAGE_KEY);
+        if (savedRecurringExpenses) {
+          const parsedRecurringExpenses = JSON.parse(savedRecurringExpenses) as RecurringExpense[];
+          setRecurringExpenses(isLegacyDemoList(parsedRecurringExpenses, [1, 2, 3]) ? [] : parsedRecurringExpenses);
+        } else {
+          setRecurringExpenses([]);
+        }
+        const savedReminders = getScopedItem(ownerId, REMINDER_STORAGE_KEY);
+        if (savedReminders) {
+          const parsedReminders = JSON.parse(savedReminders) as Reminder[];
+          setReminders(isLegacyDemoList(parsedReminders, [1, 2, 3]) ? [] : parsedReminders);
+        } else {
+          setReminders([]);
+        }
+      } finally {
+        setActiveStorageOwner(ownerId);
+        setHydrated(true);
       }
-      const savedCategories = window.localStorage.getItem(CATEGORY_STORAGE_KEY);
-      if (savedCategories) {
-        const parsedCategories = JSON.parse(savedCategories) as string[];
-        setCategories(parsedCategories.some((category) => category.includes("à")) ? [] : parsedCategories);
-      }
-      const savedHiddenSummaryDates = window.localStorage.getItem(SUMMARY_STORAGE_KEY);
-      if (savedHiddenSummaryDates) {
-        setHiddenSummaryDates(JSON.parse(savedHiddenSummaryDates) as string[]);
-      }
-      const savedRecurringExpenses = window.localStorage.getItem(RECURRING_STORAGE_KEY);
-      if (savedRecurringExpenses) {
-        const parsedRecurringExpenses = JSON.parse(savedRecurringExpenses) as RecurringExpense[];
-        setRecurringExpenses(isLegacyDemoList(parsedRecurringExpenses, [1, 2, 3]) ? [] : parsedRecurringExpenses);
-      }
-      const savedReminders = window.localStorage.getItem(REMINDER_STORAGE_KEY);
-      if (savedReminders) {
-        const parsedReminders = JSON.parse(savedReminders) as Reminder[];
-        setReminders(isLegacyDemoList(parsedReminders, [1, 2, 3]) ? [] : parsedReminders);
-      }
-    } finally {
-      setHydrated(true);
-    }
-  }, []);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user]);
 
   useEffect(() => {
-    if (hydrated) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-      window.localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
-      window.localStorage.setItem(SUMMARY_STORAGE_KEY, JSON.stringify(hiddenSummaryDates));
-      window.localStorage.setItem(RECURRING_STORAGE_KEY, JSON.stringify(recurringExpenses));
-      window.localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminders));
+    if (hydrated && activeStorageOwner === storageOwner && !authLoading) {
+      window.localStorage.setItem(scopedStorageKey(storageOwner, STORAGE_KEY), JSON.stringify(entries));
+      window.localStorage.setItem(scopedStorageKey(storageOwner, CATEGORY_STORAGE_KEY), JSON.stringify(categories));
+      window.localStorage.setItem(scopedStorageKey(storageOwner, SUMMARY_STORAGE_KEY), JSON.stringify(hiddenSummaryDates));
+      window.localStorage.setItem(scopedStorageKey(storageOwner, RECURRING_STORAGE_KEY), JSON.stringify(recurringExpenses));
+      window.localStorage.setItem(scopedStorageKey(storageOwner, REMINDER_STORAGE_KEY), JSON.stringify(reminders));
     }
-  }, [categories, entries, hiddenSummaryDates, hydrated, recurringExpenses, reminders]);
+  }, [activeStorageOwner, authLoading, categories, entries, hiddenSummaryDates, hydrated, recurringExpenses, reminders, storageOwner]);
 
   useEffect(() => {
     if (!user || !canSyncSupabase) {
