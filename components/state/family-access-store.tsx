@@ -31,7 +31,7 @@ type FamilyAccessStore = {
   familyWalletBalance: number;
   generateAccessCode: () => string | null;
   regenerateAccessCode: () => string | null;
-  requestAccess: (code: string) => { ok: boolean; message: string };
+  requestAccess: (code: string) => Promise<{ ok: boolean; message: string }>;
   respondToConnection: (connectionId: string, accepted: boolean) => void;
   removeGuardian: (connectionId: string) => void;
   setExpenseSharingEnabled: (enabled: boolean) => void;
@@ -67,6 +67,10 @@ function generateCode(existingCodes: string[]) {
   return code;
 }
 
+function normalizeAccessCode(code: string) {
+  return code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 function readState(): FamilyState {
   if (typeof window === "undefined") return emptyState;
 
@@ -82,6 +86,61 @@ function displayUserName(user: ReturnType<typeof useAuth>["user"]) {
   return user?.name ?? user?.email ?? "Daily Hisab User";
 }
 
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]) {
+  const next = new Map(current.map((item) => [item.id, item]));
+
+  incoming.forEach((item) => next.set(item.id, item));
+
+  return Array.from(next.values());
+}
+
+type FamilyAccessApiPayload = {
+  accessCode?: string | null;
+  connections?: GuardianConnection[];
+  depositRequests?: DepositRequest[];
+  expenseSharingEnabled?: boolean;
+  notifications?: FamilyNotification[];
+};
+
+function mergeRemoteState(current: FamilyState, userId: string, payload: FamilyAccessApiPayload): FamilyState {
+  return {
+    ...current,
+    codesByOwner: payload.accessCode ? { ...current.codesByOwner, [userId]: payload.accessCode } : current.codesByOwner,
+    connections: mergeById(current.connections, payload.connections ?? []),
+    depositRequests: mergeById(current.depositRequests, payload.depositRequests ?? []),
+    expenseSharingByOwner:
+      typeof payload.expenseSharingEnabled === "boolean"
+        ? { ...current.expenseSharingByOwner, [userId]: payload.expenseSharingEnabled }
+        : current.expenseSharingByOwner,
+    notifications: mergeById(current.notifications, payload.notifications ?? []),
+  };
+}
+
+async function loadRemoteFamilyState(userId: string) {
+  const response = await fetch(`/api/family-access?userId=${encodeURIComponent(userId)}`, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error("Family Access sync failed");
+  }
+
+  return await response.json() as FamilyAccessApiPayload;
+}
+
+async function postFamilyAction<T>(body: Record<string, unknown>) {
+  const response = await fetch("/api/family-access", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json() as T & { error?: string };
+
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Family Access action failed");
+  }
+
+  return payload;
+}
+
 export function FamilyAccessProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user } = useAuth();
   const { entries } = useFinance();
@@ -90,6 +149,32 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const activeUserId = user.id;
+    let cancelled = false;
+
+    async function syncRemoteState() {
+      try {
+        const payload = await loadRemoteFamilyState(activeUserId);
+        if (!cancelled) {
+          setState((current) => mergeRemoteState(current, activeUserId, payload));
+        }
+      } catch {
+        // Local state remains the fallback when remote sync is unavailable.
+      }
+    }
+
+    void syncRemoteState();
+    const intervalId = window.setInterval(syncRemoteState, 8000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -154,6 +239,7 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
           codesByOwner: { ...current.codesByOwner, [userId]: nextCode },
           expenseSharingByOwner: { ...current.expenseSharingByOwner, [userId]: current.expenseSharingByOwner[userId] ?? true },
         }));
+        void postFamilyAction({ action: "upsertCode", ownerId: userId, code: nextCode });
         return nextCode;
       },
       regenerateAccessCode: () => {
@@ -163,16 +249,40 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
           ...current,
           codesByOwner: { ...current.codesByOwner, [userId]: nextCode },
         }));
+        void postFamilyAction({ action: "upsertCode", ownerId: userId, code: nextCode });
         return nextCode;
       },
-      requestAccess: (code) => {
-        if (!userId || !user) return { ok: false, message: "প্রথমে লগইন করুন" };
-        const normalizedCode = code.trim().toUpperCase();
+      requestAccess: async (code) => {
+        if (!userId || !user) return { ok: false, message: "Please log in first" };
+        const normalizedCode = normalizeAccessCode(code);
+        if (!normalizedCode) return { ok: false, message: "Please enter an access code" };
+
+        try {
+          const payload = await postFamilyAction<{ connection?: GuardianConnection; duplicate?: boolean }>({
+            action: "requestAccess",
+            code: normalizedCode,
+            guardianId: userId,
+            guardianName: displayUserName(user),
+            guardianEmail: user.email,
+          });
+
+          if (payload.connection) {
+            setState((current) => ({
+              ...current,
+              connections: mergeById(current.connections, [payload.connection!]),
+            }));
+          }
+
+          return { ok: true, message: payload.duplicate ? "You already requested access to this account" : "Request sent successfully" };
+        } catch {
+          // Fall back to local state for same-browser testing.
+        }
+
         const ownerId = Object.entries(state.codesByOwner).find(([, value]) => value === normalizedCode)?.[0];
-        if (!ownerId) return { ok: false, message: "Access code পাওয়া যায়নি" };
-        if (ownerId === userId) return { ok: false, message: "নিজের code দিয়ে request করা যাবে না" };
+        if (!ownerId) return { ok: false, message: "Access code not found. Ask the owner to regenerate the code and try again." };
+        if (ownerId === userId) return { ok: false, message: "You cannot request access to your own account" };
         const existing = state.connections.find((item) => item.ownerId === ownerId && item.guardianId === userId && item.status !== "rejected");
-        if (existing) return { ok: false, message: "এই account এ request আগে থেকেই আছে" };
+        if (existing) return { ok: false, message: "You already requested access to this account" };
 
         const snapshot = state.snapshotsByOwner[ownerId];
         const now = new Date().toISOString();
@@ -191,9 +301,9 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
         setState((current) => addNotification({
           ...current,
           connections: [connection, ...current.connections],
-        }, ownerId, "নতুন কানেকশন রিকোয়েস্ট", `${connection.guardianName} আপনার Family Access চেয়েছে`));
+        }, ownerId, "New connection request", `${connection.guardianName} requested Family Access`));
 
-        return { ok: true, message: "রিকোয়েস্ট পাঠানো হয়েছে" };
+        return { ok: true, message: "Request sent successfully" };
       },
       respondToConnection: (connectionId, accepted) => {
         setState((current) => {
@@ -206,6 +316,7 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
           };
           return connection ? addNotification(next, connection.guardianId, accepted ? "Access approved" : "Access rejected", accepted ? "Family Access অনুমোদন করা হয়েছে" : "Family Access request reject করা হয়েছে") : next;
         });
+        void postFamilyAction({ action: "respondConnection", connectionId, accepted });
       },
       removeGuardian: (connectionId) => {
         setState((current) => {
@@ -213,6 +324,7 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
           const next = { ...current, connections: current.connections.filter((item) => item.id !== connectionId) };
           return connection ? addNotification(next, connection.guardianId, "Access removed", "Owner আপনার Family Access সরিয়ে দিয়েছেন") : next;
         });
+        void postFamilyAction({ action: "removeConnection", connectionId });
       },
       setExpenseSharingEnabled: (enabled) => {
         if (!userId) return;
@@ -223,6 +335,7 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
             ? { ...current.snapshotsByOwner, [userId]: { ...current.snapshotsByOwner[userId], expenseSharingEnabled: enabled, updatedAt: new Date().toISOString() } }
             : current.snapshotsByOwner,
         }));
+        void postFamilyAction({ action: "setExpenseSharing", ownerId: userId, enabled });
       },
       createDepositRequest: (ownerId, amount, note) => {
         if (!userId || !user) return { ok: false, message: "প্রথমে লগইন করুন" };
@@ -245,6 +358,21 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
           ...current,
           depositRequests: [request, ...current.depositRequests],
         }, ownerId, "নতুন ডিপোজিট রিকোয়েস্ট", `${request.guardianName} deposit request পাঠিয়েছে`));
+        void postFamilyAction<{ depositRequest?: DepositRequest }>({
+          action: "createDepositRequest",
+          ownerId,
+          guardianId: userId,
+          guardianName: displayUserName(user),
+          amount: request.amount,
+          note: request.note,
+        }).then((payload: { depositRequest?: DepositRequest }) => {
+          if (payload.depositRequest) {
+            setState((current) => ({
+              ...current,
+              depositRequests: mergeById(current.depositRequests.filter((item) => item.id !== request.id), [payload.depositRequest!]),
+            }));
+          }
+        }).catch(() => undefined);
 
         return { ok: true, message: "ডিপোজিট রিকোয়েস্ট পাঠানো হয়েছে" };
       },
@@ -259,6 +387,7 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
           };
           return request ? addNotification(next, request.guardianId, approved ? "Deposit approved" : "Deposit rejected", approved ? "আপনার deposit request approve হয়েছে" : "আপনার deposit request reject হয়েছে") : next;
         });
+        void postFamilyAction({ action: "respondDepositRequest", requestId, approved });
       },
       markNotificationRead: (notificationId) => {
         setState((current) => ({

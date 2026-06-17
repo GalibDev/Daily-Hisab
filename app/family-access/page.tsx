@@ -79,9 +79,9 @@ export default function FamilyAccessPage() {
     notify("Access code copy হয়েছে", "success");
   }
 
-  function submitConnectionRequest(event: FormEvent<HTMLFormElement>) {
+  async function submitConnectionRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = family.requestAccess(requestCode);
+    const result = await family.requestAccess(requestCode);
     notify(result.message, result.ok ? "success" : "danger");
     if (result.ok) setRequestCode("");
   }
