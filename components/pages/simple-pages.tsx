@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Trash2, TrendingUp, Upload, User, Utensils, Wallet } from "lucide-react";
+import { Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -968,6 +968,7 @@ export function SettingsPage() {
     { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
     { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { href: "/family-access", icon: <UsersRound size={20} />, label: "Family Access", tone: "bg-[#eef4ff] text-[#11298f]" },
   ];
   const preferenceItems = [
     { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },
@@ -1044,6 +1045,7 @@ export function SettingsPage() {
           </div>
           {user && <ProfileImageUploader />}
         </Card>
+        <Card className="flex items-center justify-between p-5"><span className="font-semibold">Family Access</span><Link href="/family-access"><Button variant="outline">Manage</Button></Link></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Export data</span><div className="flex gap-2"><Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>JSON</Button><Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button></div></Card>

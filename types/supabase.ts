@@ -90,6 +90,93 @@ export type Database = {
         };
         Relationships: [];
       };
+      family_access_codes: {
+        Row: { owner_id: string; code: string; created_at: string | null; updated_at: string | null };
+        Insert: { owner_id: string; code: string; created_at?: string | null; updated_at?: string | null };
+        Update: { owner_id?: string; code?: string; created_at?: string | null; updated_at?: string | null };
+        Relationships: [];
+      };
+      family_connections: {
+        Row: {
+          id: string;
+          owner_id: string;
+          guardian_id: string;
+          guardian_name: string | null;
+          guardian_email: string | null;
+          status: string;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          guardian_id: string;
+          guardian_name?: string | null;
+          guardian_email?: string | null;
+          status?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          guardian_id?: string;
+          guardian_name?: string | null;
+          guardian_email?: string | null;
+          status?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      family_deposit_requests: {
+        Row: {
+          id: string;
+          owner_id: string;
+          guardian_id: string;
+          guardian_name: string | null;
+          amount: number | null;
+          note: string | null;
+          status: string;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          guardian_id: string;
+          guardian_name?: string | null;
+          amount?: number | null;
+          note?: string | null;
+          status?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          guardian_id?: string;
+          guardian_name?: string | null;
+          amount?: number | null;
+          note?: string | null;
+          status?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      family_settings: {
+        Row: { owner_id: string; expense_sharing_enabled: boolean; created_at: string | null; updated_at: string | null };
+        Insert: { owner_id: string; expense_sharing_enabled?: boolean; created_at?: string | null; updated_at?: string | null };
+        Update: { owner_id?: string; expense_sharing_enabled?: boolean; created_at?: string | null; updated_at?: string | null };
+        Relationships: [];
+      };
+      family_notifications: {
+        Row: { id: string; user_id: string; title: string; message: string; read: boolean; created_at: string | null };
+        Insert: { id?: string; user_id: string; title: string; message: string; read?: boolean; created_at?: string | null };
+        Update: { id?: string; user_id?: string; title?: string; message?: string; read?: boolean; created_at?: string | null };
+        Relationships: [];
+      };
       reminders: {
         Row: {
           id: number;

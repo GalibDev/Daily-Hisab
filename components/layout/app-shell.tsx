@@ -33,6 +33,7 @@ import {
   Sun,
   Target,
   User,
+  UsersRound,
   Wallet,
   ArrowLeft,
 } from "lucide-react";
@@ -55,6 +56,7 @@ const nav = [
   { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/receipts", label: "Receipts", icon: Receipt },
   { href: "/notes", label: "Notes", icon: NotebookPen },
+  { href: "/family-access", label: "ফ্যামিলি অ্যাক্সেস", icon: UsersRound },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -78,6 +80,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/calendar": "Calendar",
     "/categories": "Category Management",
     "/entries": "Today's Entries",
+    "/family-access": "ফ্যামিলি অ্যাক্সেস",
     "/reports": "Reports & Analytics",
     "/settings": "Profile",
   };
@@ -115,6 +118,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     {
       items: [
         { href: "/backup-restore", icon: CloudUpload, label: "Backup & Restore", tone: "text-[#2563eb]" },
+        { href: "/family-access", icon: UsersRound, label: "ফ্যামিলি অ্যাক্সেস", tone: "text-[#11298f]" },
         { href: "/reminders", icon: Bell, label: "Notifications", tone: "text-[#f59e0b]" },
       ],
       title: "TOOLS",

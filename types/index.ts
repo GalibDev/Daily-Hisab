@@ -43,3 +43,48 @@ export type Note = {
   date: string;
   tone: "purple" | "orange" | "pink";
 };
+
+export type FamilyConnectionStatus = "pending" | "accepted" | "rejected";
+
+export type DepositRequestStatus = "pending" | "approved" | "rejected";
+
+export type GuardianConnection = {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  guardianId: string;
+  guardianName: string;
+  guardianEmail?: string | null;
+  status: FamilyConnectionStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DepositRequest = {
+  id: string;
+  ownerId: string;
+  guardianId: string;
+  guardianName: string;
+  amount?: number;
+  note?: string;
+  status: DepositRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FamilyNotification = {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+};
+
+export type FamilyOwnerSnapshot = {
+  ownerId: string;
+  ownerName: string;
+  entries: Entry[];
+  expenseSharingEnabled: boolean;
+  updatedAt: string;
+};

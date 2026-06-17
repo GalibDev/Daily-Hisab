@@ -87,6 +87,53 @@ create table if not exists public.receipts (
   created_at timestamptz default now()
 );
 
+create table if not exists public.family_access_codes (
+  owner_id uuid primary key references auth.users(id) on delete cascade,
+  code text not null unique,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.family_connections (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  guardian_id uuid not null references auth.users(id) on delete cascade,
+  guardian_name text default 'Guardian',
+  guardian_email text,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected')),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (owner_id, guardian_id)
+);
+
+create table if not exists public.family_deposit_requests (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  guardian_id uuid not null references auth.users(id) on delete cascade,
+  guardian_name text default 'Guardian',
+  amount numeric(12,2) check (amount is null or amount >= 0),
+  note text,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.family_settings (
+  owner_id uuid primary key references auth.users(id) on delete cascade,
+  expense_sharing_enabled boolean not null default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.family_notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  message text not null,
+  read boolean not null default false,
+  created_at timestamptz default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
 alter table public.entries enable row level security;
@@ -95,6 +142,11 @@ alter table public.recurring_expenses enable row level security;
 alter table public.reminders enable row level security;
 alter table public.notes enable row level security;
 alter table public.receipts enable row level security;
+alter table public.family_access_codes enable row level security;
+alter table public.family_connections enable row level security;
+alter table public.family_deposit_requests enable row level security;
+alter table public.family_settings enable row level security;
+alter table public.family_notifications enable row level security;
 
 create policy "profiles own rows" on public.profiles for all using (auth.uid() = id) with check (auth.uid() = id);
 create policy "categories own rows" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -104,3 +156,44 @@ create policy "recurring own rows" on public.recurring_expenses for all using (a
 create policy "reminders own rows" on public.reminders for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "notes own rows" on public.notes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "receipts own rows" on public.receipts for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "family codes owner manage" on public.family_access_codes for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "family codes readable for request" on public.family_access_codes for select using (auth.uid() is not null);
+
+create policy "family connections participants read" on public.family_connections for select using (auth.uid() = owner_id or auth.uid() = guardian_id);
+create policy "family connections guardian request" on public.family_connections for insert with check (auth.uid() = guardian_id and owner_id <> guardian_id);
+create policy "family connections owner update" on public.family_connections for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "family connections owner delete" on public.family_connections for delete using (auth.uid() = owner_id);
+
+create policy "family deposits participants read" on public.family_deposit_requests for select using (auth.uid() = owner_id or auth.uid() = guardian_id);
+create policy "family deposits guardian create" on public.family_deposit_requests for insert with check (
+  auth.uid() = guardian_id and exists (
+    select 1 from public.family_connections c
+    where c.owner_id = family_deposit_requests.owner_id
+      and c.guardian_id = auth.uid()
+      and c.status = 'accepted'
+  )
+);
+create policy "family deposits owner update" on public.family_deposit_requests for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+create policy "family settings owner manage" on public.family_settings for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "family settings guardian read" on public.family_settings for select using (
+  exists (
+    select 1 from public.family_connections c
+    where c.owner_id = family_settings.owner_id
+      and c.guardian_id = auth.uid()
+      and c.status = 'accepted'
+  )
+);
+
+create policy "family notifications own rows" on public.family_notifications for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "entries guardian readonly" on public.entries for select using (
+  exists (
+    select 1 from public.family_connections c
+    join public.family_settings s on s.owner_id = c.owner_id
+    where c.owner_id = entries.user_id
+      and c.guardian_id = auth.uid()
+      and c.status = 'accepted'
+      and s.expense_sharing_enabled = true
+  )
+);
