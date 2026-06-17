@@ -24,6 +24,15 @@ function csvEscape(value: string | number) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+function htmlEscape(value: string | number) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export function exportEntriesCsv(entries: Entry[], summaryRows: SummaryRow[]) {
   const entryHeader = ["Date", "Category", "Description", "Type", "Amount", "Method", "Time", "Note"];
   const entryRows = entries.map((entry) => [
@@ -47,6 +56,28 @@ export function exportEntriesCsv(entries: Entry[], summaryRows: SummaryRow[]) {
   ].map((row) => row.map(csvEscape).join(",")).join("\n");
 
   downloadFile("daily-hisab-report.csv", csv, "text/csv;charset=utf-8");
+}
+
+export function exportExpenseSheetCsv(entries: Entry[], title: string) {
+  const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const header = ["Date", "Expense Amount", "Category", "Description", "Note"];
+  const rows = expenseEntries.map((entry) => [
+    entry.date,
+    entry.amount,
+    entry.category,
+    entry.description || "",
+    entry.note || "",
+  ]);
+  const csv = [
+    [title],
+    ["Total Expense", totalExpense],
+    [],
+    header,
+    ...rows,
+  ].map((row) => row.map(csvEscape).join(",")).join("\n");
+
+  downloadFile(`daily-hisab-${title.toLowerCase().replaceAll(" ", "-")}.csv`, csv, "text/csv;charset=utf-8");
 }
 
 export function exportDataJson(data: { entries: Entry[]; categories: string[]; summaryRows: SummaryRow[]; [key: string]: unknown }) {
@@ -102,6 +133,53 @@ export function exportReportPdf(entries: Entry[], summaryRows: SummaryRow[]) {
         <table>
           <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Type</th><th>Amount</th><th>Method</th></tr></thead>
           <tbody>${rows}</tbody>
+        </table>
+      </body>
+    </html>
+  `);
+  win.document.close();
+  win.focus();
+  win.print();
+  return true;
+}
+
+export function exportExpenseSheetPdf(entries: Entry[], title: string) {
+  const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const rows = expenseEntries.map((entry) => `
+    <tr>
+      <td>${htmlEscape(entry.date)}</td>
+      <td>${entry.amount.toFixed(2)}</td>
+      <td>${htmlEscape(entry.category)}</td>
+      <td>${htmlEscape(entry.description || "")}</td>
+      <td>${htmlEscape(entry.note || "")}</td>
+    </tr>
+  `).join("");
+  const win = window.open("", "_blank", "width=900,height=700");
+
+  if (!win) {
+    return false;
+  }
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>${htmlEscape(title)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 28px; color: #111936; }
+          h1 { color: #11298f; margin-bottom: 6px; }
+          .total { display: inline-block; margin: 12px 0 20px; padding: 10px 14px; border: 1px solid #dbe4ff; border-radius: 8px; font-weight: 700; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #d8ddea; padding: 9px; text-align: left; font-size: 12px; }
+          th { background: #f3f6ff; color: #111936; }
+        </style>
+      </head>
+      <body>
+        <h1>${htmlEscape(title)}</h1>
+        <div class="total">Total Expense: ${totalExpense.toFixed(2)}</div>
+        <table>
+          <thead><tr><th>Date</th><th>Expense Amount</th><th>Category</th><th>Description</th><th>Note</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="5">No expense data found.</td></tr>'}</tbody>
         </table>
       </body>
     </html>

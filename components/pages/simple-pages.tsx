@@ -14,9 +14,9 @@ import { Card } from "@/components/ui/card";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
-import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
+import { CategoryPieChart } from "@/components/dashboard/charts";
 import { budgets, paymentMethods } from "@/data/mock-data";
-import { exportDataJson, exportEntriesCsv, exportReportPdf } from "@/lib/export-data";
+import { exportDataJson, exportEntriesCsv, exportExpenseSheetCsv, exportExpenseSheetPdf } from "@/lib/export-data";
 import {
   buildCategoryExpense,
   buildExpenseTrend,
@@ -696,17 +696,19 @@ function MobileReportsAnalytics({
 }
 
 export function ReportsPage() {
-  const { categories, entries, hiddenSummaryDates } = useFinance();
+  const { categories, entries } = useFinance();
   const { notify } = useToast();
   const today = getTodayIso();
   const [period, setPeriod] = useState<ReportPeriod>("daily");
   const [reportMode, setReportMode] = useState<"reports" | "analytics">("reports");
   const reportEntries = useMemo(() => filterEntriesByReportPeriod(entries, period, today), [entries, period, today]);
-  const summaryRows = useMemo(() => buildSummaryRows(reportEntries, hiddenSummaryDates), [hiddenSummaryDates, reportEntries]);
-  const labels: Record<ReportPeriod, string> = { daily: "Daily report", weekly: "Weekly report", monthly: "Monthly report", yearly: "Yearly report" };
+  const reportExpenseEntries = useMemo(() => reportEntries.filter((entry) => entry.type === "expense"), [reportEntries]);
+  const reportTotalExpense = reportExpenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const labels: Record<ReportPeriod, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
+  const reportTitle = `${labels[period]} Expense Report`;
 
   function handlePdfExport() {
-    const exported = exportReportPdf(reportEntries, summaryRows);
+    const exported = exportExpenseSheetPdf(reportEntries, reportTitle);
     notify(exported ? "PDF export opened" : "Popup blocked. Allow popups to export PDF.", exported ? "success" : "danger");
   }
 
@@ -728,20 +730,55 @@ export function ReportsPage() {
               onClick={() => setPeriod(item)}
               className={period === item ? "border-b-2 border-[#6C4CF1] px-2 py-2 text-xs font-bold text-[#6C4CF1] md:rounded-lg md:border md:bg-[#6C4CF1] md:px-4 md:text-sm md:text-white" : "px-2 py-2 text-xs font-semibold text-[#746d86] md:rounded-lg md:border md:border-[#d8d1ff] md:bg-white md:px-4 md:text-sm md:text-[#6C4CF1]"}
             >
-              <span className="md:hidden">{item[0].toUpperCase() + item.slice(1)}</span>
-              <span className="hidden md:inline">{labels[item]}</span>
+              <span>{labels[item]}</span>
             </button>
           ))}
         </div>
-        <div className="mb-5 flex gap-3">
-          <Button onClick={handlePdfExport} className="flex-1 md:flex-none"><Download size={16} /> Export PDF</Button>
-          <Button variant="outline" className="flex-1 md:flex-none" onClick={() => { exportEntriesCsv(reportEntries, summaryRows); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Export Excel</Button>
-        </div>
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Expense trend chart</h2><ExpenseTrendChart data={buildExpenseTrend(reportEntries)} /></Card>
-          <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category pie chart</h2><CategoryPieChart data={buildCategoryExpense(reportEntries, categories)} /></Card>
-        </div>
-        <Card className="mt-5 p-5"><h2 className="mb-4 text-lg font-bold">{labels[period]} summary</h2><SummaryTable rows={summaryRows} /></Card>
+        <Card className="mb-5 overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+          <div className="grid gap-4 bg-[#11298f] p-5 text-white md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <p className="text-sm font-semibold text-white/78">{reportTitle}</p>
+              <strong className="mt-2 block text-3xl">{taka(reportTotalExpense)}</strong>
+              <span className="mt-2 block text-xs font-semibold text-white/78">{reportExpenseEntries.length} expense rows selected</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={handlePdfExport} className="bg-white text-[#11298f] shadow-none hover:bg-[#f3f6ff]"><Download size={16} /> PDF</Button>
+              <Button variant="outline" className="border-white/70 bg-white/10 text-white hover:bg-white/20" onClick={() => { exportExpenseSheetCsv(reportEntries, reportTitle); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Excel</Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <thead className="bg-[#f3f6ff] text-xs text-[#59627a]">
+                <tr>
+                  {["Date", "Expense Taka", "Category", "Description", "Note"].map((head) => <th key={head} className="border border-[#d8ddea] px-4 py-3 font-extrabold">{head}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {reportExpenseEntries.map((entry) => (
+                  <tr key={entry.id} className="bg-white">
+                    <td className="border border-[#d8ddea] px-4 py-3">{displayDate(entry.date)}</td>
+                    <td className="border border-[#d8ddea] px-4 py-3 font-extrabold text-[#ef4444]">{takaShort(entry.amount)}</td>
+                    <td className="border border-[#d8ddea] px-4 py-3">{entry.category}</td>
+                    <td className="border border-[#d8ddea] px-4 py-3">{entry.description || ""}</td>
+                    <td className="border border-[#d8ddea] px-4 py-3">{entry.note || ""}</td>
+                  </tr>
+                ))}
+                {reportExpenseEntries.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="border border-[#d8ddea] px-4 py-8 text-center font-semibold text-[#59627a]">No expense data found for this report.</td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot className="bg-[#fbfcff]">
+                <tr>
+                  <td className="border border-[#d8ddea] px-4 py-3 font-extrabold" colSpan={1}>Total</td>
+                  <td className="border border-[#d8ddea] px-4 py-3 font-extrabold text-[#ef4444]">{takaShort(reportTotalExpense)}</td>
+                  <td className="border border-[#d8ddea] px-4 py-3" colSpan={3}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
       </div>
     </AppShell>
   );
