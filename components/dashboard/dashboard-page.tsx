@@ -15,6 +15,7 @@ import {
   FileText,
   Fuel,
   Grid2X2,
+  HandCoins,
   Home,
   MoreHorizontal,
   MoreVertical,
@@ -36,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
+import { useFamilyAccess } from "@/components/state/family-access-store";
 import { useFinance } from "@/components/state/finance-store";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, summarizeEntries } from "@/lib/finance";
@@ -435,6 +437,7 @@ function MobileDashboard({
   monthExpense: number;
 }>) {
   const { addEntry, updateEntry } = useFinance();
+  const family = useFamilyAccess();
   const { notify } = useToast();
   const today = getTodayIso();
   const [activeDailySlot, setActiveDailySlot] = useState<string | null>(null);
@@ -474,6 +477,11 @@ function MobileDashboard({
   const monthlyExpenseEntries = expenseEntries.filter((entry) => entry.date.startsWith(monthPrefix));
   const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
+  const familyThisMonthDeposit = family.ownerDepositRequests
+    .filter((request) => request.status === "approved" && request.createdAt.startsWith(monthPrefix))
+    .reduce((sum, request) => sum + (request.amount ?? 0), 0);
+  const todayExpense = todayExpenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const familyRemainingBalance = family.familyWalletBalance;
   const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
   const totalCategoryValue = categoryData.reduce((sum, item) => sum + item.value, 0);
   const todayExpenseTitle = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a";
@@ -617,34 +625,65 @@ function MobileDashboard({
 
   return (
     <div className="grid gap-4 bg-white pb-6 lg:hidden">
-      <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
-        <div className="grid grid-cols-[1fr_112px] gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-white/80">Total Expense</p>
-            <strong className="mt-1 block text-[28px] font-extrabold leading-tight">{taka(monthExpense)}</strong>
-            <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-xs font-bold text-white/90">Today</span>
-            <div className="mt-3 h-12 rounded-xl bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,0.06)_100%)]">
-              <svg viewBox="0 0 220 52" className="h-full w-full" aria-hidden="true">
-                <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9" fill="none" stroke="rgba(255,255,255,.86)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9 L217 52 L3 52 Z" fill="url(#mobileChartFill)" />
-                <circle cx="165" cy="10" r="4" fill="#ff8a1d" />
-                <defs><linearGradient id="mobileChartFill" x1="0" y1="0" x2="0" y2="1"><stop stopColor="rgba(255,255,255,.28)" /><stop offset="1" stopColor="rgba(255,255,255,0)" /></linearGradient></defs>
-              </svg>
+      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Summary slider">
+        <section className="w-full shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
+          <div className="grid grid-cols-[1fr_112px] gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-white/80">Total Expense</p>
+              <strong className="mt-1 block text-[28px] font-extrabold leading-tight">{taka(monthExpense)}</strong>
+              <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-xs font-bold text-white/90">Today</span>
+              <div className="mt-3 h-12 rounded-xl bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,0.06)_100%)]">
+                <svg viewBox="0 0 220 52" className="h-full w-full" aria-hidden="true">
+                  <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9" fill="none" stroke="rgba(255,255,255,.86)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9 L217 52 L3 52 Z" fill="url(#mobileChartFill)" />
+                  <circle cx="165" cy="10" r="4" fill="#ff8a1d" />
+                  <defs><linearGradient id="mobileChartFill" x1="0" y1="0" x2="0" y2="1"><stop stopColor="rgba(255,255,255,.28)" /><stop offset="1" stopColor="rgba(255,255,255,0)" /></linearGradient></defs>
+                </svg>
+              </div>
+            </div>
+            <div className="grid content-center gap-5">
+              <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/12 ring-1 ring-white/15"><Wallet size={36} /></div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Daily Average</p>
+                <strong className="mt-1 block text-base">{takaShort(dailyAverage)}</strong>
+              </div>
+              <div className="border-t border-white/15 pt-3">
+                <p className="text-xs font-semibold text-white/80">This Month</p>
+                <strong className="mt-1 block text-base">{takaShort(allSummary.expense)}</strong>
+              </div>
             </div>
           </div>
-          <div className="grid content-center gap-5">
-            <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/12 ring-1 ring-white/15"><Wallet size={36} /></div>
-            <div>
-              <p className="text-xs font-semibold text-white/80">Daily Average</p>
-              <strong className="mt-1 block text-base">{takaShort(dailyAverage)}</strong>
+        </section>
+
+        <section className="w-full shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#f97316] p-5 text-white shadow-[0_18px_38px_rgba(249,115,22,0.24)]">
+          <div className="grid grid-cols-[1fr_112px] gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-white/85">Family Deposit</p>
+              <strong className="mt-1 block text-[28px] font-extrabold leading-tight">{taka(familyThisMonthDeposit)}</strong>
+              <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/15 px-4 py-2 text-xs font-bold text-white">This Month</span>
+              <div className="mt-3 h-12 rounded-xl bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,0.10)_100%)]">
+                <svg viewBox="0 0 220 52" className="h-full w-full" aria-hidden="true">
+                  <path d="M4 39 L36 21 L68 31 L102 17 L132 35 L164 18 L192 27 L216 12" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 39 L36 21 L68 31 L102 17 L132 35 L164 18 L192 27 L216 12 L216 52 L4 52 Z" fill="url(#familyChartFill)" />
+                  <circle cx="164" cy="18" r="4" fill="#11298f" />
+                  <defs><linearGradient id="familyChartFill" x1="0" y1="0" x2="0" y2="1"><stop stopColor="rgba(255,255,255,.32)" /><stop offset="1" stopColor="rgba(255,255,255,0)" /></linearGradient></defs>
+                </svg>
+              </div>
             </div>
-            <div className="border-t border-white/15 pt-3">
-              <p className="text-xs font-semibold text-white/80">This Month</p>
-              <strong className="mt-1 block text-base">{takaShort(allSummary.expense)}</strong>
+            <div className="grid content-center gap-5">
+              <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/16 ring-1 ring-white/20"><HandCoins size={38} /></div>
+              <div>
+                <p className="text-xs font-semibold text-white/85">Today Expense</p>
+                <strong className="mt-1 block text-base">{takaShort(todayExpense)}</strong>
+              </div>
+              <div className="border-t border-white/20 pt-3">
+                <p className="text-xs font-semibold text-white/85">Remaining</p>
+                <strong className="mt-1 block text-base">{takaShort(familyRemainingBalance)}</strong>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <Card className="rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="grid grid-cols-5 gap-2">
