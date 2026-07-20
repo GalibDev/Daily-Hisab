@@ -11,7 +11,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition",
         variant === "primary" &&
           "bg-[#6C4CF1] text-white shadow-[0_10px_22px_rgba(108,76,241,0.25)] hover:bg-[#5d3fe0]",
         variant === "outline" &&

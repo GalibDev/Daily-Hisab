@@ -78,15 +78,16 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/backup-restore": "Backup & Restore",
     "/budget": "Category Budget",
     "/calendar": "Calendar",
-    "/categories": "Category Management",
+    "/categories": "Categories",
     "/entries": "Today's Entries",
     "/family-access": "ফ্যামিলি অ্যাক্সেস",
-    "/reports": "Reports & Analytics",
+    "/reports": "Reports",
     "/settings": "Profile",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
   const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : pathname === "/calendar" ? "/calendar" : pathname === "/categories" ? "#add-category" : pathname === "/backup-restore" ? "#backup-info" : pathname === "/reports" ? "#reports-filter" : "/reminders";
+  const mobileActionLabel = pathname === "/categories" ? "Add category" : pathname === "/budget" ? "Add expense" : pathname === "/reminders" ? "Add reminder" : pathname === "/backup-restore" ? "Backup information" : pathname === "/calendar" || pathname === "/reports" ? "Open date filters" : "Open reminders";
 
   const setTheme = (theme: "light" | "dark") => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -209,16 +210,16 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         </div>
       </aside>
 
-      <main className="pb-28 lg:ml-[228px] lg:pb-0">
+      <main className="pb-[calc(9rem+env(safe-area-inset-bottom))] lg:ml-[228px] lg:pb-0">
         <header className="sticky top-0 z-20 bg-white px-6 py-4 md:px-7 lg:border-b lg:border-[#ece8ff]/80 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4 lg:backdrop-blur">
-          <div className="flex items-center gap-4 lg:hidden">
+          <div className="flex items-center gap-2 sm:gap-4 lg:hidden">
             {pathname !== "/settings" && (
               isHome ? (
-                <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="grid size-9 place-items-center rounded-lg text-[#111936]">
+                <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="grid size-11 place-items-center rounded-lg text-[#111936]">
                   <Menu size={21} />
                 </button>
               ) : (
-                <Link href="/" className="grid size-9 place-items-center rounded-lg text-[#111936]">
+                <Link href="/" aria-label="Go back home" className="grid size-11 place-items-center rounded-lg text-[#111936]">
                   <ArrowLeft size={21} />
                 </Link>
               )
@@ -235,10 +236,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               </Link>
             ) : (
               <div className={cn("min-w-0 flex-1", pathname === "/settings" || pathname === "/backup-restore" || pathname === "/reports" ? "text-left" : "text-center")}>
-                <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[28px] leading-9 text-[#111936]" : pathname === "/backup-restore" || pathname === "/categories" || pathname === "/reports" ? "text-2xl leading-8 text-[#111936]" : "text-sm")}>{mobileTitle}</h1>
+                <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[26px] leading-9 text-[#111936] sm:text-[28px]" : pathname === "/backup-restore" || pathname === "/categories" || pathname === "/reports" ? "text-lg leading-7 text-[#111936] sm:text-2xl sm:leading-8" : "text-sm")}>{mobileTitle}</h1>
               </div>
             )}
-            <Link href={mobileActionHref} className={cn("relative grid size-9 place-items-center rounded-lg text-[#111936]", pathname === "/categories" && "bg-[#11298f] text-white shadow-[0_10px_20px_rgba(17,41,143,0.22)]")}>
+            <Link href={mobileActionHref} aria-label={mobileActionLabel} className={cn("relative grid size-11 place-items-center rounded-lg text-[#111936]", pathname === "/categories" && "bg-[#11298f] text-white shadow-[0_10px_20px_rgba(17,41,143,0.22)]")}>
               {pathname === "/backup-restore" ? <Info size={24} /> : pathname === "/calendar" || pathname === "/reports" ? <CalendarDays size={20} /> : pathname === "/budget" || pathname === "/reminders" || pathname === "/categories" ? <Plus size={21} /> : <Bell size={19} />}
               {pathname !== "/budget" && pathname !== "/reminders" && pathname !== "/calendar" && pathname !== "/categories" && pathname !== "/backup-restore" && pathname !== "/reports" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
             </Link>
@@ -336,7 +337,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         </div>
       )}
 
-      <nav className="fixed bottom-3 left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-5 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] lg:hidden">
+      <nav className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-3 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] sm:px-5 lg:hidden">
         {[
           { href: "/", label: "Home", icon: Home },
           { href: "/reports", label: "Reports", icon: BarChart3 },
@@ -348,7 +349,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           const active = pathname === item.href;
 
           return (
-            <Link key={item.href} href={item.href} className={cn("grid justify-items-center gap-1 text-[10px] font-semibold", item.primary ? "-mt-9 text-[#11298f]" : active ? "text-[#11298f]" : "text-[#111936]")}>
+            <Link key={item.href} href={item.href} className={cn("grid min-h-11 justify-items-center gap-1 text-[10px] font-semibold", item.primary ? "-mt-9 text-[#11298f]" : active ? "text-[#11298f]" : "text-[#111936]")}>
               <span className={cn("grid place-items-center", item.primary ? "size-16 rounded-full bg-[#11298f] text-white shadow-[0_12px_22px_rgba(17,41,143,0.25)]" : "size-6")}>
                 <Icon size={item.primary ? 31 : 22} />
               </span>

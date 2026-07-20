@@ -433,20 +433,25 @@ export function CategoriesPage() {
               No {activeType} categories yet. Tap + to add one.
             </Card>
           )}
+          {activeType === "income" && (
+            <Card className="rounded-[18px] border-[#dbe4ff] bg-[#f5f7ff] p-4 text-sm font-semibold leading-6 text-[#59627a]">
+              Income categories are created automatically when you add an income entry.
+            </Card>
+          )}
           {visibleCategories.map((category) => {
             const style = getCategoryIconStyle(category);
             const Icon = style.icon;
             const count = countByCategory(category, activeType);
 
             return (
-              <Card key={category} className="flex items-center gap-4 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_30px_rgba(20,35,90,0.06)]">
-                <span className={`grid size-16 shrink-0 place-items-center rounded-[18px] ${style.tone}`}><Icon size={29} /></span>
+              <Card key={category} className="flex items-center gap-3 rounded-[18px] border-[#eef0f8] p-3 shadow-[0_12px_30px_rgba(20,35,90,0.06)]">
+                <span className={`grid size-12 shrink-0 place-items-center rounded-[14px] ${style.tone}`}><Icon size={23} /></span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-lg font-extrabold text-[#111936]">{category}</h2>
-                  <p className="mt-1 text-sm font-semibold text-[#59627a]">{count} {activeType === "expense" ? "expenses" : "income"}</p>
+                  <h2 className="truncate text-base font-extrabold text-[#111936]">{category}</h2>
+                  <p className="text-xs font-semibold text-[#59627a]">{count} {activeType === "expense" ? "expenses" : "income"}</p>
                 </div>
-                <button type="button" onClick={() => handleEditCategory(category)} aria-label={`Edit ${category}`} className="grid size-10 place-items-center rounded-xl text-[#111936]"><Pencil size={22} /></button>
-                <button type="button" onClick={() => handleDeleteCategory(category)} aria-label={`Delete ${category}`} className="grid size-10 place-items-center rounded-xl text-[#dc2626]"><Trash2 size={22} /></button>
+                {activeType === "expense" && <button type="button" onClick={() => handleEditCategory(category)} aria-label={`Edit ${category}`} className="grid size-11 place-items-center rounded-xl text-[#111936]"><Pencil size={21} /></button>}
+                {activeType === "expense" && <button type="button" onClick={() => handleDeleteCategory(category)} aria-label={`Delete ${category}`} className="grid size-11 place-items-center rounded-xl text-[#dc2626]"><Trash2 size={21} /></button>}
               </Card>
             );
           })}
@@ -855,7 +860,23 @@ export function ReportsPage() {
               <Button variant="outline" className="border-white/70 bg-white/10 text-white hover:bg-white/20" onClick={() => { exportExpenseSheetCsv(reportEntries, reportTitle); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Excel</Button>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 p-4 md:hidden">
+            {reportExpenseEntries.map((entry) => (
+              <article key={entry.id} className="rounded-xl border border-[#e4e8f2] bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <strong className="block truncate text-sm text-[#111936]">{entry.category}</strong>
+                    <span className="mt-1 block text-xs font-semibold text-[#59627a]">{displayDate(entry.date)}</span>
+                  </div>
+                  <strong className="shrink-0 text-sm text-[#ef4444]">{takaShort(entry.amount)}</strong>
+                </div>
+                <p className="mt-3 text-sm text-[#59627a]">{entry.description || "No description"}</p>
+                {entry.note && <p className="mt-2 rounded-lg bg-[#f7f8fc] px-3 py-2 text-xs text-[#69718a]">{entry.note}</p>}
+              </article>
+            ))}
+            {reportExpenseEntries.length === 0 && <div className="rounded-xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-semibold text-[#59627a]">No expenses found for this period.</div>}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <thead className="bg-[#f3f6ff] text-xs text-[#59627a]">
                 <tr>
@@ -1439,9 +1460,9 @@ function MobileCalendar({
 
       <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="mb-5 flex items-center justify-between">
-          <button type="button" onClick={() => changeMonth(-1)} className="grid size-9 place-items-center rounded-full text-[#111936]">{`<`}</button>
+          <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month" className="grid size-11 place-items-center rounded-full text-[#111936]">{`<`}</button>
           <h2 className="text-sm font-extrabold text-[#111936]">{monthLabel}</h2>
-          <button type="button" onClick={() => changeMonth(1)} className="grid size-9 place-items-center rounded-full text-[#111936]">{`>`}</button>
+          <button type="button" onClick={() => changeMonth(1)} aria-label="Next month" className="grid size-11 place-items-center rounded-full text-[#111936]">{`>`}</button>
         </div>
         <div className="mb-4 grid grid-cols-7 text-center text-sm font-bold text-[#111936]">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day} className={day === "Sun" ? "text-[#f97316]" : ""}>{day}</span>)}
@@ -1456,7 +1477,7 @@ function MobileCalendar({
                 type="button"
                 disabled={cell.muted}
                 onClick={() => cell.iso && setSelectedDate(cell.iso)}
-                className={active ? "relative mx-auto grid size-10 place-items-center rounded-full bg-[#11298f] text-sm font-extrabold text-white shadow-[0_10px_18px_rgba(17,41,143,0.22)]" : cell.muted ? "relative mx-auto grid size-10 place-items-center text-sm font-bold text-[#a5aabc]" : "relative mx-auto grid size-10 place-items-center rounded-full text-sm font-extrabold text-[#111936]"}
+                className={active ? "relative mx-auto grid size-11 place-items-center rounded-full bg-[#11298f] text-sm font-extrabold text-white shadow-[0_10px_18px_rgba(17,41,143,0.22)]" : cell.muted ? "relative mx-auto grid size-11 place-items-center text-sm font-bold text-[#a5aabc]" : "relative mx-auto grid size-11 place-items-center rounded-full text-sm font-extrabold text-[#111936]"}
               >
                 {cell.day}
                 {!cell.muted && <span className={`absolute bottom-1.5 size-1.5 rounded-full ${getExpenseTone(total)}`} />}
