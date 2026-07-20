@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { FamilyAccessProvider } from "@/components/state/family-access-store";
 import { FinanceProvider } from "@/components/state/finance-store";
+import { ThemeProvider } from "@/components/state/theme-store";
+import { WalletProvider } from "@/components/state/wallet-store";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
@@ -24,13 +26,17 @@ export default function RootLayout({
   return (
     <html lang="bn">
       <body>
-        <ToastProvider>
-          <AuthProvider>
-            <FinanceProvider>
-              <FamilyAccessProvider>{children}</FamilyAccessProvider>
-            </FinanceProvider>
-          </AuthProvider>
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <FinanceProvider>
+                <WalletProvider>
+                  <FamilyAccessProvider>{children}</FamilyAccessProvider>
+                </WalletProvider>
+              </FinanceProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

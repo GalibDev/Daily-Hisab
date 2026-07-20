@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from "@/types";
+import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder, WalletSource } from "@/types";
 import type { Database } from "@/types/supabase";
 
 type EntryRow = Database["public"]["Tables"]["entries"]["Row"];
@@ -15,6 +15,7 @@ export type EntryInput = {
   method: PaymentMethod;
   type: EntryType;
   note?: string;
+  walletSource?: WalletSource;
 };
 
 function requireClient() {
@@ -96,7 +97,12 @@ export async function loadFinanceData(userId: string) {
 export async function createEntry(userId: string, entry: EntryInput, time: string) {
   const client = requireClient();
   const payload: EntryInsert = {
-    ...entry,
+    date: entry.date,
+    category: entry.category,
+    description: entry.description,
+    amount: entry.amount,
+    method: entry.method,
+    type: entry.type,
     user_id: userId,
     time,
     note: entry.note ?? null,
@@ -111,7 +117,7 @@ export async function saveEntry(id: number, entry: EntryInput) {
   const client = requireClient();
   const { data, error } = await client
     .from("entries")
-    .update({ ...entry, note: entry.note ?? null, updated_at: new Date().toISOString() })
+    .update({ date: entry.date, category: entry.category, description: entry.description, amount: entry.amount, method: entry.method, type: entry.type, note: entry.note ?? null, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select("*")
     .single();

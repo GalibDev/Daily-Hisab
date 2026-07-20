@@ -40,6 +40,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
+import { useTheme } from "@/components/state/theme-store";
 import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
 
 const nav = [
@@ -64,6 +65,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const pathname = usePathname();
   const { signOut, user } = useAuth();
   const { entries } = useFinance();
+  const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const today = getTodayIso();
   const current = nav.find((item) => item.href === pathname);
@@ -88,10 +90,6 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const isHome = pathname === "/";
   const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : pathname === "/calendar" ? "/calendar" : pathname === "/categories" ? "#add-category" : pathname === "/backup-restore" ? "#backup-info" : pathname === "/reports" ? "#reports-filter" : "/reminders";
   const mobileActionLabel = pathname === "/categories" ? "Add category" : pathname === "/budget" ? "Add expense" : pathname === "/reminders" ? "Add reminder" : pathname === "/backup-restore" ? "Backup information" : pathname === "/calendar" || pathname === "/reports" ? "Open date filters" : "Open reminders";
-
-  const setTheme = (theme: "light" | "dark") => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  };
 
   useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
@@ -180,11 +178,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <div className="grid gap-2 rounded-xl border border-[#ece8ff] bg-white p-3">
             <button onClick={() => setTheme("light")} className="flex items-center justify-between rounded-lg px-2 py-2 text-sm text-[#5c566d]">
               <span className="flex items-center gap-2"><Sun size={16} />Light Mode</span>
-              <span>›</span>
+              <span>{theme === "light" ? "✓" : "›"}</span>
             </button>
             <button onClick={() => setTheme("dark")} className="flex items-center justify-between rounded-lg px-2 py-2 text-sm text-[#5c566d]">
               <span className="flex items-center gap-2"><Moon size={16} />Dark Mode</span>
-              <span>›</span>
+              <span>{theme === "dark" ? "✓" : "›"}</span>
             </button>
           </div>
 

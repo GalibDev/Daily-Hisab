@@ -1,6 +1,7 @@
 export type PaymentMethod = "Cash" | "bKash" | "Nagad" | "Card" | "Bank";
 
 export type EntryType = "income" | "expense";
+export type WalletSource = "personal" | "family";
 
 export type Entry = {
   id: number;
@@ -12,6 +13,7 @@ export type Entry = {
   method: PaymentMethod;
   type: EntryType;
   note?: string;
+  walletSource?: WalletSource;
 };
 
 export type Budget = {

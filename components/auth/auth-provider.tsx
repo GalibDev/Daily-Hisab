@@ -30,6 +30,7 @@ type AuthStore = {
   signUp: (email: string, password: string, name?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
   uploadProfileImage: (file: File) => Promise<string>;
 };
 
@@ -87,6 +88,15 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     signOut: async () => {
       if (!firebaseAuth) return;
       await firebaseSignOut(firebaseAuth);
+    },
+    updateDisplayName: async (name) => {
+      const trimmedName = name.trim();
+      if (!firebaseAuth?.currentUser) throw new Error("Login required to update profile");
+      if (!trimmedName) throw new Error("Name cannot be empty");
+      await updateProfile(firebaseAuth.currentUser, { displayName: trimmedName });
+      await reload(firebaseAuth.currentUser);
+      setFirebaseUser(firebaseAuth.currentUser);
+      setProfileVersion((version) => version + 1);
     },
     uploadProfileImage: async (file) => {
       if (!firebaseAuth?.currentUser || !firebaseStorage) {

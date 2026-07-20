@@ -38,3 +38,41 @@ textarea {
   background: #d8d1ff;
   border-radius: 999px;
 }
+
+html.dark body {
+  background: #0b1020;
+  color: #f8fafc;
+}
+
+html.dark .bg-white,
+html.dark [class*="bg-[#fbf"],
+html.dark [class*="bg-[#f8f"],
+html.dark [class*="bg-[#f7f"] {
+  background-color: #121a2d !important;
+}
+
+html.dark [class*="text-[#111936]"],
+html.dark [class*="text-[#252139]"],
+html.dark [class*="text-[#2b273d]"],
+html.dark [class*="text-[#18203a]"],
+html.dark [class*="text-[#20263a]"] {
+  color: #f8fafc !important;
+}
+
+html.dark [class*="text-[#59627a]"],
+html.dark [class*="text-[#69718a]"],
+html.dark [class*="text-[#746d86]"] {
+  color: #aeb9cf !important;
+}
+
+html.dark [class*="border-[#"] {
+  border-color: #2a3650 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  border-color: #33415f !important;
+  background: #111a2d !important;
+  color: #f8fafc !important;
+}

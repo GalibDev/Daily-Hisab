@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertTriangle, Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet } from "lucide-react";
+import { AlertTriangle, Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Moon, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -9,6 +9,7 @@ import { ProfileImageUploader } from "@/components/auth/profile-image-uploader";
 import { AppShell } from "@/components/layout/app-shell";
 import { CategorySelect } from "@/components/entries/category-select";
 import { useFinance } from "@/components/state/finance-store";
+import { useTheme } from "@/components/state/theme-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
@@ -55,6 +56,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
       method: String(form.get("method")) as PaymentMethod,
       type: mode,
       note: String(form.get("note") || ""),
+      walletSource: isExpense ? (String(form.get("walletSource") || "personal") as "personal" | "family") : undefined,
     });
 
     event.currentTarget.reset();
@@ -75,6 +77,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
       )}
       <Field label="Amount"><input name="amount" className={inputClass} placeholder="৳ 0.00" inputMode="decimal" /></Field>
       <Field label="Payment Method"><select name="method" className={inputClass}>{paymentMethods.map((m) => <option key={m}>{m}</option>)}</select></Field>
+      {isExpense && <Field label="Pay From"><select name="walletSource" className={inputClass} defaultValue="personal"><option value="personal">Personal Wallet</option><option value="family">Family Wallet</option></select></Field>}
       {isExpense && <Field label="Receipt upload placeholder"><div className="grid h-12 place-items-center rounded-lg border border-dashed border-[#bbaeff] text-[#6C4CF1]"><Upload size={18} /></div></Field>}
       <Field label="Note" className="md:col-span-2"><textarea name="note" className={textareaClass} placeholder={isExpense ? "অতিরিক্ত নোট লিখুন" : "আয়ের বিস্তারিত লিখুন"} /></Field>
       <Button type="submit" className="w-full md:w-fit"><Plus size={17} /> {isExpense ? "Submit Expense" : "Submit Income"}</Button>
@@ -1259,20 +1262,25 @@ function ProfileMenuSection({
 }
 
 export function SettingsPage() {
-  const { signOut, uploadProfileImage, user } = useAuth();
+  const { signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData, syncEnabled, syncError } = useFinance();
   const { notify } = useToast();
   const mobileProfileInputRef = useRef<HTMLInputElement>(null);
   const [mobileProfileUploading, setMobileProfileUploading] = useState(false);
+  const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [localProfileName, setLocalProfileName] = useState("Guest User");
+  const [localProfilePhoto, setLocalProfilePhoto] = useState("");
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? totalExpense / daysWithExpense : 0;
-  const profileName = user?.name ?? (user?.email ? "Firebase User" : "Guest User");
+  const profileName = user?.name ?? (user?.email ? "Firebase User" : localProfileName);
+  const profilePhoto = user?.photoUrl ?? localProfilePhoto;
   const profileEmail = user?.email ?? "Login to sync your data";
   const accountItems = [
-    { href: user ? "/settings" : "/login", icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { onClick: () => setShowPersonalInfo((open) => !open), icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
@@ -1281,7 +1289,7 @@ export function SettingsPage() {
   ];
   const preferenceItems = [
     { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },
-    { href: "/settings", icon: <Palette size={20} />, label: "Theme", meta: "Light", tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { onClick: toggleTheme, icon: theme === "dark" ? <Moon size={20} /> : <Palette size={20} />, label: "Theme", meta: theme === "dark" ? "Dark" : "Light", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/settings", icon: <Globe2 size={20} />, label: "Language", meta: "English", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Currency", meta: "BDT", tone: "bg-[#eef4ff] text-[#2563eb]" },
   ];
@@ -1290,6 +1298,13 @@ export function SettingsPage() {
     { href: "/settings", icon: <MessageCircle size={20} />, label: "Contact Us", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <Info size={20} />, label: "About Daily Hisab", meta: "v1.0.0", tone: "bg-[#f5efff] text-[#7c3aed]" },
   ];
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
+      setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
+    });
+  }, []);
 
   async function handleMobileProfileImage(file?: File) {
     if (!file) return;
@@ -1300,7 +1315,18 @@ export function SettingsPage() {
 
     try {
       setMobileProfileUploading(true);
-      await uploadProfileImage(file);
+      if (user) {
+        await uploadProfileImage(file);
+      } else {
+        const photo = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Image could not be read"));
+          reader.readAsDataURL(file);
+        });
+        setLocalProfilePhoto(photo);
+        window.localStorage.setItem("daily-hisab.local-profile-photo", photo);
+      }
       notify("Profile image updated", "success");
     } catch (error) {
       notify(error instanceof Error ? error.message : "Image upload failed", "danger");
@@ -1312,6 +1338,25 @@ export function SettingsPage() {
     }
   }
 
+  async function handlePersonalInfo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = String(new FormData(event.currentTarget).get("name") || "");
+    try {
+      if (user) {
+        await updateDisplayName(name);
+      } else {
+        const trimmedName = name.trim();
+        if (!trimmedName) throw new Error("Name cannot be empty");
+        setLocalProfileName(trimmedName);
+        window.localStorage.setItem("daily-hisab.local-profile-name", trimmedName);
+      }
+      setShowPersonalInfo(false);
+      notify("Personal information updated", "success");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Profile update failed", "danger");
+    }
+  }
+
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
@@ -1319,8 +1364,8 @@ export function SettingsPage() {
         <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
           <div className="flex items-center gap-4">
             <input ref={mobileProfileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void handleMobileProfileImage(event.target.files?.[0])} />
-            <button type="button" disabled={!user || mobileProfileUploading} onClick={() => mobileProfileInputRef.current?.click()} className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb] disabled:opacity-70" aria-label="Upload profile image">
-              {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={96} height={96} className="size-full object-cover" /> : <User size={56} fill="currentColor" strokeWidth={1.5} />}
+            <button type="button" disabled={mobileProfileUploading} onClick={() => mobileProfileInputRef.current?.click()} className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb] disabled:opacity-70" aria-label="Upload profile image">
+              {profilePhoto ? <Image src={profilePhoto} alt="Profile" width={96} height={96} className="size-full object-cover" unoptimized /> : <User size={56} fill="currentColor" strokeWidth={1.5} />}
               <span className="absolute bottom-0 right-0 grid size-10 place-items-center rounded-full bg-[#3153c9] text-white ring-4 ring-[#11298f]">{mobileProfileUploading ? <Upload size={17} /> : <Camera size={18} />}</span>
             </button>
             <div className="min-w-0 flex-1">
@@ -1359,6 +1404,16 @@ export function SettingsPage() {
         </Card>
 
         {syncError && <div className="rounded-xl bg-[#fff4e2] p-3 text-xs font-medium text-[#8a5a00]">{syncError}</div>}
+        {showPersonalInfo && (
+          <Card className="rounded-[18px] border-[#dbe4ff] p-4">
+            <form onSubmit={handlePersonalInfo} className="grid gap-3">
+              <h2 className="font-extrabold text-[#111936]">Personal Information</h2>
+              <input name="name" className={inputClass} defaultValue={profileName} placeholder="Your name" required />
+              <input className={inputClass} value={user?.email ?? "Local profile"} aria-label="Email" disabled />
+              <div className="grid grid-cols-2 gap-2"><Button type="submit">Save Name</Button><Button type="button" variant="outline" onClick={() => mobileProfileInputRef.current?.click()}><Camera size={17} /> Add Picture</Button></div>
+            </form>
+          </Card>
+        )}
         <ProfileMenuSection title="Account" items={accountItems} />
         <ProfileMenuSection title="Preferences" items={preferenceItems} />
         <ProfileMenuSection title="Support" items={supportItems} />

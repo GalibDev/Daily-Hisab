@@ -39,6 +39,7 @@ import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useFamilyAccess } from "@/components/state/family-access-store";
 import { useFinance } from "@/components/state/finance-store";
+import { useWallet } from "@/components/state/wallet-store";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, summarizeEntries } from "@/lib/finance";
 import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
@@ -100,6 +101,7 @@ function ExpenseForm() {
       method: String(form.get("method")) as PaymentMethod,
       type: "expense",
       note: String(form.get("note") || ""),
+      walletSource: String(form.get("walletSource") || "personal") as "personal" | "family",
     });
 
     event.currentTarget.reset();
@@ -126,6 +128,12 @@ function ExpenseForm() {
           <Field label="Payment Method">
             <select name="method" className={inputClass} defaultValue="Cash">
               {paymentMethods.map((method) => <option key={method}>{method}</option>)}
+            </select>
+          </Field>
+          <Field label="Pay From">
+            <select name="walletSource" className={inputClass} defaultValue="personal">
+              <option value="personal">Personal Wallet</option>
+              <option value="family">Family Wallet</option>
             </select>
           </Field>
           <Field label="Attach Receipt (Optional)">
@@ -437,6 +445,7 @@ function MobileDashboard({
   monthExpense: number;
 }>) {
   const { addEntry, updateEntry } = useFinance();
+  const wallet = useWallet();
   const family = useFamilyAccess();
   const { notify } = useToast();
   const today = getTodayIso();
@@ -447,6 +456,8 @@ function MobileDashboard({
   const [customIconName, setCustomIconName] = useState("shopping");
   const summarySliderRef = useRef<HTMLDivElement>(null);
   const [summarySlideIndex, setSummarySlideIndex] = useState(0);
+  const [addMoneyOpen, setAddMoneyOpen] = useState(false);
+  const [depositWallet, setDepositWallet] = useState<"personal" | "family">("personal");
   const defaultFrontShortcuts = ["সকালের নাস্তা", "দুপুরের খাবার", "যাতায়াত ভাড়া", "ক্যাটাগরি"];
   const [frontShortcutCategories, setFrontShortcutCategories] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -479,11 +490,8 @@ function MobileDashboard({
   const monthlyExpenseEntries = expenseEntries.filter((entry) => entry.date.startsWith(monthPrefix));
   const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
-  const familyThisMonthDeposit = family.ownerDepositRequests
-    .filter((request) => request.status === "approved" && request.createdAt.startsWith(monthPrefix))
-    .reduce((sum, request) => sum + (request.amount ?? 0), 0);
-  const todayExpense = todayExpenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
-  const familyRemainingBalance = family.familyWalletBalance;
+  const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
+  const familyRemainingBalance = combinedFamilyDeposits - wallet.familyExpenseTotal;
   const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
   const totalCategoryValue = categoryData.reduce((sum, item) => sum + item.value, 0);
   const todayExpenseTitle = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a";
@@ -607,6 +615,7 @@ function MobileDashboard({
         method: entry.method,
         type: "expense",
         note: entry.note,
+        walletSource: String(formData.get("walletSource") || entry.walletSource || "personal") as "personal" | "family",
       });
       notify("আজকের খরচ আপডেট হয়েছে", "info");
     } else {
@@ -618,11 +627,26 @@ function MobileDashboard({
         method: "Cash",
         type: "expense",
         note: "",
+        walletSource: String(formData.get("walletSource") || "personal") as "personal" | "family",
       });
       notify("আজকের খরচ যোগ হয়েছে", "success");
     }
 
     setActiveDailySlot(null);
+  }
+
+  function handleAddMoney(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const amount = Number(form.get("amount"));
+    const added = wallet.addMoney(depositWallet, amount, String(form.get("note") || ""));
+    if (!added) {
+      notify("Enter a valid amount", "danger");
+      return;
+    }
+    event.currentTarget.reset();
+    setAddMoneyOpen(false);
+    notify(`Money added to ${depositWallet} wallet`, "success");
   }
 
   function scrollSummarySlider(index: number) {
@@ -646,64 +670,51 @@ function MobileDashboard({
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Summary slider"
       >
-        <section className="w-full shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
-          <div className="grid grid-cols-[1fr_112px] gap-4">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-white/80">Total Expense</p>
-              <strong className="mt-1 block text-[28px] font-extrabold leading-tight">{taka(monthExpense)}</strong>
-              <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-xs font-bold text-white/90">Today</span>
-              <div className="mt-3 h-12 rounded-xl bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,0.06)_100%)]">
-                <svg viewBox="0 0 220 52" className="h-full w-full" aria-hidden="true">
-                  <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9" fill="none" stroke="rgba(255,255,255,.86)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M3 43 L36 28 L70 39 L100 18 L132 27 L165 10 L193 24 L217 9 L217 52 L3 52 Z" fill="url(#mobileChartFill)" />
-                  <circle cx="165" cy="10" r="4" fill="#ff8a1d" />
-                  <defs><linearGradient id="mobileChartFill" x1="0" y1="0" x2="0" y2="1"><stop stopColor="rgba(255,255,255,.28)" /><stop offset="1" stopColor="rgba(255,255,255,0)" /></linearGradient></defs>
-                </svg>
-              </div>
+        <section className="relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#081c5c_0%,#1238a6_52%,#315ddd_100%)] p-5 text-white shadow-[0_22px_48px_rgba(17,41,143,0.30)]">
+          <div className="absolute -right-12 -top-16 size-44 rounded-full bg-white/10" />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">PERSONAL WALLET</span>
+              <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><Wallet size={23} /></span>
             </div>
-            <div className="grid content-center gap-5">
-              <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/12 ring-1 ring-white/15"><Wallet size={36} /></div>
-              <div>
-                <p className="text-xs font-semibold text-white/80">Daily Average</p>
-                <strong className="mt-1 block text-base">{takaShort(dailyAverage)}</strong>
-              </div>
-              <div className="border-t border-white/15 pt-3">
-                <p className="text-xs font-semibold text-white/80">This Month</p>
-                <strong className="mt-1 block text-base">{takaShort(allSummary.expense)}</strong>
-              </div>
+            <p className="mt-5 text-xs font-semibold text-white/72">Available balance</p>
+            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(wallet.personalBalance)}</strong>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">TOTAL ADDED</span><b className="mt-1 block text-sm">{takaShort(wallet.personalDepositTotal)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">SPENT</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
             </div>
+            <button type="button" onClick={() => { setDepositWallet("personal"); setAddMoneyOpen(true); }} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white font-extrabold text-[#11298f] shadow-lg"><Plus size={18} /> Add Money</button>
           </div>
         </section>
 
-        <section className="w-full shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#f97316] p-5 text-white shadow-[0_18px_38px_rgba(249,115,22,0.24)]">
-          <div className="grid grid-cols-[1fr_112px] gap-4">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-white/85">Family Deposit</p>
-              <strong className="mt-1 block text-[28px] font-extrabold leading-tight">{taka(familyThisMonthDeposit)}</strong>
-              <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/15 px-4 py-2 text-xs font-bold text-white">This Month</span>
-              <div className="mt-3 h-12 rounded-xl bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,0.10)_100%)]">
-                <svg viewBox="0 0 220 52" className="h-full w-full" aria-hidden="true">
-                  <path d="M4 39 L36 21 L68 31 L102 17 L132 35 L164 18 L192 27 L216 12" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M4 39 L36 21 L68 31 L102 17 L132 35 L164 18 L192 27 L216 12 L216 52 L4 52 Z" fill="url(#familyChartFill)" />
-                  <circle cx="164" cy="18" r="4" fill="#11298f" />
-                  <defs><linearGradient id="familyChartFill" x1="0" y1="0" x2="0" y2="1"><stop stopColor="rgba(255,255,255,.32)" /><stop offset="1" stopColor="rgba(255,255,255,0)" /></linearGradient></defs>
-                </svg>
-              </div>
+        <section className="relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#3b167b_0%,#6d28d9_55%,#f97316_125%)] p-5 text-white shadow-[0_22px_48px_rgba(91,33,182,0.28)]">
+          <div className="absolute -bottom-16 -right-10 size-44 rounded-full bg-[#fb923c]/25" />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">FAMILY WALLET</span>
+              <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><HandCoins size={24} /></span>
             </div>
-            <div className="grid content-center gap-5">
-              <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/16 ring-1 ring-white/20"><HandCoins size={38} /></div>
-              <div>
-                <p className="text-xs font-semibold text-white/85">Today Expense</p>
-                <strong className="mt-1 block text-base">{takaShort(todayExpense)}</strong>
-              </div>
-              <div className="border-t border-white/20 pt-3">
-                <p className="text-xs font-semibold text-white/85">Remaining</p>
-                <strong className="mt-1 block text-base">{takaShort(familyRemainingBalance)}</strong>
-              </div>
+            <p className="mt-5 text-xs font-semibold text-white/72">Available balance</p>
+            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(familyRemainingBalance)}</strong>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">FAMILY DEPOSIT</span><b className="mt-1 block text-sm">{takaShort(combinedFamilyDeposits)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">FAMILY SPENT</span><b className="mt-1 block text-sm">{takaShort(wallet.familyExpenseTotal)}</b></div>
             </div>
+            <button type="button" onClick={() => { setDepositWallet("family"); setAddMoneyOpen(true); }} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white font-extrabold text-[#5b21b6] shadow-lg"><Plus size={18} /> Add Family Money</button>
           </div>
         </section>
       </div>
+      {addMoneyOpen && (
+        <Card className="rounded-[20px] border-[#dbe4ff] p-4 shadow-[0_16px_38px_rgba(20,35,90,0.10)]">
+          <form onSubmit={handleAddMoney} className="grid gap-3">
+            <div className="flex items-center justify-between"><h2 className="font-extrabold text-[#111936]">Add Money</h2><span className="rounded-full bg-[#eef4ff] px-3 py-1 text-xs font-bold capitalize text-[#11298f]">{depositWallet}</span></div>
+            <select value={depositWallet} onChange={(event) => setDepositWallet(event.target.value as "personal" | "family")} className={inputClass} aria-label="Wallet"><option value="personal">Personal Wallet</option><option value="family">Family Wallet</option></select>
+            <input name="amount" className={inputClass} inputMode="decimal" placeholder="Amount" required />
+            <input name="note" className={inputClass} placeholder="Note (optional)" />
+            <div className="grid grid-cols-2 gap-2"><Button type="submit">Add Money</Button><Button type="button" variant="outline" onClick={() => setAddMoneyOpen(false)}>Cancel</Button></div>
+          </form>
+        </Card>
+      )}
       <div className="-mt-1 flex justify-center gap-2" aria-label="Slider pages">
         {[0, 1].map((index) => (
           <button
@@ -845,8 +856,9 @@ function MobileDashboard({
                   )}
                 </div>
                 {activeDailySlot === slot.category && (
-                  <form action={(formData) => saveDailyExpense(slot.category, entry, formData)} className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+                  <form action={(formData) => saveDailyExpense(slot.category, entry, formData)} className="mt-3 grid grid-cols-2 gap-2">
                     <input name="amount" className={inputClass} defaultValue={entry?.amount ?? ""} inputMode="decimal" placeholder="0" />
+                    <select name="walletSource" className={inputClass} defaultValue={entry?.walletSource ?? "personal"}><option value="personal">Personal</option><option value="family">Family</option></select>
                     <Button type="submit" className="h-11 px-3">Save</Button>
                     <Button type="button" variant="outline" className="h-11 px-3" onClick={() => setActiveDailySlot(null)}>Cancel</Button>
                   </form>
