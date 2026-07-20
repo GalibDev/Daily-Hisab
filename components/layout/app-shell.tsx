@@ -67,6 +67,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const { entries } = useFinance();
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [localProfileName, setLocalProfileName] = useState(() => typeof window === "undefined" ? "Guest User" : window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
+  const [localProfilePhoto, setLocalProfilePhoto] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
   const today = getTodayIso();
   const current = nav.find((item) => item.href === pathname);
   const monthPrefix = today.slice(0, 7);
@@ -90,6 +92,14 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const isHome = pathname === "/";
   const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : pathname === "/calendar" ? "/calendar" : pathname === "/categories" ? "#add-category" : pathname === "/backup-restore" ? "#backup-info" : pathname === "/reports" ? "#reports-filter" : "/reminders";
   const mobileActionLabel = pathname === "/categories" ? "Add category" : pathname === "/budget" ? "Add expense" : pathname === "/reminders" ? "Add reminder" : pathname === "/backup-restore" ? "Backup information" : pathname === "/calendar" || pathname === "/reports" ? "Open date filters" : "Open reminders";
+  const profileName = user?.name ?? localProfileName;
+  const profilePhoto = user?.photoUrl || localProfilePhoto;
+
+  function openMobileMenu() {
+    setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
+    setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
+    setMobileMenuOpen(true);
+  }
 
   useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
@@ -213,7 +223,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <div className="flex items-center gap-2 sm:gap-4 lg:hidden">
             {pathname !== "/settings" && (
               isHome ? (
-                <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="grid size-11 place-items-center rounded-lg text-[#111936]">
+                <button type="button" onClick={openMobileMenu} aria-label="Open menu" className="grid size-11 place-items-center rounded-lg text-[#111936]">
                   <Menu size={21} />
                 </button>
               ) : (
@@ -237,7 +247,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[26px] leading-9 text-[#111936] sm:text-[28px]" : pathname === "/backup-restore" || pathname === "/categories" || pathname === "/reports" ? "text-lg leading-7 text-[#111936] sm:text-2xl sm:leading-8" : "text-sm")}>{mobileTitle}</h1>
               </div>
             )}
-            <Link href={mobileActionHref} aria-label={mobileActionLabel} className={cn("relative grid size-11 place-items-center rounded-lg text-[#111936]", pathname === "/categories" && "bg-[#11298f] text-white shadow-[0_10px_20px_rgba(17,41,143,0.22)]")}>
+            <Link href={mobileActionHref} aria-label={mobileActionLabel} onClick={(event) => { if (pathname === "/categories") { event.preventDefault(); document.getElementById("add-category")?.click(); } }} className={cn("relative grid size-11 place-items-center rounded-lg text-[#111936]", pathname === "/categories" && "bg-[#11298f] text-white shadow-[0_10px_20px_rgba(17,41,143,0.22)]")}>
               {pathname === "/backup-restore" ? <Info size={24} /> : pathname === "/calendar" || pathname === "/reports" ? <CalendarDays size={20} /> : pathname === "/budget" || pathname === "/reminders" || pathname === "/categories" ? <Plus size={21} /> : <Bell size={19} />}
               {pathname !== "/budget" && pathname !== "/reminders" && pathname !== "/calendar" && pathname !== "/categories" && pathname !== "/backup-restore" && pathname !== "/reports" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
             </Link>
@@ -260,11 +270,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <span className="absolute right-2 top-2 grid size-4 place-items-center rounded-full bg-[#EF4444] text-[10px] text-white">3</span>
             </button>
             <div className="hidden items-center gap-3 md:flex">
-              <div className="grid size-11 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
-                {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={44} height={44} className="size-full object-cover" /> : "U"}
+              <div className="relative grid size-11 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
+                <User size={24} />
+                {profilePhoto && <Image key={profilePhoto} src={profilePhoto} alt="Profile" width={44} height={44} className="absolute inset-0 size-full object-cover" unoptimized onError={(event) => { event.currentTarget.style.display = "none"; }} />}
               </div>
               <div>
-                <p className="text-sm font-bold">{user?.name ?? "Guest User"}</p>
+                <p className="text-sm font-bold">{profileName}</p>
                 <p className="text-xs text-[#22C55E]">Free Plan</p>
               </div>
             </div>
@@ -278,11 +289,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <button type="button" aria-label="Close menu" onClick={() => setMobileMenuOpen(false)} className="absolute inset-0 bg-black/20" />
           <aside className="thin-scrollbar relative z-10 flex h-full w-[78vw] max-w-[392px] flex-col overflow-y-auto rounded-r-[22px] bg-white px-8 pb-7 pt-10 shadow-[18px_0_42px_rgba(17,24,39,0.18)]">
             <div className="mb-8 flex items-center gap-4">
-              <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-[#eef2ff] text-[#2563eb]">
-                {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={80} height={80} className="size-full object-cover" /> : <User size={48} fill="currentColor" strokeWidth={1.4} />}
+              <div className="relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-[#eef2ff] text-[#2563eb]">
+                <User size={48} fill="currentColor" strokeWidth={1.4} />
+                {profilePhoto && <Image key={profilePhoto} src={profilePhoto} alt="Profile" width={80} height={80} className="absolute inset-0 size-full object-cover" unoptimized onError={(event) => { event.currentTarget.style.display = "none"; }} />}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-xl font-extrabold text-[#111936]">{user?.name ?? "Guest User"}</h2>
+                <h2 className="truncate text-xl font-extrabold text-[#111936]">{profileName}</h2>
                 <p className="mt-1 truncate text-sm font-semibold text-[#59627a]">{user?.email ?? "Login to sync your data"}</p>
               </div>
             </div>

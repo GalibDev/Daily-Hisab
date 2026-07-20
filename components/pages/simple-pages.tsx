@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertTriangle, Bell, Bus, CalendarDays, Camera, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Edit2, FileSpreadsheet, Folder, Fuel, Globe2, Grid2X2, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Moon, Palette, Pencil, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet } from "lucide-react";
+import { AlertTriangle, Baby, Banknote, Bell, BookOpen, BriefcaseBusiness, Bus, CalendarDays, Camera, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Dumbbell, Edit2, FileSpreadsheet, Folder, Fuel, Gamepad2, Gift, Globe2, GraduationCap, Grid2X2, HeartPulse, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Moon, Palette, PawPrint, Pencil, Plane, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -296,6 +296,9 @@ export function CategoriesPage() {
   const [activeType, setActiveType] = useState<"expense" | "income">("expense");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [selectedCategoryIcon, setSelectedCategoryIcon] = useState("receipt");
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
+  const [editCategoryIcon, setEditCategoryIcon] = useState("receipt");
   const [showAddCategoryForm, setShowAddCategoryForm] = useState(false);
   const [categoryIconMap, setCategoryIconMap] = useState<Record<string, string>>(() => {
     if (typeof window === "undefined") {
@@ -316,16 +319,30 @@ export function CategoriesPage() {
   );
   const visibleCategories = activeType === "expense" ? categories : incomeCategories;
   const categoryIconStyles = [
-    { name: "receipt", icon: Receipt, label: "অন্যান্য", tone: "bg-[#fff0e6] text-[#f97316]" },
-    { name: "food", icon: Utensils, label: "খাবার", tone: "bg-[#fff0e6] text-[#f97316]" },
-    { name: "coffee", icon: Coffee, label: "নাস্তা", tone: "bg-[#fff7ed] text-[#f59e0b]" },
-    { name: "bus", icon: Bus, label: "ভাড়া", tone: "bg-[#edf4ff] text-[#2563eb]" },
-    { name: "shopping", icon: ShoppingCart, label: "বাজার", tone: "bg-[#fff2ed] text-[#f97316]" },
-    { name: "mobile", icon: Smartphone, label: "মোবাইল", tone: "bg-[#eef4ff] text-[#2563eb]" },
-    { name: "fuel", icon: Fuel, label: "তেল", tone: "bg-[#fff7ed] text-[#ea580c]" },
-    { name: "bag", icon: ShoppingBag, label: "কেনাকাটা", tone: "bg-[#ffe6f6] text-[#db2777]" },
-    { name: "home", icon: Home, label: "বাসা", tone: "bg-[#ecfdf5] text-[#059669]" },
-    { name: "folder", icon: Folder, label: "ফোল্ডার", tone: "bg-[#fff7e8] text-[#c77800]" },
+    { name: "receipt", icon: Receipt, label: "General", tone: "bg-[#fff0e6] text-[#f97316]" },
+    { name: "food", icon: Utensils, label: "Food", tone: "bg-[#fff0e6] text-[#f97316]" },
+    { name: "coffee", icon: Coffee, label: "Snacks", tone: "bg-[#fff7ed] text-[#f59e0b]" },
+    { name: "bus", icon: Bus, label: "Bus", tone: "bg-[#edf4ff] text-[#2563eb]" },
+    { name: "car", icon: Car, label: "Car", tone: "bg-[#edf4ff] text-[#2563eb]" },
+    { name: "shopping", icon: ShoppingCart, label: "Market", tone: "bg-[#fff2ed] text-[#f97316]" },
+    { name: "bag", icon: ShoppingBag, label: "Shopping", tone: "bg-[#ffe6f6] text-[#db2777]" },
+    { name: "mobile", icon: Smartphone, label: "Mobile", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { name: "wifi", icon: Wifi, label: "Internet", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { name: "fuel", icon: Fuel, label: "Fuel", tone: "bg-[#fff7ed] text-[#ea580c]" },
+    { name: "home", icon: Home, label: "Home", tone: "bg-[#ecfdf5] text-[#059669]" },
+    { name: "health", icon: HeartPulse, label: "Health", tone: "bg-[#fff1f2] text-[#e11d48]" },
+    { name: "education", icon: GraduationCap, label: "Education", tone: "bg-[#eef2ff] text-[#4f46e5]" },
+    { name: "book", icon: BookOpen, label: "Books", tone: "bg-[#f5f3ff] text-[#7c3aed]" },
+    { name: "gift", icon: Gift, label: "Gift", tone: "bg-[#fdf2f8] text-[#db2777]" },
+    { name: "family", icon: Baby, label: "Family", tone: "bg-[#fff7ed] text-[#f97316]" },
+    { name: "travel", icon: Plane, label: "Travel", tone: "bg-[#ecfeff] text-[#0891b2]" },
+    { name: "work", icon: BriefcaseBusiness, label: "Work", tone: "bg-[#f1f5f9] text-[#475569]" },
+    { name: "fitness", icon: Dumbbell, label: "Fitness", tone: "bg-[#ecfdf5] text-[#059669]" },
+    { name: "pet", icon: PawPrint, label: "Pet", tone: "bg-[#fff7ed] text-[#d97706]" },
+    { name: "games", icon: Gamepad2, label: "Games", tone: "bg-[#f5f3ff] text-[#7c3aed]" },
+    { name: "repair", icon: Wrench, label: "Repair", tone: "bg-[#f1f5f9] text-[#475569]" },
+    { name: "money", icon: Banknote, label: "Money", tone: "bg-[#ecfdf5] text-[#16a34a]" },
+    { name: "folder", icon: Folder, label: "Other", tone: "bg-[#fff7e8] text-[#c77800]" },
   ];
 
   useEffect(() => {
@@ -358,23 +375,51 @@ export function CategoriesPage() {
     notify(added ? "Category added" : "Category already exists or empty", added ? "success" : "danger");
   }
 
-  function handleEditCategory(category: string) {
+  function openEditCategory(category: string) {
     if (activeType !== "expense") {
       notify("Income categories are edited from income entries.", "info");
       return;
     }
 
-    const nextCategory = window.prompt("Edit category name", category);
-    if (nextCategory === null) return;
-    const updated = updateCategory(category, nextCategory);
+    setEditingCategory(category);
+    setEditCategoryName(category);
+    setEditCategoryIcon(categoryIconMap[category] ?? "receipt");
+  }
+
+  function saveEditedCategory() {
+    if (!editingCategory) return;
+    const nextCategory = editCategoryName.trim();
+    const updated = updateCategory(editingCategory, nextCategory);
     if (updated) {
       setCategoryIconMap((current) => {
-        const next = { ...current, [nextCategory]: current[category] ?? "receipt" };
-        delete next[category];
+        const next = { ...current };
+        delete next[editingCategory];
+        next[nextCategory] = editCategoryIcon;
         return next;
       });
+      setEditingCategory(null);
     }
     notify(updated ? "Category updated" : "Category already exists or empty", updated ? "success" : "danger");
+  }
+
+  function renderIconPicker(selectedIcon: string, onSelect: (icon: string) => void) {
+    return (
+      <div>
+        <p className="mb-2 text-xs font-extrabold text-[#59627a]">Choose a related icon</p>
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+          {categoryIconStyles.map((style) => {
+            const Icon = style.icon;
+            const selected = selectedIcon === style.name;
+            return (
+              <button key={style.name} type="button" onClick={() => onSelect(style.name)} aria-label={`Select ${style.label} icon`} aria-pressed={selected} className={`grid min-h-16 place-items-center gap-1 rounded-xl px-1 py-2 ${style.tone} ${selected ? "ring-2 ring-[#11298f] ring-offset-1" : ""}`}>
+                <Icon size={20} />
+                <span className="max-w-full truncate text-[9px] font-extrabold">{style.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
   function handleDeleteCategory(category: string) {
@@ -453,7 +498,7 @@ export function CategoriesPage() {
                   <h2 className="truncate text-base font-extrabold text-[#111936]">{category}</h2>
                   <p className="text-xs font-semibold text-[#59627a]">{count} {activeType === "expense" ? "expenses" : "income"}</p>
                 </div>
-                {activeType === "expense" && <button type="button" onClick={() => handleEditCategory(category)} aria-label={`Edit ${category}`} className="grid size-11 place-items-center rounded-xl text-[#111936]"><Pencil size={21} /></button>}
+                {activeType === "expense" && <button type="button" onClick={() => openEditCategory(category)} aria-label={`Edit ${category}`} className="grid size-11 place-items-center rounded-xl text-[#111936]"><Pencil size={21} /></button>}
                 {activeType === "expense" && <button type="button" onClick={() => handleDeleteCategory(category)} aria-label={`Delete ${category}`} className="grid size-11 place-items-center rounded-xl text-[#dc2626]"><Trash2 size={21} /></button>}
               </Card>
             );
@@ -463,17 +508,7 @@ export function CategoriesPage() {
         {showAddCategoryForm && activeType === "expense" && (
           <Card className="grid gap-3 rounded-[18px] border-[#eef0f8] p-4">
             <input className={inputClass} value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="নতুন ক্যাটাগরির নাম" />
-            <div className="grid grid-cols-5 gap-2">
-              {categoryIconStyles.map((style) => {
-                const Icon = style.icon;
-                const selected = selectedCategoryIcon === style.name;
-                return (
-                  <button key={style.name} type="button" onClick={() => setSelectedCategoryIcon(style.name)} aria-label={style.label} className={`grid size-11 place-items-center rounded-xl ${style.tone} ${selected ? "ring-2 ring-[#11298f]" : ""}`}>
-                    <Icon size={20} />
-                  </button>
-                );
-              })}
-            </div>
+            {renderIconPicker(selectedCategoryIcon, setSelectedCategoryIcon)}
             <div className="grid grid-cols-2 gap-2">
               <Button type="button" onClick={handleAddCategory} className="w-full">Add</Button>
               <Button type="button" variant="outline" onClick={() => setShowAddCategoryForm(false)} className="w-full">Cancel</Button>
@@ -499,17 +534,7 @@ export function CategoriesPage() {
           {showAddCategoryForm && (
             <div className="mb-5 grid gap-3 rounded-xl border border-[#ece8ff] bg-[#fbfaff] p-4">
               <input className={inputClass} value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="New category name" />
-              <div className="flex flex-wrap gap-2">
-                {categoryIconStyles.map((style) => {
-                  const Icon = style.icon;
-                  const selected = selectedCategoryIcon === style.name;
-                  return (
-                    <button key={style.name} type="button" onClick={() => setSelectedCategoryIcon(style.name)} aria-label={style.label} className={`grid size-10 place-items-center rounded-xl ${style.tone} ${selected ? "ring-2 ring-[#11298f]" : ""}`}>
-                      <Icon size={18} />
-                    </button>
-                  );
-                })}
-              </div>
+              {renderIconPicker(selectedCategoryIcon, setSelectedCategoryIcon)}
               <div className="flex gap-2">
                 <Button type="button" onClick={handleAddCategory}>Save Category</Button>
                 <Button type="button" variant="outline" onClick={() => setShowAddCategoryForm(false)}>Cancel</Button>
@@ -533,6 +558,21 @@ export function CategoriesPage() {
         </Card>
         <Card className="p-5"><h2 className="mb-4 text-lg font-bold">Category Chart</h2><CategoryPieChart data={categoryData} /></Card>
       </div>
+
+      {editingCategory && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-[#07122f]/45 p-3 md:items-center" role="presentation">
+          <button type="button" className="absolute inset-0" aria-label="Close category editor" onClick={() => setEditingCategory(null)} />
+          <Card role="dialog" aria-modal="true" aria-label={`Edit ${editingCategory}`} className="stat-sheet relative z-10 max-h-[82vh] w-full max-w-lg overflow-y-auto rounded-[24px] p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div><h2 className="text-lg font-extrabold text-[#111936]">Edit Category</h2><p className="text-xs font-semibold text-[#59627a]">Change its name and icon</p></div>
+              <button type="button" onClick={() => setEditingCategory(null)} className="rounded-xl px-3 py-2 text-sm font-bold text-[#59627a]">Close</button>
+            </div>
+            <input className={inputClass} value={editCategoryName} onChange={(event) => setEditCategoryName(event.target.value)} aria-label="Category name" />
+            <div className="mt-4">{renderIconPicker(editCategoryIcon, setEditCategoryIcon)}</div>
+            <div className="mt-5 grid grid-cols-2 gap-2"><Button type="button" onClick={saveEditedCategory}>Save changes</Button><Button type="button" variant="outline" onClick={() => setEditingCategory(null)}>Cancel</Button></div>
+          </Card>
+        </div>
+      )}
     </AppShell>
   );
 }
