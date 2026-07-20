@@ -85,6 +85,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/categories": "Categories",
     "/entries": "Today's Entries",
     "/family-access": "ফ্যামিলি অ্যাক্সেস",
+    "/hero-management": "Hero Management",
     "/reports": "Reports",
     "/settings": "Profile",
   };

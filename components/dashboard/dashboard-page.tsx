@@ -674,7 +674,6 @@ function MobileDashboard({
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(monthExpense)}</b></div>
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ALL EXPENSE</span><b className="mt-1 block text-sm">{takaShort(expenseEntries.reduce((sum, entry) => sum + entry.amount, 0))}</b></div>
             </div>
-            <div className="mt-4 flex min-h-11 items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4"><span className="text-xs font-bold text-white/75">Live expense total</span><span className="flex items-center gap-2 text-xs font-extrabold"><span className="size-2 animate-pulse rounded-full bg-emerald-300" /> AUTO UPDATE</span></div>
           </div>
         </section>
 
@@ -691,7 +690,6 @@ function MobileDashboard({
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ADDED THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(wallet.personalAddedThisMonth)}</b></div>
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">DEDUCTED</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
             </div>
-            <Link href="/settings#hero-management" className="mt-4 flex min-h-11 items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4 text-xs font-extrabold text-white"><span>Wallet controls</span><span>Manage from Profile →</span></Link>
           </div>
         </section>
 
@@ -708,7 +706,6 @@ function MobileDashboard({
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">TOTAL ADDED</span><b className="mt-1 block text-sm">{takaShort(combinedFamilyDeposits)}</b></div>
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">DEDUCTED</span><b className="mt-1 block text-sm">{takaShort(wallet.familyExpenseTotal)}</b></div>
             </div>
-            <Link href="/settings#hero-management" className="mt-4 flex min-h-11 items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4 text-xs font-extrabold text-white"><span>Wallet controls</span><span>Manage from Profile →</span></Link>
           </div>
         </section>
       </div>
