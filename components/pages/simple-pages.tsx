@@ -9,7 +9,9 @@ import { ProfileImageUploader } from "@/components/auth/profile-image-uploader";
 import { AppShell } from "@/components/layout/app-shell";
 import { CategorySelect } from "@/components/entries/category-select";
 import { useFinance } from "@/components/state/finance-store";
+import { useFamilyAccess } from "@/components/state/family-access-store";
 import { useTheme } from "@/components/state/theme-store";
+import { useWallet } from "@/components/state/wallet-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
@@ -1303,10 +1305,17 @@ export function SettingsPage() {
   const { signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData, syncEnabled, syncError } = useFinance();
+  const wallet = useWallet();
+  const family = useFamilyAccess();
   const { notify } = useToast();
   const mobileProfileInputRef = useRef<HTMLInputElement>(null);
   const [mobileProfileUploading, setMobileProfileUploading] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [showHeroManagement, setShowHeroManagement] = useState(false);
+  const [selectedHeroWallet, setSelectedHeroWallet] = useState<"personal" | "family">("personal");
+  const [editingDepositId, setEditingDepositId] = useState<number | null>(null);
+  const [heroMoneyAmount, setHeroMoneyAmount] = useState("");
+  const [heroMoneyNote, setHeroMoneyNote] = useState("");
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
@@ -1317,9 +1326,15 @@ export function SettingsPage() {
   const profileName = user?.name ?? (user?.email ? "Firebase User" : localProfileName);
   const profilePhoto = user?.photoUrl ?? localProfilePhoto;
   const profileEmail = user?.email ?? "Login to sync your data";
+  const selectedDeposits = wallet.deposits.filter((item) => item.wallet === selectedHeroWallet);
+  const selectedTotalAdded = selectedHeroWallet === "personal" ? wallet.personalDepositTotal : wallet.familyDepositTotal + family.approvedDepositTotal;
+  const selectedDeducted = selectedHeroWallet === "personal" ? wallet.personalExpenseTotal : wallet.familyExpenseTotal;
+  const selectedRemaining = Math.max(0, selectedTotalAdded - selectedDeducted);
+  const selectedEnabled = selectedHeroWallet === "personal" ? wallet.personalEnabled : wallet.familyEnabled;
   const accountItems = [
     { onClick: () => setShowPersonalInfo((open) => !open), icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { onClick: () => setShowHeroManagement((open) => !open), icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
     { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
@@ -1341,6 +1356,10 @@ export function SettingsPage() {
     queueMicrotask(() => {
       setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
       setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
+      if (window.location.hash === "#hero-management") {
+        setShowHeroManagement(true);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
     });
   }, []);
 
@@ -1394,6 +1413,62 @@ export function SettingsPage() {
       notify(error instanceof Error ? error.message : "Profile update failed", "danger");
     }
   }
+
+  function handleHeroMoney(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(heroMoneyAmount);
+    const saved = editingDepositId
+      ? wallet.updateDeposit(editingDepositId, amount, heroMoneyNote)
+      : wallet.addMoney(selectedHeroWallet, amount, heroMoneyNote);
+    if (!saved) {
+      notify("Enter a valid amount", "danger");
+      return;
+    }
+    setEditingDepositId(null);
+    setHeroMoneyAmount("");
+    setHeroMoneyNote("");
+    notify(editingDepositId ? "Added money updated" : "Money added", "success");
+  }
+
+  function selectManagedWallet(nextWallet: "personal" | "family") {
+    setSelectedHeroWallet(nextWallet);
+    setEditingDepositId(null);
+    setHeroMoneyAmount("");
+    setHeroMoneyNote("");
+  }
+
+  const heroManagementPanel = (
+    <Card id="hero-management" className="rounded-[20px] border-[#dbe4ff] p-4 shadow-[0_16px_38px_rgba(20,35,90,0.09)]">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div><h2 className="font-extrabold text-[#111936]">Hero Management</h2><p className="mt-1 text-xs font-semibold text-[#59627a]">Manage wallet balance and expense deduction</p></div>
+        <button type="button" onClick={() => setShowHeroManagement(false)} className="rounded-lg px-2 py-1 text-xs font-bold text-[#59627a]">Close</button>
+      </div>
+      <div className="mb-4 grid grid-cols-2 rounded-xl bg-[#f2f5fc] p-1">
+        {(["personal", "family"] as const).map((walletName) => <button key={walletName} type="button" onClick={() => selectManagedWallet(walletName)} className={selectedHeroWallet === walletName ? "h-11 rounded-lg bg-[#11298f] text-sm font-extrabold capitalize text-white shadow" : "h-11 rounded-lg text-sm font-extrabold capitalize text-[#59627a]"}>{walletName} Wallet</button>)}
+      </div>
+      <div className="rounded-2xl bg-[linear-gradient(135deg,#0c287b,#315ddd)] p-4 text-white">
+        <p className="text-xs font-bold text-white/75">Remaining balance</p><strong className="mt-1 block text-3xl font-extrabold">{taka(selectedRemaining)}</strong>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-white/10 p-3"><span className="text-white/70">Total added</span><b className="mt-1 block text-sm">{takaShort(selectedTotalAdded)}</b></div><div className="rounded-xl bg-white/10 p-3"><span className="text-white/70">Deducted</span><b className="mt-1 block text-sm">{takaShort(selectedDeducted)}</b></div></div>
+      </div>
+      <div className="my-4 flex items-center justify-between rounded-xl border border-[#e3e8f4] p-3">
+        <div><p className="text-sm font-extrabold text-[#111936]">Deduct expenses</p><p className="text-xs text-[#59627a]">Use this wallet for every expense</p></div>
+        <button type="button" role="switch" aria-checked={selectedEnabled} aria-label={`${selectedHeroWallet} wallet deduction`} onClick={() => wallet.toggleWallet(selectedHeroWallet)} className={`relative h-8 w-14 rounded-full transition ${selectedEnabled ? "bg-[#22c55e]" : "bg-[#cbd5e1]"}`}><span className={`absolute top-1 size-6 rounded-full bg-white shadow transition ${selectedEnabled ? "left-7" : "left-1"}`} /></button>
+      </div>
+      <form onSubmit={handleHeroMoney} className="grid gap-3 rounded-xl bg-[#f8f9fd] p-3">
+        <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold text-[#111936]">{editingDepositId ? "Edit added money" : "Add money"}</h3>{editingDepositId && <button type="button" onClick={() => { setEditingDepositId(null); setHeroMoneyAmount(""); setHeroMoneyNote(""); }} className="text-xs font-bold text-[#59627a]">Cancel edit</button>}</div>
+        <input className={inputClass} value={heroMoneyAmount} onChange={(event) => setHeroMoneyAmount(event.target.value)} inputMode="decimal" placeholder="Amount" aria-label="Hero money amount" required />
+        <input className={inputClass} value={heroMoneyNote} onChange={(event) => setHeroMoneyNote(event.target.value)} placeholder="Note (optional)" aria-label="Hero money note" />
+        <Button type="submit">{editingDepositId ? "Save changes" : `Add to ${selectedHeroWallet}`}</Button>
+      </form>
+      <div className="mt-4">
+        <h3 className="mb-2 text-sm font-extrabold text-[#111936]">Added money history</h3>
+        <div className="grid max-h-56 gap-2 overflow-y-auto">
+          {selectedDeposits.map((deposit) => <div key={deposit.id} className="flex items-center gap-3 rounded-xl border border-[#eef0f8] p-3"><div className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">{takaShort(deposit.amount)}</strong><p className="truncate text-xs text-[#59627a]">{deposit.note || "No note"} · {displayDate(deposit.date.slice(0, 10))}</p></div><button type="button" onClick={() => { setEditingDepositId(deposit.id); setHeroMoneyAmount(String(deposit.amount)); setHeroMoneyNote(deposit.note); }} className="rounded-lg bg-[#eef4ff] px-3 py-2 text-xs font-extrabold text-[#11298f]">Edit</button></div>)}
+          {selectedDeposits.length === 0 && <p className="rounded-xl border border-dashed border-[#d8dff2] p-4 text-center text-xs font-semibold text-[#59627a]">No money added to this wallet yet.</p>}
+        </div>
+      </div>
+    </Card>
+  );
 
   return (
     <AppShell>
@@ -1453,6 +1528,7 @@ export function SettingsPage() {
           </Card>
         )}
         <ProfileMenuSection title="Account" items={accountItems} />
+        {showHeroManagement && heroManagementPanel}
         <ProfileMenuSection title="Preferences" items={preferenceItems} />
         <ProfileMenuSection title="Support" items={supportItems} />
         {user ? (

@@ -20,6 +20,7 @@ type WalletStore = {
   personalEnabled: boolean;
   familyEnabled: boolean;
   addMoney: (wallet: WalletSource, amount: number, note?: string) => boolean;
+  updateDeposit: (id: number, amount: number, note?: string) => boolean;
   toggleWallet: (wallet: WalletSource) => void;
 };
 
@@ -83,6 +84,11 @@ export function WalletProvider({ children }: Readonly<{ children: React.ReactNod
       addMoney: (wallet, amount, note) => {
         if (!Number.isFinite(amount) || amount <= 0) return false;
         setDeposits((current) => [{ id: Date.now(), wallet, amount, note: note?.trim() ?? "", date: new Date().toISOString() }, ...current]);
+        return true;
+      },
+      updateDeposit: (id, amount, note) => {
+        if (!Number.isFinite(amount) || amount <= 0) return false;
+        setDeposits((current) => current.map((item) => item.id === id ? { ...item, amount, note: note?.trim() ?? "" } : item));
         return true;
       },
       toggleWallet: (wallet) => setWalletSettings((current) => ({ ...current, [wallet]: !current[wallet] })),
