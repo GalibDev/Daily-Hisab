@@ -29,6 +29,7 @@ import {
   Utensils,
   Upload,
   Wallet,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { CategorySelect } from "@/components/entries/category-select";
@@ -417,10 +418,11 @@ function MobileStatCard({
   icon,
   label,
   meta,
+  onClick,
   value,
-}: Readonly<{ icon: React.ReactNode; label: string; meta: React.ReactNode; value: string }>) {
+}: Readonly<{ icon: React.ReactNode; label: string; meta: React.ReactNode; onClick: () => void; value: string }>) {
   return (
-    <Card className="min-h-[132px] overflow-hidden rounded-[18px] border-[#eef0f8] p-3 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+    <button type="button" onClick={onClick} aria-label={`Open ${label} details`} className="stat-pop min-h-[132px] overflow-hidden rounded-[18px] border border-[#eef0f8] bg-white p-3 text-left shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
       <div className="mb-4 grid gap-2">
         <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#f3f7ff] text-[#0d2c88]">{icon}</span>
         <div className="min-w-0">
@@ -429,22 +431,20 @@ function MobileStatCard({
         </div>
       </div>
       <div className="text-[10px] leading-4 text-[#6c7287]">{meta}</div>
-    </Card>
+    </button>
   );
 }
 
 function MobileDashboard({
-  allSummary,
   categoryData,
   entries,
   monthExpense,
 }: Readonly<{
-  allSummary: ReturnType<typeof summarizeEntries>;
   categoryData: ReturnType<typeof buildCategoryExpense>;
   entries: Entry[];
   monthExpense: number;
 }>) {
-  const { addEntry, updateEntry } = useFinance();
+  const { addEntry, categories, updateEntry } = useFinance();
   const wallet = useWallet();
   const family = useFamilyAccess();
   const { notify } = useToast();
@@ -458,6 +458,7 @@ function MobileDashboard({
   const [summarySlideIndex, setSummarySlideIndex] = useState(0);
   const [addMoneyOpen, setAddMoneyOpen] = useState(false);
   const [depositWallet, setDepositWallet] = useState<"personal" | "family">("personal");
+  const [statDetails, setStatDetails] = useState<"monthly" | "today" | "average" | null>(null);
   const defaultFrontShortcuts = ["সকালের নাস্তা", "দুপুরের খাবার", "যাতায়াত ভাড়া", "ক্যাটাগরি"];
   const [frontShortcutCategories, setFrontShortcutCategories] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -488,8 +489,11 @@ function MobileDashboard({
   const todayExpenseEntries = expenseEntries.filter((entry) => entry.date === today);
   const monthPrefix = today.slice(0, 7);
   const monthlyExpenseEntries = expenseEntries.filter((entry) => entry.date.startsWith(monthPrefix));
-  const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
+  const daysWithExpense = new Set(monthlyExpenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
+  const personalMonthExpense = monthlyExpenseEntries
+    .filter((entry) => (entry.walletSource ?? "personal") === "personal")
+    .reduce((sum, entry) => sum + entry.amount, 0);
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
   const familyRemainingBalance = combinedFamilyDeposits - wallet.familyExpenseTotal;
   const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
@@ -522,6 +526,17 @@ function MobileDashboard({
     .filter((category) => !baseShortcuts.some((shortcut) => shortcut.category === category) && !customShortcuts.some((shortcut) => shortcut.category === category))
     .map((category) => ({ category, iconName: "receipt" }));
   const allExpenseShortcuts = [...baseShortcuts, ...customShortcuts, ...entryShortcuts];
+  const monthlyCategoryRows = Array.from(new Set([...categories, ...allExpenseShortcuts.map((item) => item.category), ...monthlyExpenseEntries.map((entry) => entry.category)]))
+    .map((category) => ({
+      category,
+      amount: monthlyExpenseEntries.filter((entry) => entry.category === category).reduce((sum, entry) => sum + entry.amount, 0),
+    }));
+  const todayCategoryRows = Array.from(new Set(todayExpenseEntries.map((entry) => entry.category)))
+    .map((category) => ({
+      category,
+      amount: todayExpenseEntries.filter((entry) => entry.category === category).reduce((sum, entry) => sum + entry.amount, 0),
+    }));
+  const todayExpenseTotal = todayCategoryRows.reduce((sum, item) => sum + item.amount, 0);
   const categoryShortcut = { category: "ক্যাটাগরি", iconName: "category" };
   const allShortcutOptions = [categoryShortcut, ...allExpenseShortcuts];
   const visibleShortcuts = [...frontShortcutCategories, ...defaultFrontShortcuts]
@@ -551,6 +566,10 @@ function MobileDashboard({
     }
 
     return shortcutIconOptions.find((option) => option.name === iconName) ?? shortcutIconOptions[shortcutIconOptions.length - 1];
+  }
+
+  function getCategoryIcon(category: string) {
+    return getShortcutIcon(allExpenseShortcuts.find((item) => item.category === category)?.iconName ?? "receipt");
   }
 
   function getMonthlyEntriesForCategory(category: string) {
@@ -670,25 +689,25 @@ function MobileDashboard({
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Summary slider"
       >
-        <section className="relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#081c5c_0%,#1238a6_52%,#315ddd_100%)] p-5 text-white shadow-[0_22px_48px_rgba(17,41,143,0.30)]">
-          <div className="absolute -right-12 -top-16 size-44 rounded-full bg-white/10" />
+        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#081c5c_0%,#1238a6_52%,#315ddd_100%)] p-5 text-white shadow-[0_22px_48px_rgba(17,41,143,0.30)]">
+          <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-white/10" />
           <div className="relative">
             <div className="flex items-center justify-between">
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">PERSONAL WALLET</span>
               <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><Wallet size={23} /></span>
             </div>
-            <p className="mt-5 text-xs font-semibold text-white/72">Available balance</p>
-            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(wallet.personalBalance)}</strong>
+            <p className="mt-5 text-xs font-semibold text-white/72">Personal expenses</p>
+            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(wallet.personalExpenseTotal)}</strong>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">TOTAL ADDED</span><b className="mt-1 block text-sm">{takaShort(wallet.personalDepositTotal)}</b></div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">SPENT</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(personalMonthExpense)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ALL EXPENSE</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
             </div>
             <button type="button" onClick={() => { setDepositWallet("personal"); setAddMoneyOpen(true); }} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white font-extrabold text-[#11298f] shadow-lg"><Plus size={18} /> Add Money</button>
           </div>
         </section>
 
-        <section className="relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#3b167b_0%,#6d28d9_55%,#f97316_125%)] p-5 text-white shadow-[0_22px_48px_rgba(91,33,182,0.28)]">
-          <div className="absolute -bottom-16 -right-10 size-44 rounded-full bg-[#fb923c]/25" />
+        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#3b167b_0%,#6d28d9_55%,#f97316_125%)] p-5 text-white shadow-[0_22px_48px_rgba(91,33,182,0.28)]">
+          <div className="hero-orb absolute -bottom-16 -right-10 size-44 rounded-full bg-[#fb923c]/25" />
           <div className="relative">
             <div className="flex items-center justify-between">
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">FAMILY WALLET</span>
@@ -827,10 +846,37 @@ function MobileDashboard({
       </Card>
 
       <div className="grid grid-cols-3 gap-3">
-        <MobileStatCard icon={<Wallet size={22} />} label="Total Expense" value={takaShort(allSummary.expense)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Current data</span></>} />
-        <MobileStatCard icon={<CalendarCheck size={22} />} label="Total Days" value={totalDaysLabel} meta={<><span>Expenses Added</span><br /><span>from your entries</span></>} />
-        <MobileStatCard icon={<TrendingUp size={22} />} label="Daily Average" value={takaShort(dailyAverage)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Live total</span></>} />
+        <MobileStatCard onClick={() => setStatDetails("monthly")} icon={<Wallet size={22} />} label="Total Expense" value={takaShort(monthExpense)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Tap for details</span></>} />
+        <MobileStatCard onClick={() => setStatDetails("today")} icon={<CalendarCheck size={22} />} label="Total Days" value={totalDaysLabel} meta={<><span>{"Today's expenses"}</span><br /><span>Tap for details</span></>} />
+        <MobileStatCard onClick={() => setStatDetails("average")} icon={<TrendingUp size={22} />} label="Daily Average" value={takaShort(dailyAverage)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Tap for details</span></>} />
       </div>
+
+      {statDetails && (() => {
+        const rows = statDetails === "today" ? todayCategoryRows : monthlyCategoryRows;
+        const title = statDetails === "monthly" ? "This Month Expenses" : statDetails === "today" ? "Today's Expenses" : "Daily Average by Category";
+        const total = statDetails === "monthly" ? monthExpense : statDetails === "today" ? todayExpenseTotal : dailyAverage;
+        return (
+          <div className="fixed inset-0 z-[90] flex items-end justify-center bg-[#07122f]/45 p-3" role="presentation">
+            <button type="button" className="absolute inset-0" aria-label="Close expense details" onClick={() => setStatDetails(null)} />
+            <section role="dialog" aria-modal="true" aria-label={title} className="stat-sheet relative z-10 max-h-[78vh] w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-[0_28px_80px_rgba(5,15,50,0.30)]">
+              <div className="flex items-center justify-between border-b border-[#eef0f8] px-5 py-4">
+                <div><h2 className="font-extrabold text-[#111936]">{title}</h2><p className="mt-0.5 text-xs text-[#69718a]">Icon, category and amount</p></div>
+                <button type="button" onClick={() => setStatDetails(null)} aria-label="Close" className="grid size-9 place-items-center rounded-full bg-[#f2f5fc] text-[#111936]"><X size={18} /></button>
+              </div>
+              <div className="max-h-[56vh] overflow-y-auto px-5">
+                {rows.map((item) => {
+                  const option = getCategoryIcon(item.category);
+                  const Icon = option.icon;
+                  const amount = statDetails === "average" ? item.amount / Math.max(daysWithExpense, 1) : item.amount;
+                  return <div key={item.category} className="flex items-center gap-3 border-b border-[#f0f2f8] py-3 last:border-0"><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#20263a]">{item.category}</span><strong className="whitespace-nowrap text-sm text-[#11298f]">{takaShort(amount)}</strong></div>;
+                })}
+                {rows.length === 0 && <p className="py-10 text-center text-sm font-semibold text-[#69718a]">No expenses added today</p>}
+              </div>
+              <div className="flex items-center justify-between bg-[#f5f7ff] px-5 py-4"><span className="text-sm font-extrabold text-[#20263a]">{statDetails === "average" ? "Overall daily average" : "Total expense"}</span><strong className="text-lg text-[#11298f]">{takaShort(total)}</strong></div>
+            </section>
+          </div>
+        );
+      })()}
 
       <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="mb-4 flex items-center justify-between">
@@ -904,11 +950,14 @@ export function DashboardPage() {
   const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
   const trendData = useMemo(() => buildExpenseTrend(entries), [entries]);
   const summaryRows = useMemo(() => buildSummaryRowsFromEntries(entries, hiddenSummaryDates, today), [entries, hiddenSummaryDates, today]);
-  const monthExpense = allSummary.expense;
+  const monthPrefix = today.slice(0, 7);
+  const monthExpense = entries
+    .filter((entry) => entry.type === "expense" && entry.date.startsWith(monthPrefix))
+    .reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
     <AppShell>
-      <MobileDashboard allSummary={allSummary} categoryData={categoryData} entries={entries} monthExpense={monthExpense} />
+      <MobileDashboard categoryData={categoryData} entries={entries} monthExpense={monthExpense} />
 
       <div className="hidden gap-4 lg:grid">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">

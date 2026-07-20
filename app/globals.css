@@ -76,3 +76,28 @@ html.dark textarea {
   background: #111a2d !important;
   color: #f8fafc !important;
 }
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes hero-pulse {
+  0%, 100% { transform: scale(1); opacity: .75; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes stat-sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.hero-live { animation: hero-float 5s ease-in-out infinite; }
+.hero-orb { animation: hero-pulse 3.5s ease-in-out infinite; }
+.stat-pop { transition: transform .16s ease, box-shadow .16s ease; }
+.stat-pop:active { transform: translateY(2px) scale(.96); box-shadow: 0 6px 16px rgba(20, 35, 90, .08); }
+.stat-sheet { animation: stat-sheet-up .22s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-live, .hero-orb, .stat-sheet { animation: none; }
+  .stat-pop { transition: none; }
+}
