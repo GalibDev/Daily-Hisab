@@ -11,11 +11,14 @@ export function CategorySelect({ defaultValue }: Readonly<{ defaultValue?: strin
   const { addCategory, categories } = useFinance();
   const { notify } = useToast();
   const [newCategory, setNewCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(defaultValue ?? categories[0] ?? "");
+  const selectedValue = categories.includes(selectedCategory) ? selectedCategory : (categories[0] ?? "");
 
   function handleAddCategory() {
     const added = addCategory(newCategory);
     if (added) {
       notify("Category added successfully", "info");
+      setSelectedCategory(newCategory.trim());
       setNewCategory("");
       return;
     }
@@ -24,7 +27,13 @@ export function CategorySelect({ defaultValue }: Readonly<{ defaultValue?: strin
 
   return (
     <div className="grid gap-2">
-      <select name="category" className={inputClass} defaultValue={defaultValue ?? categories[0] ?? ""} required>
+      <select
+        name="category"
+        className={inputClass}
+        value={selectedValue}
+        onChange={(event) => setSelectedCategory(event.target.value)}
+        required
+      >
         <option value="" disabled>
           Select category
         </option>

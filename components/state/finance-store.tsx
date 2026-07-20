@@ -138,9 +138,10 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         const savedCategories = getScopedItem(ownerId, CATEGORY_STORAGE_KEY);
         if (savedCategories) {
           const parsedCategories = JSON.parse(savedCategories) as string[];
-          setCategories(parsedCategories.some((category) => category.includes("à")) ? [] : parsedCategories);
+          const hasValidCategories = parsedCategories.length > 0 && !parsedCategories.some((category) => category.includes("Ã "));
+          setCategories(hasValidCategories ? parsedCategories : initialCategories);
         } else {
-          setCategories([]);
+          setCategories(initialCategories);
         }
         const savedHiddenSummaryDates = getScopedItem(ownerId, SUMMARY_STORAGE_KEY);
         setHiddenSummaryDates(savedHiddenSummaryDates ? (JSON.parse(savedHiddenSummaryDates) as string[]) : []);

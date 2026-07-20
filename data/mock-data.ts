@@ -2,7 +2,16 @@ import type { Budget, Entry, Note, PaymentMethod, RecurringExpense, Reminder } f
 
 export const todayIso = "2024-05-20";
 
-export const categories: string[] = [];
+export const categories: string[] = [
+  "সকালের নাস্তা",
+  "দুপুরের খাবার",
+  "যাতায়াত ভাড়া",
+  "বিকালের নাস্তা",
+  "মোবাইল / রিচার্জ",
+  "বাজার খরচ",
+  "রাতের খাবার",
+  "অন্যান্য খরচ",
+];
 
 export const paymentMethods: PaymentMethod[] = ["Cash", "bKash", "Nagad", "Card", "Bank"];
 
