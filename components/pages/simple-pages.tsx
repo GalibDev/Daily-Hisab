@@ -821,9 +821,9 @@ export function ReportsPage() {
   const labels: Record<ReportPeriod, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
   const reportTitle = `${labels[period]} Expense Report`;
 
-  function handlePdfExport() {
-    const exported = exportExpenseSheetPdf(reportEntries, reportTitle);
-    notify(exported ? "PDF export opened" : "Popup blocked. Allow popups to export PDF.", exported ? "success" : "danger");
+  async function handlePdfExport() {
+    const exported = await exportExpenseSheetPdf(reportEntries, reportTitle);
+    notify(exported ? "PDF downloaded" : "PDF export failed. Please try again.", exported ? "success" : "danger");
   }
 
   return (
@@ -857,7 +857,7 @@ export function ReportsPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Button onClick={handlePdfExport} className="bg-white text-[#11298f] shadow-none hover:bg-[#f3f6ff]"><Download size={16} /> PDF</Button>
-              <Button variant="outline" className="border-white/70 bg-white/10 text-white hover:bg-white/20" onClick={() => { exportExpenseSheetCsv(reportEntries, reportTitle); notify("Excel CSV exported", "success"); }}><FileSpreadsheet size={16} /> Excel</Button>
+              <Button variant="outline" className="border-white/70 bg-white/10 text-white hover:bg-white/20" onClick={async () => { await exportExpenseSheetCsv(reportEntries, reportTitle); notify("Excel file downloaded", "success"); }}><FileSpreadsheet size={16} /> Excel</Button>
             </div>
           </div>
           <div className="grid gap-3 p-4 md:hidden">
