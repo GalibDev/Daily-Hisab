@@ -56,7 +56,6 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
       method: String(form.get("method")) as PaymentMethod,
       type: mode,
       note: String(form.get("note") || ""),
-      walletSource: isExpense ? (String(form.get("walletSource") || "personal") as "personal" | "family") : undefined,
     });
 
     event.currentTarget.reset();
@@ -77,7 +76,6 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
       )}
       <Field label="Amount"><input name="amount" className={inputClass} placeholder="৳ 0.00" inputMode="decimal" /></Field>
       <Field label="Payment Method"><select name="method" className={inputClass}>{paymentMethods.map((m) => <option key={m}>{m}</option>)}</select></Field>
-      {isExpense && <Field label="Pay From"><select name="walletSource" className={inputClass} defaultValue="personal"><option value="personal">Personal Wallet</option><option value="family">Family Wallet</option></select></Field>}
       {isExpense && <Field label="Receipt upload placeholder"><div className="grid h-12 place-items-center rounded-lg border border-dashed border-[#bbaeff] text-[#6C4CF1]"><Upload size={18} /></div></Field>}
       <Field label="Note" className="md:col-span-2"><textarea name="note" className={textareaClass} placeholder={isExpense ? "অতিরিক্ত নোট লিখুন" : "আয়ের বিস্তারিত লিখুন"} /></Field>
       <Button type="submit" className="w-full md:w-fit"><Plus size={17} /> {isExpense ? "Submit Expense" : "Submit Income"}</Button>

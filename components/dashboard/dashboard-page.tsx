@@ -102,7 +102,6 @@ function ExpenseForm() {
       method: String(form.get("method")) as PaymentMethod,
       type: "expense",
       note: String(form.get("note") || ""),
-      walletSource: String(form.get("walletSource") || "personal") as "personal" | "family",
     });
 
     event.currentTarget.reset();
@@ -129,12 +128,6 @@ function ExpenseForm() {
           <Field label="Payment Method">
             <select name="method" className={inputClass} defaultValue="Cash">
               {paymentMethods.map((method) => <option key={method}>{method}</option>)}
-            </select>
-          </Field>
-          <Field label="Pay From">
-            <select name="walletSource" className={inputClass} defaultValue="personal">
-              <option value="personal">Personal Wallet</option>
-              <option value="family">Family Wallet</option>
             </select>
           </Field>
           <Field label="Attach Receipt (Optional)">
@@ -491,11 +484,8 @@ function MobileDashboard({
   const monthlyExpenseEntries = expenseEntries.filter((entry) => entry.date.startsWith(monthPrefix));
   const daysWithExpense = new Set(monthlyExpenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
-  const personalMonthExpense = monthlyExpenseEntries
-    .filter((entry) => (entry.walletSource ?? "personal") === "personal")
-    .reduce((sum, entry) => sum + entry.amount, 0);
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
-  const familyRemainingBalance = combinedFamilyDeposits - wallet.familyExpenseTotal;
+  const familyRemainingBalance = Math.max(0, combinedFamilyDeposits - wallet.familyExpenseTotal);
   const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
   const totalCategoryValue = categoryData.reduce((sum, item) => sum + item.value, 0);
   const todayExpenseTitle = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a";
@@ -634,7 +624,6 @@ function MobileDashboard({
         method: entry.method,
         type: "expense",
         note: entry.note,
-        walletSource: String(formData.get("walletSource") || entry.walletSource || "personal") as "personal" | "family",
       });
       notify("আজকের খরচ আপডেট হয়েছে", "info");
     } else {
@@ -646,7 +635,6 @@ function MobileDashboard({
         method: "Cash",
         type: "expense",
         note: "",
-        walletSource: String(formData.get("walletSource") || "personal") as "personal" | "family",
       });
       notify("আজকের খরচ যোগ হয়েছে", "success");
     }
@@ -684,11 +672,28 @@ function MobileDashboard({
         onScroll={(event) => {
           const slider = event.currentTarget;
           const nextIndex = Math.round(slider.scrollLeft / Math.max(slider.clientWidth, 1));
-          setSummarySlideIndex(Math.min(1, Math.max(0, nextIndex)));
+          setSummarySlideIndex(Math.min(2, Math.max(0, nextIndex)));
         }}
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Summary slider"
       >
+        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#07194e_0%,#123aa8_54%,#0ea5e9_135%)] p-5 text-white shadow-[0_22px_48px_rgba(17,41,143,0.30)]">
+          <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-cyan-300/15" />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">TODAY&apos;S OVERVIEW</span>
+              <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><TrendingUp size={23} /></span>
+            </div>
+            <p className="mt-5 text-xs font-semibold text-white/72">Today&apos;s expense</p>
+            <strong className="mt-1 block text-[38px] font-extrabold leading-tight">{taka(todayExpenseTotal)}</strong>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(monthExpense)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ALL EXPENSE</span><b className="mt-1 block text-sm">{takaShort(expenseEntries.reduce((sum, entry) => sum + entry.amount, 0))}</b></div>
+            </div>
+            <div className="mt-4 flex min-h-11 items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4"><span className="text-xs font-bold text-white/75">Live expense total</span><span className="flex items-center gap-2 text-xs font-extrabold"><span className="size-2 animate-pulse rounded-full bg-emerald-300" /> AUTO UPDATE</span></div>
+          </div>
+        </section>
+
         <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#081c5c_0%,#1238a6_52%,#315ddd_100%)] p-5 text-white shadow-[0_22px_48px_rgba(17,41,143,0.30)]">
           <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-white/10" />
           <div className="relative">
@@ -696,13 +701,16 @@ function MobileDashboard({
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">PERSONAL WALLET</span>
               <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><Wallet size={23} /></span>
             </div>
-            <p className="mt-5 text-xs font-semibold text-white/72">Personal expenses</p>
-            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(wallet.personalExpenseTotal)}</strong>
+            <p className="mt-5 text-xs font-semibold text-white/72">Remaining balance</p>
+            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(wallet.personalBalance)}</strong>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(personalMonthExpense)}</b></div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ALL EXPENSE</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ADDED THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(wallet.personalAddedThisMonth)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">DEDUCTED</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
             </div>
-            <button type="button" onClick={() => { setDepositWallet("personal"); setAddMoneyOpen(true); }} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white font-extrabold text-[#11298f] shadow-lg"><Plus size={18} /> Add Money</button>
+            <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+              <button type="button" onClick={() => { setDepositWallet("personal"); setAddMoneyOpen(true); }} className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white font-extrabold text-[#11298f] shadow-lg"><Plus size={18} /> Add Money</button>
+              <button type="button" role="switch" aria-checked={wallet.personalEnabled} aria-label="Personal wallet deduction" onClick={() => wallet.toggleWallet("personal")} className="flex min-w-24 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3 text-xs font-extrabold"><span className={`relative h-6 w-11 rounded-full transition ${wallet.personalEnabled ? "bg-emerald-400" : "bg-white/25"}`}><span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${wallet.personalEnabled ? "left-[22px]" : "left-0.5"}`} /></span>{wallet.personalEnabled ? "ON" : "OFF"}</button>
+            </div>
           </div>
         </section>
 
@@ -716,10 +724,13 @@ function MobileDashboard({
             <p className="mt-5 text-xs font-semibold text-white/72">Available balance</p>
             <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(familyRemainingBalance)}</strong>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">FAMILY DEPOSIT</span><b className="mt-1 block text-sm">{takaShort(combinedFamilyDeposits)}</b></div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">FAMILY SPENT</span><b className="mt-1 block text-sm">{takaShort(wallet.familyExpenseTotal)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">TOTAL ADDED</span><b className="mt-1 block text-sm">{takaShort(combinedFamilyDeposits)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">DEDUCTED</span><b className="mt-1 block text-sm">{takaShort(wallet.familyExpenseTotal)}</b></div>
             </div>
-            <button type="button" onClick={() => { setDepositWallet("family"); setAddMoneyOpen(true); }} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white font-extrabold text-[#5b21b6] shadow-lg"><Plus size={18} /> Add Family Money</button>
+            <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+              <button type="button" onClick={() => { setDepositWallet("family"); setAddMoneyOpen(true); }} className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white font-extrabold text-[#5b21b6] shadow-lg"><Plus size={18} /> Add Family Money</button>
+              <button type="button" role="switch" aria-checked={wallet.familyEnabled} aria-label="Family wallet deduction" onClick={() => wallet.toggleWallet("family")} className="flex min-w-24 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3 text-xs font-extrabold"><span className={`relative h-6 w-11 rounded-full transition ${wallet.familyEnabled ? "bg-emerald-400" : "bg-white/25"}`}><span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${wallet.familyEnabled ? "left-[22px]" : "left-0.5"}`} /></span>{wallet.familyEnabled ? "ON" : "OFF"}</button>
+            </div>
           </div>
         </section>
       </div>
@@ -727,7 +738,6 @@ function MobileDashboard({
         <Card className="rounded-[20px] border-[#dbe4ff] p-4 shadow-[0_16px_38px_rgba(20,35,90,0.10)]">
           <form onSubmit={handleAddMoney} className="grid gap-3">
             <div className="flex items-center justify-between"><h2 className="font-extrabold text-[#111936]">Add Money</h2><span className="rounded-full bg-[#eef4ff] px-3 py-1 text-xs font-bold capitalize text-[#11298f]">{depositWallet}</span></div>
-            <select value={depositWallet} onChange={(event) => setDepositWallet(event.target.value as "personal" | "family")} className={inputClass} aria-label="Wallet"><option value="personal">Personal Wallet</option><option value="family">Family Wallet</option></select>
             <input name="amount" className={inputClass} inputMode="decimal" placeholder="Amount" required />
             <input name="note" className={inputClass} placeholder="Note (optional)" />
             <div className="grid grid-cols-2 gap-2"><Button type="submit">Add Money</Button><Button type="button" variant="outline" onClick={() => setAddMoneyOpen(false)}>Cancel</Button></div>
@@ -735,7 +745,7 @@ function MobileDashboard({
         </Card>
       )}
       <div className="-mt-1 flex justify-center gap-2" aria-label="Slider pages">
-        {[0, 1].map((index) => (
+        {[0, 1, 2].map((index) => (
           <button
             key={index}
             type="button"
@@ -903,8 +913,7 @@ function MobileDashboard({
                 </div>
                 {activeDailySlot === slot.category && (
                   <form action={(formData) => saveDailyExpense(slot.category, entry, formData)} className="mt-3 grid grid-cols-2 gap-2">
-                    <input name="amount" className={inputClass} defaultValue={entry?.amount ?? ""} inputMode="decimal" placeholder="0" />
-                    <select name="walletSource" className={inputClass} defaultValue={entry?.walletSource ?? "personal"}><option value="personal">Personal</option><option value="family">Family</option></select>
+                    <input name="amount" className={`${inputClass} col-span-2`} defaultValue={entry?.amount ?? ""} inputMode="decimal" placeholder="0" />
                     <Button type="submit" className="h-11 px-3">Save</Button>
                     <Button type="button" variant="outline" className="h-11 px-3" onClick={() => setActiveDailySlot(null)}>Cancel</Button>
                   </form>
