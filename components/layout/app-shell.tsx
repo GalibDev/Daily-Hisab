@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bell,
+  Bot,
   CalendarDays,
   ChartColumn,
   ChevronRight,
@@ -57,6 +58,7 @@ const nav = [
   { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/receipts", label: "Receipts", icon: Receipt },
   { href: "/notes", label: "Notes", icon: NotebookPen },
+  { href: "/ai-helper", label: "AI Helper", icon: Bot },
   { href: "/family-access", label: "ফ্যামিলি অ্যাক্সেস", icon: UsersRound },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -79,6 +81,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/": "Daily Hisab",
     "/add-expense": "Add New Expense",
     "/add-income": "Add Income",
+    "/ai-helper": "AI Helper",
     "/backup-restore": "Backup & Restore",
     "/budget": "Category Budget",
     "/calendar": "Calendar",
@@ -127,6 +130,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     },
     {
       items: [
+        { href: "/ai-helper", icon: Bot, label: "AI Helper", tone: "text-[#2563eb]" },
         { href: "/backup-restore", icon: CloudUpload, label: "Backup & Restore", tone: "text-[#2563eb]" },
         { href: "/family-access", icon: UsersRound, label: "ফ্যামিলি অ্যাক্সেস", tone: "text-[#11298f]" },
         { href: "/reminders", icon: Bell, label: "Notifications", tone: "text-[#f59e0b]" },

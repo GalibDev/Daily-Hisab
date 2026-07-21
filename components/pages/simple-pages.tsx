@@ -1321,6 +1321,7 @@ export function SettingsPage() {
     { onClick: () => setShowPersonalInfo((open) => !open), icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/hero-management", icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
+    { href: "/ai-helper", icon: <MessageCircle size={20} />, label: "AI Helper", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
     { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
