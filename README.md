@@ -68,13 +68,17 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 
 Firebase is used for email/password login, register, Google sign-in, and profile image upload to Storage. Enable Email/Password and Google providers in Firebase Authentication, and enable Firebase Storage before testing uploads.
 
-## Evana AI Helper Setup
+## Walk AI Helper Setup
 
 Add these server-only variables to `.env.local` and to Vercel Project Settings → Environment Variables:
 
 ```env
-EVANA_CHAT_URL=https://aezquqnsaytgguqqmngt.supabase.co/functions/v1/evana-chat
-EVANA_SUPABASE_ANON_KEY=your-evana-supabase-anon-key
+AI_PROVIDER=walkai
+WALKAI_BASE_URL=https://walkai.top/v1
+WALKAI_API_KEY=your-chat-api-key
+WALKAI_MODEL=gemini-2.5-flash
+WALKAI_IMAGE_API_KEY=your-image-api-key
+WALKAI_IMAGE_MODEL=gpt-image-1
 ```
 
-The Edge Function owns the upstream `AI_API_BASE_URL` and `AI_MODEL` secrets, so no Gemini/OpenAI model is hardcoded in Daily Hisab. If the function uses the same Supabase project as the app, `EVANA_SUPABASE_ANON_KEY` can fall back to `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Never commit a service-role key.
+`WALKAI_BASE_URL` must contain only the base URL. The server appends `/chat/completions`; never add that path to the environment value. Chat uses `WALKAI_API_KEY`; image features should use `WALKAI_IMAGE_API_KEY`. Keep all of these in the backend hosting environment, never in `NEXT_PUBLIC_` variables.
