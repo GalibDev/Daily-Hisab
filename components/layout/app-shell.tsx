@@ -39,6 +39,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AiFloatingHelper } from "@/components/ai/ai-floating-helper";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
 import { useTheme } from "@/components/state/theme-store";
@@ -351,6 +352,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </aside>
         </div>
       )}
+
+      {pathname !== "/ai-helper" && <AiFloatingHelper />}
 
       <nav className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-3 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] sm:px-5 lg:hidden">
         {[
