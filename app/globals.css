@@ -91,13 +91,27 @@ html.dark textarea {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes ai-gentle-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-7px) rotate(1.5deg); }
+}
+
+@keyframes ai-chat-open {
+  from { transform: translateY(18px) scale(.96); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
 .hero-live { animation: hero-float 5s ease-in-out infinite; }
 .hero-orb { animation: hero-pulse 3.5s ease-in-out infinite; }
 .stat-pop { transition: transform .16s ease, box-shadow .16s ease; }
 .stat-pop:active { transform: translateY(2px) scale(.96); box-shadow: 0 6px 16px rgba(20, 35, 90, .08); }
 .stat-sheet { animation: stat-sheet-up .22s ease-out; }
+.ai-float-button { animation: ai-gentle-float 3.2s ease-in-out infinite; transition: filter .2s ease, scale .2s ease; }
+.ai-float-button:hover { filter: brightness(1.05); scale: 1.06; }
+.ai-float-button:active { scale: .94; }
+.ai-chat-open { animation: ai-chat-open .22s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-live, .hero-orb, .stat-sheet { animation: none; }
+  .hero-live, .hero-orb, .stat-sheet, .ai-float-button, .ai-chat-open { animation: none; }
   .stat-pop { transition: none; }
 }
