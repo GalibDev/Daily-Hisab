@@ -2,10 +2,24 @@ import { NextResponse } from "next/server";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+async function resolveWalkModel(baseUrl: string, apiKey: string, configuredModel: string) {
+  try {
+    const response = await fetch(`${baseUrl}/models`, { headers: { Authorization: `Bearer ${apiKey}` }, cache: "no-store" });
+    if (!response.ok) return configuredModel;
+    const data = await response.json() as { data?: Array<{ id?: string }> };
+    const models = (data.data ?? []).map((item) => item.id).filter((id): id is string => Boolean(id));
+    if (models.includes(configuredModel)) return configuredModel;
+    return models.find((id) => !/(image|embedding|moderation|audio)/i.test(id)) || configuredModel;
+  } catch {
+    return configuredModel;
+  }
+}
+
 export async function POST(request: Request) {
   const provider = process.env.AI_PROVIDER || "walkai";
   const apiKey = process.env.WALKAI_API_KEY;
-  const baseUrl = (process.env.WALKAI_BASE_URL || "https://walkai.top/v1").replace(/\/$/, "");
+  const configuredBaseUrl = (process.env.WALKAI_BASE_URL || "https://walkai.top/v1").replace(/\/$/, "");
+  const baseUrl = /\/v1$/i.test(configuredBaseUrl) ? configuredBaseUrl : `${configuredBaseUrl}/v1`;
   const apiUrl = `${baseUrl}/chat/completions`;
   const model = process.env.WALKAI_MODEL || "gemini-2.5-flash";
 
@@ -21,12 +35,13 @@ export async function POST(request: Request) {
     const body = await request.json() as { messages?: ChatMessage[]; context?: string };
     const messages = (body.messages ?? []).filter((item) => item.content?.trim()).slice(-10);
     if (!messages.length) return NextResponse.json({ error: "Write a question first." }, { status: 400 });
+    const activeModel = await resolveWalkModel(baseUrl, apiKey, model);
 
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
+        model: activeModel,
         temperature: 0.4,
         messages: [
           { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. Give practical budgeting and expense insights only; never claim to change transactions. Current local summary: ${body.context || "No summary available."}` },
