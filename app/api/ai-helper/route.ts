@@ -45,34 +45,41 @@ export async function POST(request: Request) {
     let lastStatus = 502;
 
     for (const baseUrl of baseUrls) {
-      const activeModel = await resolveWalkModel(baseUrl, apiKey, model);
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: activeModel,
-          temperature: 0.4,
-          messages: [
-            { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. Give practical budgeting and expense insights only; never claim to change transactions. Current local summary: ${body.context || "No summary available."}` },
-            ...messages,
-          ],
-        }),
-        cache: "no-store",
-      });
+      try {
+        const activeModel = await resolveWalkModel(baseUrl, apiKey, model);
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: activeModel,
+            temperature: 0.4,
+            messages: [
+              { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. Give practical budgeting and expense insights only; never claim to change transactions. Current local summary: ${body.context || "No summary available."}` },
+              ...messages,
+            ],
+          }),
+          cache: "no-store",
+        });
 
-      const data = await response.json() as { reply?: string; message?: string; response?: string; output?: string; choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string };
-      if (response.ok) {
-        const reply = (data.reply || data.message || data.response || data.output || data.choices?.[0]?.message?.content)?.trim();
-        if (reply) return NextResponse.json({ reply });
-        lastError = "AI returned an empty response.";
-        lastStatus = 502;
-        continue;
+        const raw = await response.text();
+        let data: { reply?: string; message?: string; response?: string; output?: string; choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string } = {};
+        try { data = JSON.parse(raw); } catch { /* Keep provider text below. */ }
+
+        if (response.ok) {
+          const reply = (data.reply || data.message || data.response || data.output || data.choices?.[0]?.message?.content)?.trim();
+          if (reply) return NextResponse.json({ reply });
+          lastError = "AI returned an empty response.";
+          lastStatus = 502;
+          continue;
+        }
+
+        lastError = (typeof data.error === "string" ? data.error : data.error?.message) || data.message || raw || "AI provider request failed.";
+        lastStatus = response.status;
+        const retryable = /no available accounts/i.test(lastError) || [429, 502, 503, 504].includes(response.status);
+        if (!retryable) break;
+      } catch {
+        // Try the next configured WalkAI endpoint without hiding the primary error.
       }
-
-      lastError = (typeof data.error === "string" ? data.error : data.error?.message) || "AI provider request failed.";
-      lastStatus = response.status;
-      const retryable = /no available accounts/i.test(lastError) || [429, 502, 503, 504].includes(response.status);
-      if (!retryable) break;
     }
 
     return NextResponse.json({ error: lastError }, { status: lastStatus });
