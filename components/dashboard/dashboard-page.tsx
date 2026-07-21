@@ -5,13 +5,15 @@ import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
+  ArrowUpRight,
   Banknote,
   Bus,
   CalendarCheck,
+  ChevronRight,
+  CircleDollarSign,
   Coffee,
   Download,
   Edit2,
-  Eye,
   FileText,
   Fuel,
   Grid2X2,
@@ -23,6 +25,8 @@ import {
   Receipt,
   ShoppingBag,
   ShoppingCart,
+  Sparkles,
+  ShieldCheck,
   Smartphone,
   TrendingDown,
   TrendingUp,
@@ -427,6 +431,91 @@ function MobileStatCard({
       </div>
       <div className="text-[10px] leading-4 text-[#6c7287]">{meta}</div>
     </button>
+  );
+}
+
+function DesktopDashboard({
+  categoryData,
+  entries,
+  monthExpense,
+  summaryRows,
+  today,
+  todaySummary,
+  trendData,
+}: Readonly<{
+  categoryData: ReturnType<typeof buildCategoryExpense>;
+  entries: Entry[];
+  monthExpense: number;
+  summaryRows: ReturnType<typeof buildSummaryRowsFromEntries>;
+  today: string;
+  todaySummary: ReturnType<typeof summarizeEntries>;
+  trendData: ReturnType<typeof buildExpenseTrend>;
+}>) {
+  const wallet = useWallet();
+  const family = useFamilyAccess();
+  const monthIncome = entries.filter((entry) => entry.type === "income" && entry.date.startsWith(today.slice(0, 7))).reduce((sum, entry) => sum + entry.amount, 0);
+  const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
+  const activeDays = new Set(entries.filter((entry) => entry.type === "expense" && entry.date.startsWith(today.slice(0, 7))).map((entry) => entry.date)).size;
+  const topCategories = categoryData.slice().sort((a, b) => b.value - a.value).slice(0, 5);
+  const latestEntries = entries.slice().sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)).slice(0, 5);
+
+  return (
+    <div className="hidden gap-6 lg:grid">
+      <div className="flex items-end justify-between gap-6">
+        <div>
+          <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#7b84a0]">Financial command center</p>
+          <h1 className="text-3xl font-black tracking-[-0.04em] text-[#111936] xl:text-[40px]">Good morning, {todaySummary.entries > 0 ? "let’s stay on track" : "let’s plan today"}.</h1>
+          <p className="mt-2 text-sm font-medium text-[#69718a]">A calm view of your money, spending and wallet health.</p>
+        </div>
+        <div className="flex shrink-0 gap-3">
+          <Link href="/reports" className="hidden items-center gap-2 rounded-2xl border border-[#e5e9f4] bg-white px-4 py-3 text-sm font-extrabold text-[#24305a] shadow-[0_8px_20px_rgba(20,35,90,0.04)] xl:flex"><Download size={17} /> Export</Link>
+          <Link href="/add-expense" className="flex items-center gap-2 rounded-2xl bg-[#11298f] px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_24px_rgba(17,41,143,0.24)] transition hover:-translate-y-0.5"><Plus size={18} /> Add expense</Link>
+        </div>
+      </div>
+
+      <section className="relative overflow-hidden rounded-[30px] bg-[linear-gradient(120deg,#071743_0%,#102e91_48%,#1656bd_100%)] p-7 text-white shadow-[0_24px_60px_rgba(13,39,125,0.22)] xl:p-9">
+        <div className="absolute -right-20 -top-28 size-80 rounded-full border-[28px] border-white/5" />
+        <div className="absolute bottom-[-90px] right-[20%] size-56 rounded-full bg-cyan-300/10 blur-2xl" />
+        <div className="relative grid gap-8 xl:grid-cols-[1fr_360px] xl:items-center">
+          <div>
+            <div className="flex items-center gap-3"><span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em]">This month overview</span><span className="text-xs font-semibold text-white/65">{new Date(`${today.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span></div>
+            <p className="mt-7 text-sm font-semibold text-white/65">Total spending</p>
+            <strong className="mt-1 block text-5xl font-black tracking-[-0.05em]">{taka(monthExpense)}</strong>
+            <div className="mt-6 flex max-w-lg items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-cyan-300" style={{ width: `${Math.min((monthExpense / Math.max(monthIncome + monthExpense, 1)) * 100, 100)}%` }} /></div><span className="text-xs font-bold text-white/70">{monthIncome + monthExpense > 0 ? Math.round((monthExpense / (monthIncome + monthExpense)) * 100) : 0}%</span></div>
+            <p className="mt-2 text-xs text-white/55">of your tracked cash flow is spending</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"><span className="text-[10px] font-black uppercase tracking-[0.12em] text-white/55">Income</span><strong className="mt-2 block text-xl font-black text-[#77e5a0]">{takaShort(monthIncome)}</strong><span className="mt-1 block text-[11px] text-white/55">this month</span></div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"><span className="text-[10px] font-black uppercase tracking-[0.12em] text-white/55">Active days</span><strong className="mt-2 block text-xl font-black">{activeDays}</strong><span className="mt-1 block text-[11px] text-white/55">expense days</span></div>
+            <div className="col-span-2 flex items-center gap-3 rounded-2xl border border-cyan-200/15 bg-cyan-200/10 p-4"><span className="grid size-10 place-items-center rounded-xl bg-cyan-200/15 text-cyan-200"><Sparkles size={19} /></span><span><b className="block text-sm">Your spending rhythm</b><small className="text-xs text-white/60">{activeDays ? `Average ${takaShort(monthExpense / activeDays)} per active day` : "Add your first expense to start tracking"}</small></span></div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "Today’s expense", value: taka(todaySummary.expense), meta: todaySummary.entries ? `${todaySummary.entries} entries today` : "No spending recorded", icon: Wallet, tone: "bg-[#eef2ff] text-[#3452bb]" },
+          { label: "Personal balance", value: taka(wallet.personalBalance), meta: wallet.personalEnabled ? "Wallet is active" : "Wallet is paused", icon: CircleDollarSign, tone: "bg-[#ecfdf5] text-[#059669]" },
+          { label: "Family balance", value: taka(Math.max(0, combinedFamilyDeposits - wallet.familyExpenseTotal)), meta: family.expenseSharingEnabled ? "Shared expenses on" : "Shared expenses off", icon: HandCoins, tone: "bg-[#fff7ed] text-[#ea580c]" },
+          { label: "Daily average", value: taka(activeDays ? monthExpense / activeDays : 0), meta: `${activeDays} active days this month`, icon: TrendingUp, tone: "bg-[#f5efff] text-[#7c3aed]" },
+        ].map(({ label, value, meta, icon: Icon, tone }) => (
+          <Card key={label} className="group relative overflow-hidden border-[#e8ecf5] p-5 shadow-[0_14px_34px_rgba(20,35,90,0.06)] transition hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(20,35,90,0.10)]"><div className="flex items-start justify-between gap-3"><span className={`grid size-11 place-items-center rounded-2xl ${tone}`}><Icon size={21} /></span><ArrowUpRight size={17} className="text-[#b0b8ca] transition group-hover:text-[#11298f]" /></div><p className="mt-5 text-xs font-bold text-[#69718a]">{label}</p><strong className="mt-1 block text-2xl font-black tracking-[-0.04em] text-[#111936]">{value}</strong><p className="mt-2 text-[11px] font-semibold text-[#8b93a8]">{meta}</p></Card>
+        ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
+        <Card className="overflow-hidden border-[#e8ecf5] p-6 shadow-[0_14px_34px_rgba(20,35,90,0.06)]"><div className="mb-4 flex items-start justify-between"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#7b84a0]">Spending analytics</p><h2 className="mt-1 text-xl font-black text-[#111936]">Expense trend</h2></div><Link href="/reports" className="flex items-center gap-1 text-xs font-black text-[#11298f]">Full report <ChevronRight size={15} /></Link></div><ExpenseTrendChart data={trendData} /></Card>
+        <Card className="border-[#e8ecf5] p-6 shadow-[0_14px_34px_rgba(20,35,90,0.06)]"><div className="mb-2 flex items-start justify-between"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#7b84a0]">Where money goes</p><h2 className="mt-1 text-xl font-black text-[#111936]">Top categories</h2></div><Link href="/categories" className="grid size-9 place-items-center rounded-xl bg-[#f3f5ff] text-[#11298f]"><ArrowUpRight size={17} /></Link></div><CategoryPieChart data={categoryData} /><div className="mt-1 grid gap-2">{topCategories.map((item) => <div key={item.name} className="flex items-center gap-2 text-xs"><span className="size-2.5 rounded-full" style={{ background: item.fill }} /><span className="min-w-0 flex-1 truncate font-bold text-[#4f5870]">{item.name}</span><strong className="text-[#111936]">{takaShort(item.value)}</strong></div>)}</div></Card>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+        <TodayEntries entries={entries} today={today} />
+        <div className="grid gap-5"><BudgetOverviewCard /><Card className="border-[#e8ecf5] p-6 shadow-[0_14px_34px_rgba(20,35,90,0.06)]"><div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#7b84a0]">Wallet health</p><h2 className="mt-1 text-xl font-black text-[#111936]">Your money at a glance</h2></div><ShieldCheck size={21} className="text-[#16a34a]" /></div><div className="grid gap-3"><div className="rounded-2xl bg-[#f3f6ff] p-4"><div className="flex items-center justify-between text-xs font-bold text-[#59627a]"><span>Personal wallet</span><span>{wallet.personalEnabled ? "Active" : "Paused"}</span></div><strong className="mt-2 block text-2xl font-black text-[#11298f]">{takaShort(wallet.personalBalance)}</strong></div><div className="rounded-2xl bg-[#fff7ed] p-4"><div className="flex items-center justify-between text-xs font-bold text-[#8a5a22]"><span>Family wallet</span><span>{wallet.familyEnabled ? "Active" : "Paused"}</span></div><strong className="mt-2 block text-2xl font-black text-[#c2410c]">{takaShort(Math.max(0, combinedFamilyDeposits - wallet.familyExpenseTotal))}</strong></div></div><Link href="/hero-management" className="mt-4 flex items-center justify-between rounded-xl border border-[#e8ecf5] px-4 py-3 text-sm font-black text-[#11298f]">Manage wallets <ArrowRight size={16} /></Link></Card></div>
+      </div>
+
+      <Card className="border-[#e8ecf5] p-6 shadow-[0_14px_34px_rgba(20,35,90,0.06)]"><div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#7b84a0]">Activity</p><h2 className="mt-1 text-xl font-black text-[#111936]">Recent money movement</h2></div><Link href="/entries" className="flex items-center gap-1 text-xs font-black text-[#11298f]">View all <ChevronRight size={15} /></Link></div>{latestEntries.length > 0 ? <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">{latestEntries.map((entry) => <div key={entry.id} className="rounded-2xl border border-[#edf0f6] bg-[#fbfcff] p-4"><div className="flex items-center justify-between gap-2"><span className="truncate text-xs font-black text-[#27304b]">{entry.category}</span><span className={entry.type === "income" ? "text-xs font-black text-[#16a34a]" : "text-xs font-black text-[#ef4444]"}>{entry.type === "income" ? "+" : "-"}{takaShort(entry.amount)}</span></div><p className="mt-2 truncate text-[11px] font-semibold text-[#7b849b]">{entry.description || "No description"}</p><p className="mt-2 text-[10px] font-bold text-[#a0a7b8]">{displayDate(entry.date)} · {entry.time}</p></div>)}</div> : <div className="rounded-2xl border border-dashed border-[#d9dfed] p-8 text-center text-sm font-semibold text-[#7a8298]">No recent activity yet. Add an expense to start your timeline.</div>}</Card>
+      {summaryRows.length > 0 && <div className="flex items-center gap-2 text-xs font-semibold text-[#7b849b]"><span className="size-2 rounded-full bg-[#16a34a]" /> Latest summary synced for {summaryRows[0].date}</div>}
+    </div>
   );
 }
 
@@ -995,11 +1084,9 @@ function MobileDashboard({
 }
 
 export function DashboardPage() {
-  const { categories, deleteSummaryRow, entries, hiddenSummaryDates } = useFinance();
-  const { notify } = useToast();
+  const { categories, entries, hiddenSummaryDates } = useFinance();
   const today = getTodayIso();
   const todaySummary = useMemo(() => summarizeEntries(entries, today), [entries, today]);
-  const allSummary = useMemo(() => summarizeEntries(entries), [entries]);
   const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
   const trendData = useMemo(() => buildExpenseTrend(entries), [entries]);
   const summaryRows = useMemo(() => buildSummaryRowsFromEntries(entries, hiddenSummaryDates, today), [entries, hiddenSummaryDates, today]);
@@ -1012,100 +1099,7 @@ export function DashboardPage() {
     <AppShell>
       <MobileDashboard categoryData={categoryData} entries={entries} monthExpense={monthExpense} />
 
-      <div className="hidden gap-4 lg:grid">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard title="Today's Expense" value={taka(todaySummary.expense)} icon={<Wallet size={22} />} tone="bg-[#f2edff] text-[#6C4CF1]" trend="down" />
-            <StatCard title="Today's Income" value={taka(todaySummary.income)} icon={<Banknote size={22} />} tone="bg-[#eafbf0] text-[#22C55E]" trend="up" />
-            <StatCard title="Total Entries Today" value={String(todaySummary.entries)} icon={<Receipt size={22} />} tone="bg-[#eaf6ff] text-[#38bdf8]" trend="up" />
-            <StatCard title="This Month Expense" value={taka(monthExpense)} icon={<CalendarCheck size={22} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
-            <StatCard title="Balance" value={taka(allSummary.balance)} icon={<Banknote size={22} />} tone="bg-[#ffeaf2] text-[#EF4444]" />
-        </div>
-
-          <ExpenseForm />
-
-          <DailySummaryCard summary={todaySummary} today={today} />
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <Card className="p-4 md:p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold">Expense by Category</h2>
-                <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
-              </div>
-              <div className="grid items-center gap-4 2xl:grid-cols-[220px_1fr]">
-                <CategoryPieChart data={categoryData} />
-                <div className="space-y-3 text-sm">
-                  {categoryData.map((item) => (
-                    <div key={item.name} className="flex items-center gap-2">
-                      <span className="size-2 rounded-full" style={{ background: item.fill }} />
-                      <span className="mr-auto">{item.name}</span>
-                      <strong>{takaShort(item.value)}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-            <Card className="p-4 md:p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold">Expense Trend</h2>
-                <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
-              </div>
-              <ExpenseTrendChart data={trendData} />
-            </Card>
-            <BudgetOverviewCard />
-          </div>
-
-          <TodayEntries entries={entries} today={today} />
-
-          <Card className="p-4 md:p-5">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Income & Expense Summary</h2>
-              <button className="rounded-lg border border-[#ece8ff] px-3 py-2 text-xs">This Month</button>
-            </div>
-            <div className="mb-5 grid gap-4 md:grid-cols-3">
-              <StatCard title="Total Income" value={taka(allSummary.income)} icon={<Banknote size={20} />} tone="bg-[#eafbf0] text-[#22C55E]" />
-              <StatCard title="Total Expense" value={taka(allSummary.expense)} icon={<Wallet size={20} />} tone="bg-[#fff4e2] text-[#F59E0B]" />
-              <StatCard title="Balance" value={taka(allSummary.balance)} icon={<Banknote size={20} />} tone="bg-[#eafbf0] text-[#22C55E]" />
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] text-left text-sm">
-                <thead className="bg-[#fbfaff] text-xs text-[#746d86]">
-                  <tr>{["Date", "Total Income (৳)", "Total Expense (৳)", "Entries", "Balance (৳)", "Action"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {summaryRows.map((row) => (
-                    <tr className="border-b border-[#f0ecff]" key={row.dateKey}>
-                      <td className="px-4 py-3">{row.date}</td>
-                      <td className="px-4 py-3">{row.income.toFixed(2)}</td>
-                      <td className="px-4 py-3">{row.expense.toFixed(2)}</td>
-                      <td className="px-4 py-3">{row.entries}</td>
-                      <td className="px-4 py-3">{row.balance.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-[#6C4CF1]">
-                        <span className="flex items-center gap-3">
-                          <Eye size={16} />
-                          <ConfirmDeleteButton onConfirm={() => { deleteSummaryRow(row.dateKey); notify("Monthly summary row deleted", "danger"); }} />
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Link href="/reports" className="mt-4 block">
-              <Button variant="outline" className="w-full">View All Reports <ArrowRight size={16} /></Button>
-            </Link>
-          </Card>
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <UpcomingRemindersCard />
-            <RecentNotesCard />
-            <QuickActionsCard />
-          </div>
-      </div>
-      <div className="mt-6 hidden gap-3 rounded-xl bg-[#f0eaff] p-5 text-sm md:grid-cols-5 lg:grid">
-        {["Secure & Private", "Cloud Backup", "Multi Platform", "Data Export", "24/7 Support"].map((item) => (
-          <div key={item} className="font-semibold text-[#4f4770]">{item}<p className="font-normal text-[#746d86]">Your data stays organized.</p></div>
-        ))}
-      </div>
+      <DesktopDashboard categoryData={categoryData} entries={entries} monthExpense={monthExpense} summaryRows={summaryRows} today={today} todaySummary={todaySummary} trendData={trendData} />
     </AppShell>
   );
 }
