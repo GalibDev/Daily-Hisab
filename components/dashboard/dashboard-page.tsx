@@ -49,6 +49,8 @@ import { CategoryPieChart, ExpenseTrendChart } from "./charts";
 
 const CUSTOM_SHORTCUTS_STORAGE_KEY = "daily-hisab.mobile-expense-shortcuts.v1";
 const FRONT_SHORTCUTS_STORAGE_KEY = "daily-hisab.mobile-front-shortcuts.v1";
+const DAILY_CATEGORIES_STORAGE_KEY = "daily-hisab.mobile-daily-categories.v1";
+const DEFAULT_DAILY_CATEGORIES = ["সকালের নাস্তা", "যাতায়াত ভাড়া", "দুপুরের খরচ", "বিকেলের নাস্তা", "অন্যান্য খরচ"];
 
 function StatCard({
   title,
@@ -437,7 +439,7 @@ function MobileDashboard({
   entries: Entry[];
   monthExpense: number;
 }>) {
-  const { addEntry, categories, updateEntry } = useFinance();
+  const { addCategory, addEntry, categories, updateEntry } = useFinance();
   const wallet = useWallet();
   const family = useFamilyAccess();
   const { notify } = useToast();
@@ -450,6 +452,18 @@ function MobileDashboard({
   const summarySliderRef = useRef<HTMLDivElement>(null);
   const [summarySlideIndex, setSummarySlideIndex] = useState(0);
   const [statDetails, setStatDetails] = useState<"monthly" | "today" | "average" | null>(null);
+  const [dailyCategoryManagerOpen, setDailyCategoryManagerOpen] = useState(false);
+  const [dailyNewCategory, setDailyNewCategory] = useState("");
+  const [dailyCategoryNames, setDailyCategoryNames] = useState<string[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_DAILY_CATEGORIES;
+    try {
+      const saved = window.localStorage.getItem(DAILY_CATEGORIES_STORAGE_KEY);
+      const parsed = saved ? JSON.parse(saved) as string[] : DEFAULT_DAILY_CATEGORIES;
+      return parsed.filter(Boolean).slice(0, 5);
+    } catch {
+      return DEFAULT_DAILY_CATEGORIES;
+    }
+  });
   const defaultFrontShortcuts = ["সকালের নাস্তা", "দুপুরের খাবার", "যাতায়াত ভাড়া", "ক্যাটাগরি"];
   const [frontShortcutCategories, setFrontShortcutCategories] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -532,13 +546,10 @@ function MobileDashboard({
     .filter((shortcut): shortcut is { category: string; iconName: string } => Boolean(shortcut))
     .filter((shortcut, index, current) => current.findIndex((item) => item.category === shortcut.category) === index)
     .slice(0, 4);
-  const dailyExpenseSlots = [
-    { category: "সকালের নাস্তা", icon: Utensils, tone: "bg-[#fff5ec] text-[#f59e0b]" },
-    { category: "যাতায়াত ভাড়া", icon: Bus, tone: "bg-[#f0f5ff] text-[#0d4fb8]" },
-    { category: "দুপুরের খরচ", icon: Receipt, tone: "bg-[#fff2ed] text-[#f97316]" },
-    { category: "বিকেলের নাস্তা", icon: Utensils, tone: "bg-[#fff5ec] text-[#f59e0b]" },
-    { category: "অন্যান্য খরচ", icon: MoreHorizontal, tone: "bg-[#f2f6ff] text-[#0d2c88]" },
-  ];
+  const dailyExpenseSlots = dailyCategoryNames.map((category) => {
+    const option = getCategoryIcon(category);
+    return { category, icon: option.icon, tone: option.tone };
+  });
 
   useEffect(() => {
     window.localStorage.setItem(CUSTOM_SHORTCUTS_STORAGE_KEY, JSON.stringify(customShortcuts));
@@ -547,6 +558,10 @@ function MobileDashboard({
   useEffect(() => {
     window.localStorage.setItem(FRONT_SHORTCUTS_STORAGE_KEY, JSON.stringify(frontShortcutCategories));
   }, [frontShortcutCategories]);
+
+  useEffect(() => {
+    window.localStorage.setItem(DAILY_CATEGORIES_STORAGE_KEY, JSON.stringify(dailyCategoryNames));
+  }, [dailyCategoryNames]);
 
   function getShortcutIcon(iconName: string) {
     if (iconName === "category") {
@@ -603,6 +618,32 @@ function MobileDashboard({
     setCustomCategoryName("");
     setShortcutPanelOpen(false);
     notify("Icon category added", "success");
+  }
+
+  function toggleDailyCategory(category: string) {
+    setDailyCategoryNames((current) => {
+      if (current.includes(category)) return current.filter((item) => item !== category);
+      if (current.length >= 5) {
+        notify("এই section-এ সর্বোচ্চ ৫টি category রাখা যাবে", "danger");
+        return current;
+      }
+      return [...current, category];
+    });
+  }
+
+  function addDailyCategory() {
+    const name = dailyNewCategory.trim();
+    if (!name) return;
+    if (!categories.some((item) => item.toLowerCase() === name.toLowerCase())) addCategory(name);
+    if (!dailyCategoryNames.some((item) => item.toLowerCase() === name.toLowerCase())) {
+      if (dailyCategoryNames.length >= 5) {
+        notify("নতুনটি যোগ করতে আগে একটি category সরান", "danger");
+        return;
+      }
+      setDailyCategoryNames((current) => [...current, name]);
+    }
+    setDailyNewCategory("");
+    notify("আজকের খরচের category যোগ হয়েছে", "success");
   }
 
   function saveDailyExpense(category: string, entry: Entry | undefined, formData: FormData) {
@@ -843,7 +884,12 @@ function MobileDashboard({
                   const option = getCategoryIcon(item.category);
                   const Icon = option.icon;
                   const amount = statDetails === "average" ? item.amount / Math.max(daysWithExpense, 1) : item.amount;
-                  return <div key={item.category} className="flex items-center gap-3 border-b border-[#f0f2f8] py-3 last:border-0"><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#20263a]">{item.category}</span><strong className="whitespace-nowrap text-sm text-[#11298f]">{takaShort(amount)}</strong></div>;
+                  const row = <><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#20263a]">{item.category}</span><strong className="whitespace-nowrap text-sm text-[#11298f]">{takaShort(amount)}</strong></>;
+                  return statDetails === "monthly" ? (
+                    <Link key={item.category} href={`/expense-details/${encodeURIComponent(item.category)}`} className="flex items-center gap-3 border-b border-[#f0f2f8] py-3 last:border-0" onClick={() => setStatDetails(null)}>{row}<ArrowRight size={16} className="shrink-0 text-[#8b93a8]" /></Link>
+                  ) : (
+                    <div key={item.category} className="flex items-center gap-3 border-b border-[#f0f2f8] py-3 last:border-0">{row}</div>
+                  );
                 })}
                 {rows.length === 0 && <p className="py-10 text-center text-sm font-semibold text-[#69718a]">No expenses added today</p>}
               </div>
@@ -887,8 +933,41 @@ function MobileDashboard({
             );
           })}
         </div>
-        <Link href="/add-expense" className="mt-4 flex h-11 items-center justify-center gap-3 rounded-xl bg-[#f3f1ff] text-sm font-extrabold text-[#0d2c88]"><Plus size={19} /> {emptyDailyExpenseText}</Link>
+        <button type="button" onClick={() => setDailyCategoryManagerOpen(true)} className="mt-4 flex h-11 w-full items-center justify-center gap-3 rounded-xl bg-[#f3f1ff] text-sm font-extrabold text-[#0d2c88]"><Plus size={19} /> {emptyDailyExpenseText}</button>
       </Card>
+
+      {dailyCategoryManagerOpen && (
+        <div className="fixed inset-0 z-[95] flex items-end justify-center bg-[#07122f]/45 p-3" role="presentation">
+          <button type="button" className="absolute inset-0" aria-label="Close category manager" onClick={() => setDailyCategoryManagerOpen(false)} />
+          <section role="dialog" aria-modal="true" aria-label="আজকের খরচের category" className="relative z-10 max-h-[82vh] w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-[0_28px_80px_rgba(5,15,50,0.30)]">
+            <div className="flex items-center justify-between border-b border-[#eef0f8] px-5 py-4">
+              <div><h2 className="font-extrabold text-[#111936]">আজকের খরচের category</h2><p className="mt-0.5 text-xs text-[#69718a]">পছন্দমতো সর্বোচ্চ ৫টি রাখুন · {dailyCategoryNames.length}/5</p></div>
+              <button type="button" onClick={() => setDailyCategoryManagerOpen(false)} aria-label="Close" className="grid size-9 place-items-center rounded-full bg-[#f2f5fc] text-[#111936]"><X size={18} /></button>
+            </div>
+            <div className="max-h-[58vh] overflow-y-auto p-5">
+              <div className="mb-4 flex gap-2">
+                <input value={dailyNewCategory} onChange={(event) => setDailyNewCategory(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addDailyCategory(); } }} className={inputClass} placeholder="নতুন category লিখুন" />
+                <Button type="button" className="h-12 shrink-0 px-4" onClick={addDailyCategory}><Plus size={17} /> Add</Button>
+              </div>
+              <div className="grid gap-2">
+                {Array.from(new Set([...categories, ...allExpenseShortcuts.map((item) => item.category), ...dailyCategoryNames])).map((category) => {
+                  const selected = dailyCategoryNames.includes(category);
+                  const option = getCategoryIcon(category);
+                  const Icon = option.icon;
+                  return (
+                    <button key={category} type="button" onClick={() => toggleDailyCategory(category)} className={`flex items-center gap-3 rounded-2xl border p-3 text-left ${selected ? "border-[#11298f] bg-[#f3f5ff]" : "border-[#e8ebf4] bg-white"}`}>
+                      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#20263a]">{category}</span>
+                      <span className={selected ? "rounded-full bg-[#11298f] px-2.5 py-1 text-[10px] font-extrabold text-white" : "rounded-full bg-[#eef1f8] px-2.5 py-1 text-[10px] font-bold text-[#69718a]"}>{selected ? "সরান" : "যোগ করুন"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="border-t border-[#eef0f8] p-4"><Button type="button" className="w-full" onClick={() => setDailyCategoryManagerOpen(false)}>Done</Button></div>
+          </section>
+        </div>
+      )}
 
       <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="mb-4 flex items-center justify-between">
