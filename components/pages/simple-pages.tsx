@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertTriangle, Baby, Banknote, Bell, BookOpen, BriefcaseBusiness, Bus, CalendarDays, Camera, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, CreditCard, Crown, Download, Dumbbell, Edit2, FileSpreadsheet, Folder, Fuel, Gamepad2, Gift, Globe2, GraduationCap, Grid2X2, HeartPulse, HelpCircle, Home, Info, Lightbulb, LogOut, MessageCircle, Moon, Palette, PawPrint, Pencil, Plane, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
+import { AlertTriangle, Baby, Banknote, Beef, Bell, BookOpen, BriefcaseBusiness, Bus, CakeSlice, CalendarDays, Camera, Candy, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, Cookie, CookingPot, CreditCard, Crown, CupSoda, Download, Drumstick, Dumbbell, Edit2, EggFried, FileSpreadsheet, Fish, Folder, Fuel, Gamepad2, Gift, GlassWater, Globe2, GraduationCap, Grid2X2, HeartPulse, HelpCircle, Home, IceCreamBowl, Info, Lightbulb, LogOut, MessageCircle, Milk, Moon, Palette, PawPrint, Pencil, Pizza, Plane, Plus, Popcorn, Receipt, RotateCcw, Salad, Sandwich, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Soup, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -316,32 +316,62 @@ export function CategoriesPage() {
     [entries],
   );
   const visibleCategories = activeType === "expense" ? categories : incomeCategories;
-  const categoryIconStyles = [
-    { name: "receipt", icon: Receipt, label: "General", tone: "bg-[#fff0e6] text-[#f97316]" },
-    { name: "food", icon: Utensils, label: "Food", tone: "bg-[#fff0e6] text-[#f97316]" },
-    { name: "coffee", icon: Coffee, label: "Snacks", tone: "bg-[#fff7ed] text-[#f59e0b]" },
-    { name: "bus", icon: Bus, label: "Bus", tone: "bg-[#edf4ff] text-[#2563eb]" },
-    { name: "car", icon: Car, label: "Car", tone: "bg-[#edf4ff] text-[#2563eb]" },
-    { name: "shopping", icon: ShoppingCart, label: "Market", tone: "bg-[#fff2ed] text-[#f97316]" },
-    { name: "bag", icon: ShoppingBag, label: "Shopping", tone: "bg-[#ffe6f6] text-[#db2777]" },
-    { name: "mobile", icon: Smartphone, label: "Mobile", tone: "bg-[#eef4ff] text-[#2563eb]" },
-    { name: "wifi", icon: Wifi, label: "Internet", tone: "bg-[#eef4ff] text-[#2563eb]" },
-    { name: "fuel", icon: Fuel, label: "Fuel", tone: "bg-[#fff7ed] text-[#ea580c]" },
-    { name: "home", icon: Home, label: "Home", tone: "bg-[#ecfdf5] text-[#059669]" },
-    { name: "health", icon: HeartPulse, label: "Health", tone: "bg-[#fff1f2] text-[#e11d48]" },
-    { name: "education", icon: GraduationCap, label: "Education", tone: "bg-[#eef2ff] text-[#4f46e5]" },
-    { name: "book", icon: BookOpen, label: "Books", tone: "bg-[#f5f3ff] text-[#7c3aed]" },
-    { name: "gift", icon: Gift, label: "Gift", tone: "bg-[#fdf2f8] text-[#db2777]" },
-    { name: "family", icon: Baby, label: "Family", tone: "bg-[#fff7ed] text-[#f97316]" },
-    { name: "travel", icon: Plane, label: "Travel", tone: "bg-[#ecfeff] text-[#0891b2]" },
-    { name: "work", icon: BriefcaseBusiness, label: "Work", tone: "bg-[#f1f5f9] text-[#475569]" },
-    { name: "fitness", icon: Dumbbell, label: "Fitness", tone: "bg-[#ecfdf5] text-[#059669]" },
-    { name: "pet", icon: PawPrint, label: "Pet", tone: "bg-[#fff7ed] text-[#d97706]" },
-    { name: "games", icon: Gamepad2, label: "Games", tone: "bg-[#f5f3ff] text-[#7c3aed]" },
-    { name: "repair", icon: Wrench, label: "Repair", tone: "bg-[#f1f5f9] text-[#475569]" },
-    { name: "money", icon: Banknote, label: "Money", tone: "bg-[#ecfdf5] text-[#16a34a]" },
-    { name: "folder", icon: Folder, label: "Other", tone: "bg-[#fff7e8] text-[#c77800]" },
+  const categoryIconGroups = [
+    { title: "সকালের নাস্তা", subtitle: "চা, ডিম, স্যান্ডউইচ ও হালকা নাস্তা", icons: [
+      { name: "coffee", icon: Coffee, label: "চা / কফি", tone: "bg-[#fff7ed] text-[#f59e0b]" },
+      { name: "egg", icon: EggFried, label: "ডিম", tone: "bg-[#fff7ed] text-[#eab308]" },
+      { name: "sandwich", icon: Sandwich, label: "স্যান্ডউইচ", tone: "bg-[#fff0e6] text-[#f97316]" },
+      { name: "cookie", icon: Cookie, label: "বিস্কুট", tone: "bg-[#fff7ed] text-[#d97706]" },
+      { name: "milk", icon: Milk, label: "দুধ", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    ]},
+    { title: "দুপুর ও রাতের খাবার", subtitle: "বিরিয়ানি, ভাত, মাংস ও পূর্ণ খাবার", icons: [
+      { name: "food", icon: Utensils, label: "খাবার", tone: "bg-[#fff0e6] text-[#f97316]" },
+      { name: "biryani", icon: CookingPot, label: "বিরিয়ানি / ভাত", tone: "bg-[#fff0e6] text-[#ea580c]" },
+      { name: "curry", icon: Soup, label: "তরকারি", tone: "bg-[#fff7ed] text-[#d97706]" },
+      { name: "chicken", icon: Drumstick, label: "চিকেন", tone: "bg-[#fff1f2] text-[#e11d48]" },
+      { name: "beef", icon: Beef, label: "মাংস", tone: "bg-[#fff1f2] text-[#be123c]" },
+      { name: "fish", icon: Fish, label: "মাছ", tone: "bg-[#ecfeff] text-[#0891b2]" },
+      { name: "salad", icon: Salad, label: "সবজি / সালাদ", tone: "bg-[#ecfdf5] text-[#059669]" },
+      { name: "pizza", icon: Pizza, label: "ফাস্ট ফুড", tone: "bg-[#fff7ed] text-[#f97316]" },
+    ]},
+    { title: "পানীয় ও মিষ্টি", subtitle: "Pepsi, কোমল পানীয়, পানি ও ডেজার্ট", icons: [
+      { name: "soft-drink", icon: CupSoda, label: "Pepsi / Soft Drink", tone: "bg-[#eef4ff] text-[#2563eb]" },
+      { name: "water", icon: GlassWater, label: "পানি / জুস", tone: "bg-[#ecfeff] text-[#0891b2]" },
+      { name: "ice-cream", icon: IceCreamBowl, label: "আইসক্রিম", tone: "bg-[#fdf2f8] text-[#db2777]" },
+      { name: "cake", icon: CakeSlice, label: "কেক", tone: "bg-[#fff1f2] text-[#e11d48]" },
+      { name: "candy", icon: Candy, label: "মিষ্টি", tone: "bg-[#fdf2f8] text-[#db2777]" },
+      { name: "popcorn", icon: Popcorn, label: "স্ন্যাকস", tone: "bg-[#fff7ed] text-[#d97706]" },
+    ]},
+    { title: "যাতায়াত ও ভ্রমণ", subtitle: "বাস, গাড়ি, জ্বালানি ও ট্রাভেল", icons: [
+      { name: "bus", icon: Bus, label: "বাস / ভাড়া", tone: "bg-[#edf4ff] text-[#2563eb]" },
+      { name: "car", icon: Car, label: "গাড়ি", tone: "bg-[#edf4ff] text-[#2563eb]" },
+      { name: "fuel", icon: Fuel, label: "তেল / গ্যাস", tone: "bg-[#fff7ed] text-[#ea580c]" },
+      { name: "travel", icon: Plane, label: "ভ্রমণ", tone: "bg-[#ecfeff] text-[#0891b2]" },
+    ]},
+    { title: "বাজার, বিল ও বাসা", subtitle: "কেনাকাটা, মোবাইল, ইন্টারনেট ও ঘর", icons: [
+      { name: "shopping", icon: ShoppingCart, label: "বাজার", tone: "bg-[#fff2ed] text-[#f97316]" },
+      { name: "bag", icon: ShoppingBag, label: "শপিং", tone: "bg-[#ffe6f6] text-[#db2777]" },
+      { name: "mobile", icon: Smartphone, label: "মোবাইল", tone: "bg-[#eef4ff] text-[#2563eb]" },
+      { name: "wifi", icon: Wifi, label: "ইন্টারনেট", tone: "bg-[#eef4ff] text-[#2563eb]" },
+      { name: "home", icon: Home, label: "বাসা / ভাড়া", tone: "bg-[#ecfdf5] text-[#059669]" },
+      { name: "money", icon: Banknote, label: "টাকা / বিল", tone: "bg-[#ecfdf5] text-[#16a34a]" },
+    ]},
+    { title: "জীবনযাপন ও অন্যান্য", subtitle: "স্বাস্থ্য, শিক্ষা, পরিবার ও প্রয়োজনীয় অন্যান্য", icons: [
+      { name: "receipt", icon: Receipt, label: "সাধারণ খরচ", tone: "bg-[#fff0e6] text-[#f97316]" },
+      { name: "health", icon: HeartPulse, label: "স্বাস্থ্য", tone: "bg-[#fff1f2] text-[#e11d48]" },
+      { name: "education", icon: GraduationCap, label: "শিক্ষা", tone: "bg-[#eef2ff] text-[#4f46e5]" },
+      { name: "book", icon: BookOpen, label: "বই", tone: "bg-[#f5f3ff] text-[#7c3aed]" },
+      { name: "gift", icon: Gift, label: "উপহার", tone: "bg-[#fdf2f8] text-[#db2777]" },
+      { name: "family", icon: Baby, label: "পরিবার", tone: "bg-[#fff7ed] text-[#f97316]" },
+      { name: "work", icon: BriefcaseBusiness, label: "কাজ", tone: "bg-[#f1f5f9] text-[#475569]" },
+      { name: "fitness", icon: Dumbbell, label: "ফিটনেস", tone: "bg-[#ecfdf5] text-[#059669]" },
+      { name: "pet", icon: PawPrint, label: "পোষা প্রাণী", tone: "bg-[#fff7ed] text-[#d97706]" },
+      { name: "games", icon: Gamepad2, label: "গেমস", tone: "bg-[#f5f3ff] text-[#7c3aed]" },
+      { name: "repair", icon: Wrench, label: "মেরামত", tone: "bg-[#f1f5f9] text-[#475569]" },
+      { name: "folder", icon: Folder, label: "অন্যান্য", tone: "bg-[#fff7e8] text-[#c77800]" },
+    ]},
   ];
+  const categoryIconStyles = categoryIconGroups.flatMap((group) => group.icons);
 
   useEffect(() => {
     window.localStorage.setItem(CATEGORY_ICON_STORAGE_KEY, JSON.stringify(categoryIconMap));
@@ -403,18 +433,25 @@ export function CategoriesPage() {
   function renderIconPicker(selectedIcon: string, onSelect: (icon: string) => void) {
     return (
       <div>
-        <p className="mb-2 text-xs font-extrabold text-[#59627a]">Choose a related icon</p>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-          {categoryIconStyles.map((style) => {
-            const Icon = style.icon;
-            const selected = selectedIcon === style.name;
-            return (
-              <button key={style.name} type="button" onClick={() => onSelect(style.name)} aria-label={`Select ${style.label} icon`} aria-pressed={selected} className={`grid min-h-16 place-items-center gap-1 rounded-xl px-1 py-2 ${style.tone} ${selected ? "ring-2 ring-[#11298f] ring-offset-1" : ""}`}>
-                <Icon size={20} />
-                <span className="max-w-full truncate text-[9px] font-extrabold">{style.label}</span>
-              </button>
-            );
-          })}
+        <p className="mb-3 text-xs font-extrabold text-[#59627a]">Choose a related icon</p>
+        <div className="grid gap-4">
+          {categoryIconGroups.map((group) => (
+            <section key={group.title} className="rounded-2xl border border-[#edf0f7] bg-[#fbfcff] p-3">
+              <div className="mb-2"><p className="text-sm font-extrabold text-[#20263a]">{group.title}</p><p className="mt-0.5 text-[10px] font-semibold text-[#7a8298]">{group.subtitle}</p></div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {group.icons.map((style) => {
+                  const Icon = style.icon;
+                  const selected = selectedIcon === style.name;
+                  return (
+                    <button key={style.name} type="button" onClick={() => onSelect(style.name)} aria-label={`Select ${style.label} icon`} aria-pressed={selected} className={`grid min-h-16 place-items-center gap-1 rounded-xl px-1 py-2 ${style.tone} ${selected ? "ring-2 ring-[#11298f] ring-offset-1" : ""}`}>
+                      <Icon size={20} />
+                      <span className="max-w-full text-center text-[9px] font-extrabold leading-3">{style.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
     );
