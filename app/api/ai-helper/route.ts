@@ -3,9 +3,8 @@ import { NextResponse } from "next/server";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
-  const apiKey = process.env.WALKAI_API_KEY;
-  const apiUrl = process.env.WALKAI_API_URL || "https://walkai.top/v1/chat/completions";
-  const model = process.env.WALKAI_MODEL || "gemini-2.5-flash";
+  const apiKey = process.env.EVANA_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const apiUrl = process.env.EVANA_CHAT_URL || "https://aezquqnsaytgguqqmngt.supabase.co/functions/v1/evana-chat";
 
   if (!apiKey) {
     return NextResponse.json({ error: "WALKAI_API_KEY is not configured." }, { status: 503 });
@@ -18,10 +17,9 @@ export async function POST(request: Request) {
 
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${apiKey}`, apikey: apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        temperature: 0.4,
+        question: messages[messages.length - 1].content,
         messages: [
           { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. Give practical budgeting and expense insights only; never claim to change transactions. Current local summary: ${body.context || "No summary available."}` },
           ...messages,
@@ -30,13 +28,13 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
 
-    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string };
+    const data = await response.json() as { reply?: string; message?: string; response?: string; output?: string; choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string };
     if (!response.ok) {
       const providerError = typeof data.error === "string" ? data.error : data.error?.message;
       return NextResponse.json({ error: providerError || "AI provider request failed." }, { status: response.status });
     }
 
-    const reply = data.choices?.[0]?.message?.content?.trim();
+    const reply = (data.reply || data.message || data.response || data.output || data.choices?.[0]?.message?.content)?.trim();
     if (!reply) return NextResponse.json({ error: "AI returned an empty response." }, { status: 502 });
     return NextResponse.json({ reply });
   } catch {
