@@ -75,6 +75,9 @@ export async function POST(request: Request) {
 
         lastError = (typeof data.error === "string" ? data.error : data.error?.message) || data.message || raw || "AI provider request failed.";
         lastStatus = response.status;
+        if (/not supported by any configured account/i.test(lastError)) {
+          return NextResponse.json({ error: "This WalkAI key group is not a chat group. Select a text/chat Gemini group for this API key." }, { status: 422 });
+        }
         const retryable = /no available accounts/i.test(lastError) || [429, 502, 503, 504].includes(response.status);
         if (!retryable) break;
       } catch {
