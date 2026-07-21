@@ -15,12 +15,18 @@ async function resolveWalkModel(baseUrl: string, apiKey: string, configuredModel
   }
 }
 
+function normalizeBaseUrl(value: string) {
+  const url = value.replace(/\/$/, "");
+  return /\/v1$/i.test(url) ? url : `${url}/v1`;
+}
+
 export async function POST(request: Request) {
   const provider = process.env.AI_PROVIDER || "walkai";
   const apiKey = process.env.WALKAI_API_KEY;
-  const configuredBaseUrl = (process.env.WALKAI_BASE_URL || "https://walkai.top/v1").replace(/\/$/, "");
-  const baseUrl = /\/v1$/i.test(configuredBaseUrl) ? configuredBaseUrl : `${configuredBaseUrl}/v1`;
-  const apiUrl = `${baseUrl}/chat/completions`;
+  const baseUrls = Array.from(new Set([
+    normalizeBaseUrl(process.env.WALKAI_BASE_URL || "https://walkai.top/v1"),
+    normalizeBaseUrl(process.env.WALKAI_FALLBACK_BASE_URL || "https://walkcoding.top/v1"),
+  ]));
   const model = process.env.WALKAI_MODEL || "gemini-2.5-flash";
 
   if (provider !== "walkai") {
@@ -35,31 +41,41 @@ export async function POST(request: Request) {
     const body = await request.json() as { messages?: ChatMessage[]; context?: string };
     const messages = (body.messages ?? []).filter((item) => item.content?.trim()).slice(-10);
     if (!messages.length) return NextResponse.json({ error: "Write a question first." }, { status: 400 });
-    const activeModel = await resolveWalkModel(baseUrl, apiKey, model);
+    let lastError = "AI provider request failed.";
+    let lastStatus = 502;
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: activeModel,
-        temperature: 0.4,
-        messages: [
-          { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. Give practical budgeting and expense insights only; never claim to change transactions. Current local summary: ${body.context || "No summary available."}` },
-          ...messages,
-        ],
-      }),
-      cache: "no-store",
-    });
+    for (const baseUrl of baseUrls) {
+      const activeModel = await resolveWalkModel(baseUrl, apiKey, model);
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: activeModel,
+          temperature: 0.4,
+          messages: [
+            { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. Give practical budgeting and expense insights only; never claim to change transactions. Current local summary: ${body.context || "No summary available."}` },
+            ...messages,
+          ],
+        }),
+        cache: "no-store",
+      });
 
-    const data = await response.json() as { reply?: string; message?: string; response?: string; output?: string; choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string };
-    if (!response.ok) {
-      const providerError = typeof data.error === "string" ? data.error : data.error?.message;
-      return NextResponse.json({ error: providerError || "AI provider request failed." }, { status: response.status });
+      const data = await response.json() as { reply?: string; message?: string; response?: string; output?: string; choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string };
+      if (response.ok) {
+        const reply = (data.reply || data.message || data.response || data.output || data.choices?.[0]?.message?.content)?.trim();
+        if (reply) return NextResponse.json({ reply });
+        lastError = "AI returned an empty response.";
+        lastStatus = 502;
+        continue;
+      }
+
+      lastError = (typeof data.error === "string" ? data.error : data.error?.message) || "AI provider request failed.";
+      lastStatus = response.status;
+      const retryable = /no available accounts/i.test(lastError) || [429, 502, 503, 504].includes(response.status);
+      if (!retryable) break;
     }
 
-    const reply = (data.reply || data.message || data.response || data.output || data.choices?.[0]?.message?.content)?.trim();
-    if (!reply) return NextResponse.json({ error: "AI returned an empty response." }, { status: 502 });
-    return NextResponse.json({ reply });
+    return NextResponse.json({ error: lastError }, { status: lastStatus });
   } catch {
     return NextResponse.json({ error: "AI Helper could not connect. Check endpoint, model and API key." }, { status: 500 });
   }
