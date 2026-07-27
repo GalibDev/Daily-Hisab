@@ -18,7 +18,12 @@ export function summarizeEntries(entries: Entry[], date?: string) {
 }
 
 export function buildCategoryExpense(entries: Entry[], categories = defaultCategories) {
-  const totals = categories.map((category, index) => ({
+  const expenseCategories = entries
+    .filter((entry) => entry.type === "expense")
+    .map((entry) => entry.category)
+    .filter(Boolean);
+  const categoryNames = Array.from(new Set([...categories, ...expenseCategories]));
+  const totals = categoryNames.map((category, index) => ({
     name: category,
     value: entries
       .filter((entry) => entry.type === "expense" && entry.category === category)

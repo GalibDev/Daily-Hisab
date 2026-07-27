@@ -1086,13 +1086,17 @@ function MobileDashboard({
 export function DashboardPage() {
   const { categories, entries, hiddenSummaryDates } = useFinance();
   const today = getTodayIso();
+  const monthPrefix = today.slice(0, 7);
+  const currentMonthEntries = useMemo(
+    () => entries.filter((entry) => entry.date.startsWith(monthPrefix)),
+    [entries, monthPrefix],
+  );
   const todaySummary = useMemo(() => summarizeEntries(entries, today), [entries, today]);
-  const categoryData = useMemo(() => buildCategoryExpense(entries, categories), [categories, entries]);
+  const categoryData = useMemo(() => buildCategoryExpense(currentMonthEntries, categories), [categories, currentMonthEntries]);
   const trendData = useMemo(() => buildExpenseTrend(entries), [entries]);
   const summaryRows = useMemo(() => buildSummaryRowsFromEntries(entries, hiddenSummaryDates, today), [entries, hiddenSummaryDates, today]);
-  const monthPrefix = today.slice(0, 7);
-  const monthExpense = entries
-    .filter((entry) => entry.type === "expense" && entry.date.startsWith(monthPrefix))
+  const monthExpense = currentMonthEntries
+    .filter((entry) => entry.type === "expense")
     .reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
