@@ -345,16 +345,7 @@ private fun TransactionRow(expense: Expense) {
 private fun ReportsScreen(expenses: List<Expense>, onAnalytics: () -> Unit) {
     val context = LocalContext.current
     var period by remember { mutableStateOf("Monthly") }
-    val today = LocalDate.now()
-    val visible = expenses.filter { item ->
-        val date = runCatching { LocalDate.parse(item.date) }.getOrNull() ?: return@filter false
-        when (period) {
-            "Daily" -> date == today
-            "Weekly" -> date.get(WeekFields.ISO.weekOfWeekBasedYear()) == today.get(WeekFields.ISO.weekOfWeekBasedYear()) && date.year == today.year
-            "Yearly" -> date.year == today.year
-            else -> YearMonth.from(date) == YearMonth.from(today)
-        }
-    }
+    val visible = remember(expenses, period) { expensesForPeriod(expenses, period, LocalDate.now()) }
     val createPdf = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri != null) exportPdf(context, uri, visible, period)
     }
@@ -399,6 +390,21 @@ private fun ReportsScreen(expenses: List<Expense>, onAnalytics: () -> Unit) {
     }
 }
 
+private fun expensesForPeriod(expenses: List<Expense>, period: String, anchor: LocalDate): List<Expense> {
+    val weekFields = WeekFields.ISO
+    return expenses.filter { item ->
+        val date = runCatching { LocalDate.parse(item.date) }.getOrNull() ?: return@filter false
+        when (period) {
+            "Daily" -> date == anchor
+            "Weekly" ->
+                date.get(weekFields.weekBasedYear()) == anchor.get(weekFields.weekBasedYear()) &&
+                    date.get(weekFields.weekOfWeekBasedYear()) == anchor.get(weekFields.weekOfWeekBasedYear())
+            "Yearly" -> date.year == anchor.year
+            else -> YearMonth.from(date) == YearMonth.from(anchor)
+        }
+    }.sortedWith(compareByDescending<Expense> { it.date }.thenByDescending { it.id })
+}
+
 private fun exportPdf(context: android.content.Context, uri: Uri, expenses: List<Expense>, period: String) {
     val document = PdfDocument()
     val paint = Paint().apply { color = android.graphics.Color.BLACK; textSize = 13f }
@@ -422,36 +428,52 @@ private fun exportPdf(context: android.content.Context, uri: Uri, expenses: List
 
 @Composable
 private fun AnalyticsScreen(expenses: List<Expense>) {
-    val spent = expenses.filterNot { it.income }.sumOf { it.amount }
+    var period by remember { mutableStateOf("Monthly") }
+    val visible = remember(expenses, period) { expensesForPeriod(expenses, period, LocalDate.now()) }
+    val income = visible.filter { it.income }.sumOf { it.amount }
+    val spent = visible.filterNot { it.income }.sumOf { it.amount }
+    val grouped = visible.filterNot { it.income }.groupBy { it.category }
+        .mapValues { (_, items) -> items.sumOf { it.amount } }
+        .toList().sortedByDescending { it.second }.take(5)
+    val largest = grouped.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
     LazyColumn(Modifier.fillMaxSize()) {
-        item { AppHeader("Reports") }
+        item { AppHeader("Analytics") }
         item {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(true, {}, { Text("This Month") })
-                    FilterChip(false, {}, { Text("Last Month") })
-                    FilterChip(false, {}, { Text("This Year") })
-                }
-                BalanceHero(spent)
-                AppCard {
-                    Text("Income vs Expense", fontWeight = FontWeight.Bold, color = Ink)
-                    Spacer(Modifier.height(22.dp))
-                    Row(Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
-                        listOf(55, 80, 65, 92, 72, 100).forEachIndexed { index, height ->
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Box(Modifier.width(14.dp).height(height.dp).background(Green, RoundedCornerShape(4.dp)))
-                                    Spacer(Modifier.width(4.dp))
-                                    Box(Modifier.width(14.dp).height((height * .55).dp).background(Red, RoundedCornerShape(4.dp)))
-                                }
-                                Text(listOf("Feb", "Mar", "Apr", "May", "Jun", "Jul")[index], fontSize = 9.sp, color = Muted)
-                            }
-                        }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Daily", "Weekly", "Monthly", "Yearly").forEach {
+                        FilterChip(period == it, { period = it }, { Text(it, fontSize = 11.sp) })
                     }
                 }
-                MonthOverview(spent)
+                AppCard {
+                    Text("$period Overview", fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Spacer(Modifier.height(14.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        SummaryMetric("Income", income, Green)
+                        SummaryMetric("Expense", spent, Red)
+                        SummaryMetric("Balance", income - spent, Blue)
+                    }
+                }
+                AppCard {
+                    Text("Expense by category", fontWeight = FontWeight.Bold, color = Ink)
+                    Spacer(Modifier.height(16.dp))
+                    if (grouped.isEmpty()) Text("No expense data for this $period period", color = Muted)
+                    grouped.forEachIndexed { index, (category, amount) ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(category, Modifier.width(92.dp), fontSize = 12.sp, color = Muted)
+                            Box(Modifier.weight(1f).height(12.dp).background(Soft, RoundedCornerShape(8.dp))) {
+                                Box(Modifier.fillMaxWidth(amount.toFloat() / largest).fillMaxHeight().background(listOf(Orange, Blue, Green, Red, Color(0xFF8B5CF6))[index], RoundedCornerShape(8.dp)))
+                            }
+                            Text("৳ $amount", Modifier.width(72.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    }
+                }
+                SectionTitle("$period entries", "${visible.size}")
             }
         }
+        if (visible.isEmpty()) item { Text("No entries found for the selected period", Modifier.padding(horizontal = 24.dp, vertical = 12.dp), color = Muted) }
+        items(visible, key = { it.id }) { TransactionRow(it) }
     }
 }
 
