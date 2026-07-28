@@ -6,6 +6,8 @@ import androidx.room.Database
 import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.Index
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
@@ -60,6 +62,13 @@ data class ReceiptEntity(
     val createdAt: String
 )
 
+@Entity(tableName = "categories", indices = [Index(value = ["name"], unique = true)])
+data class CategoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val iconName: String = "other"
+)
+
 @Dao
 interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
@@ -108,9 +117,18 @@ interface ReceiptDao {
     @Delete suspend fun delete(item: ReceiptEntity)
 }
 
+@Dao
+interface CategoryDao {
+    @Query("SELECT * FROM categories ORDER BY name ASC")
+    fun observeAll(): Flow<List<CategoryEntity>>
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(item: CategoryEntity)
+    @Delete suspend fun delete(item: CategoryEntity)
+}
+
 @Database(
-    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class],
-    version = 3,
+    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class, CategoryEntity::class],
+    version = 4,
     exportSchema = false
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -119,6 +137,7 @@ abstract class FinanceDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
     abstract fun noteDao(): NoteDao
     abstract fun receiptDao(): ReceiptDao
+    abstract fun categoryDao(): CategoryDao
 
     companion object {
         @Volatile private var instance: FinanceDatabase? = null

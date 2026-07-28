@@ -2,6 +2,9 @@ package com.dailyhisab.nativeapp
 
 import android.Manifest
 import android.content.Intent
+import android.app.DatePickerDialog
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -34,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.dailyhisab.nativeapp.data.FinanceDatabase
+import com.dailyhisab.nativeapp.data.CategoryEntity
 import com.dailyhisab.nativeapp.data.NoteEntity
 import com.dailyhisab.nativeapp.data.RecurringEntity
 import com.dailyhisab.nativeapp.data.ReminderEntity
@@ -43,6 +47,11 @@ import com.dailyhisab.nativeapp.notifications.ReminderWorker
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.temporal.WeekFields
+import java.util.Locale
 
 private val Navy = Color(0xFF07194E)
 private val Blue = Color(0xFF11298F)
@@ -63,7 +72,7 @@ data class Expense(
     val income: Boolean = false,
     val note: String = ""
 )
-enum class Screen { Home, Reports, Add, Entries, Categories, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
+enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,6 +100,12 @@ fun DailyHisabApp() {
     val notes by noteDao.observeAll().collectAsState(initial = emptyList())
     val receiptDao = remember { FinanceDatabase.get(context).receiptDao() }
     val receipts by receiptDao.observeAll().collectAsState(initial = emptyList())
+    val categoryDao = remember { FinanceDatabase.get(context).categoryDao() }
+    val categories by categoryDao.observeAll().collectAsState(initial = emptyList())
+    val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
+    var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
+    var profileName by remember { mutableStateOf(prefs.getString("profile_name", "Mirza Galib Palash") ?: "Mirza Galib Palash") }
+    var profilePhoto by remember { mutableStateOf(prefs.getString("profile_photo", "") ?: "") }
     val expenses = storedTransactions.map {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
     }
@@ -105,30 +120,27 @@ fun DailyHisabApp() {
             ).forEach { dao.insert(it) }
         }
     }
+    LaunchedEffect(categories) {
+        if (categories.isEmpty()) {
+            listOf("Food" to "food", "Transport" to "transport", "Shopping" to "shopping", "Utilities" to "bills", "Health" to "health", "Education" to "education", "Home" to "home", "Others" to "other")
+                .forEach { (name, icon) -> categoryDao.insert(CategoryEntity(name = name, iconName = icon)) }
+        }
+    }
 
     MaterialTheme(
-        colorScheme = lightColorScheme(primary = Blue, secondary = Orange, surface = Color.White, background = Soft),
+        colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFF9DB2FF), secondary = Orange) else lightColorScheme(primary = Blue, secondary = Orange, surface = Color.White, background = Soft),
         typography = Typography()
     ) {
         Scaffold(
-            containerColor = Soft,
-            bottomBar = { BottomNavigation(screen) { screen = it } },
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { screen = Screen.Add },
-                    shape = CircleShape,
-                    containerColor = Blue,
-                    contentColor = Color.White,
-                    modifier = Modifier.size(66.dp)
-                ) { Icon(Icons.Default.Add, "Add", modifier = Modifier.size(32.dp)) }
-            },
-            floatingActionButtonPosition = FabPosition.Center
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = { BottomNavigation(screen) { screen = it } }
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
                 when (screen) {
                     Screen.Home -> HomeScreen(expenses, onNavigate = { screen = it })
-                    Screen.Reports -> ReportsScreen(expenses)
-                    Screen.Add -> AddExpenseScreen { expense ->
+                    Screen.Reports -> ReportsScreen(expenses) { screen = Screen.Analytics }
+                    Screen.Analytics -> AnalyticsScreen(expenses)
+                    Screen.Add -> AddExpenseScreen(categories, { scope.launch { categoryDao.insert(it) } }) { expense, receiptUri ->
                         scope.launch {
                             dao.insert(
                                 TransactionEntity(
@@ -141,14 +153,19 @@ fun DailyHisabApp() {
                                     note = expense.note
                                 )
                             )
+                            if (receiptUri != null) receiptDao.insert(ReceiptEntity(uri = receiptUri, title = expense.title.ifBlank { expense.category }, amount = expense.amount, createdAt = expense.date))
                             screen = Screen.Home
                         }
                     }
                     Screen.Entries -> EntriesScreen(expenses) { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
-                    Screen.Categories -> CategoriesScreen(expenses)
+                    Screen.Categories -> CategoriesScreenV2(categories, expenses, { scope.launch { categoryDao.insert(it) } }, { scope.launch { categoryDao.delete(it) } })
                     Screen.Budget -> BudgetScreen(expenses)
-                    Screen.Calendar -> CalendarScreen(expenses)
-                    Screen.Profile -> ProfileScreen(onNavigate = { screen = it })
+                    Screen.Calendar -> CalendarV2(expenses)
+                    Screen.Profile -> ProfileScreen(profileName, profilePhoto, onNameChange = {
+                        profileName = it; prefs.edit().putString("profile_name", it).apply()
+                    }, onPhotoChange = {
+                        profilePhoto = it; prefs.edit().putString("profile_photo", it).apply()
+                    }, onNavigate = { screen = it })
                     Screen.Recurring -> RecurringScreen(
                         recurringItems,
                         onAdd = { scope.launch { recurringDao.insert(it) } },
@@ -174,7 +191,9 @@ fun DailyHisabApp() {
                         onAdd = { scope.launch { receiptDao.insert(it) } },
                         onDelete = { scope.launch { receiptDao.delete(it) } }
                     )
-                    Screen.Settings -> SettingsScreen()
+                    Screen.Settings -> SettingsScreen(darkMode) {
+                        darkMode = it; prefs.edit().putBoolean("dark_mode", it).apply()
+                    }
                     Screen.Backup -> BackupScreen(expenses, recurringItems, reminders, notes)
                 }
             }
@@ -323,7 +342,86 @@ private fun TransactionRow(expense: Expense) {
 }
 
 @Composable
-private fun ReportsScreen(expenses: List<Expense>) {
+private fun ReportsScreen(expenses: List<Expense>, onAnalytics: () -> Unit) {
+    val context = LocalContext.current
+    var period by remember { mutableStateOf("Monthly") }
+    val today = LocalDate.now()
+    val visible = expenses.filter { item ->
+        val date = runCatching { LocalDate.parse(item.date) }.getOrNull() ?: return@filter false
+        when (period) {
+            "Daily" -> date == today
+            "Weekly" -> date.get(WeekFields.ISO.weekOfWeekBasedYear()) == today.get(WeekFields.ISO.weekOfWeekBasedYear()) && date.year == today.year
+            "Yearly" -> date.year == today.year
+            else -> YearMonth.from(date) == YearMonth.from(today)
+        }
+    }
+    val createPdf = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) exportPdf(context, uri, visible, period)
+    }
+    val createCsv = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+            writer.write("Date,Time,Title,Category,Type,Amount,Note\n")
+            visible.forEach { writer.write(listOf(it.date, it.time, it.title, it.category, if (it.income) "Income" else "Expense", it.amount, it.note).joinToString(",") { value -> "\"${value.toString().replace("\"", "\"\"")}\"" } + "\n") }
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Reports") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Download detailed financial reports", color = Muted)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Daily", "Weekly", "Monthly", "Yearly").forEach {
+                        FilterChip(period == it, { period = it }, { Text(it, fontSize = 11.sp) })
+                    }
+                }
+                AppCard {
+                    Text("$period Summary", fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        SummaryMetric("Income", visible.filter { it.income }.sumOf { it.amount }, Green)
+                        SummaryMetric("Expense", visible.filterNot { it.income }.sumOf { it.amount }, Red)
+                        SummaryMetric("Entries", visible.size, Blue)
+                    }
+                }
+                Button(onClick = { createPdf.launch("daily-hisab-${period.lowercase()}.pdf") }, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(8.dp)); Text("Export PDF")
+                }
+                OutlinedButton(onClick = { createCsv.launch("daily-hisab-${period.lowercase()}.csv") }, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.TableView, null); Spacer(Modifier.width(8.dp)); Text("Export Excel (CSV)")
+                }
+                OutlinedButton(onClick = onAnalytics, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Analytics, null); Spacer(Modifier.width(8.dp)); Text("Open Analytics")
+                }
+                SectionTitle("Report entries", "${visible.size}")
+            }
+        }
+        items(visible) { TransactionRow(it) }
+    }
+}
+
+private fun exportPdf(context: android.content.Context, uri: Uri, expenses: List<Expense>, period: String) {
+    val document = PdfDocument()
+    val paint = Paint().apply { color = android.graphics.Color.BLACK; textSize = 13f }
+    var pageNumber = 1
+    var page = document.startPage(PdfDocument.PageInfo.Builder(595, 842, pageNumber).create())
+    var y = 48f
+    fun line(text: String) {
+        if (y > 800f) {
+            document.finishPage(page); pageNumber++
+            page = document.startPage(PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()); y = 48f
+        }
+        page.canvas.drawText(text.take(90), 36f, y, paint); y += 24f
+    }
+    paint.textSize = 20f; line("Daily Hisab - $period Report"); paint.textSize = 13f
+    line("Income: ${expenses.filter { it.income }.sumOf { it.amount }}   Expense: ${expenses.filterNot { it.income }.sumOf { it.amount }}")
+    expenses.forEach { line("${it.date} | ${it.title} | ${it.category} | ${if (it.income) "+" else "-"} BDT ${it.amount}") }
+    document.finishPage(page)
+    context.contentResolver.openOutputStream(uri)?.use { document.writeTo(it) }
+    document.close()
+}
+
+@Composable
+private fun AnalyticsScreen(expenses: List<Expense>) {
     val spent = expenses.filterNot { it.income }.sumOf { it.amount }
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader("Reports") }
@@ -358,13 +456,26 @@ private fun ReportsScreen(expenses: List<Expense>) {
 }
 
 @Composable
-private fun AddExpenseScreen(onSave: (Expense) -> Unit) {
+private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (CategoryEntity) -> Unit, onSave: (Expense, String?) -> Unit) {
+    val context = LocalContext.current
     var amount by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Food") }
+    var category by remember { mutableStateOf(categories.firstOrNull()?.name ?: "Food") }
     var title by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var isIncome by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    var date by remember { mutableStateOf(LocalDate.now()) }
+    var receiptUri by remember { mutableStateOf<String?>(null) }
+    var showCategoryDialog by remember { mutableStateOf(false) }
+    val receiptPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            receiptUri = uri.toString()
+        }
+    }
+    if (showCategoryDialog) CategoryDialog({ showCategoryDialog = false }) {
+        onAddCategory(it); category = it.name; showCategoryDialog = false
+    }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         AppHeader("Add Expense")
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
@@ -384,21 +495,35 @@ private fun AddExpenseScreen(onSave: (Expense) -> Unit) {
                 OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
             }
             item {
-                Text("Category", fontWeight = FontWeight.Bold, color = Ink)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Category", Modifier.weight(1f), fontWeight = FontWeight.Bold, color = Ink)
+                    IconButton(onClick = { showCategoryDialog = true }) { Icon(Icons.Default.AddCircle, "Add new category", tint = Blue) }
+                }
                 Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Food", "Transport", "Shopping", "Bills").forEach { name ->
-                        FilterChip(category == name, { category = name }, { Text(name) })
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    categories.chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { item ->
+                                FilterChip(category == item.name, { category = item.name }, { Text(item.name, fontSize = 11.sp) }, leadingIcon = { Icon(categoryIcon(item.iconName), null, Modifier.size(16.dp)) })
+                            }
+                        }
                     }
                 }
             }
-            item { OutlinedTextField("Jul 28, 2026", {}, label = { Text("Date") }, readOnly = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) }
-            item { OutlinedTextField(note, { note = it }, label = { Text("Note (Optional)") }, modifier = Modifier.fillMaxWidth().height(110.dp), shape = RoundedCornerShape(16.dp)) }
             item {
-                OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth().height(62.dp), shape = RoundedCornerShape(16.dp)) {
-                    Icon(Icons.Default.UploadFile, null); Spacer(Modifier.width(8.dp)); Text("Upload Receipt")
+                OutlinedButton(onClick = {
+                    DatePickerDialog(context, { _, year, month, day -> date = LocalDate.of(year, month + 1, day) }, date.year, date.monthValue - 1, date.dayOfMonth).show()
+                }, Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp)) {
+                    Icon(Icons.Default.CalendarMonth, null); Spacer(Modifier.width(10.dp)); Text(date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
                 }
             }
+            item { OutlinedTextField(note, { note = it }, label = { Text("Note (Optional)") }, modifier = Modifier.fillMaxWidth().height(110.dp), shape = RoundedCornerShape(16.dp)) }
+            item {
+                OutlinedButton(onClick = { receiptPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.fillMaxWidth().height(62.dp), shape = RoundedCornerShape(16.dp)) {
+                    Icon(if (receiptUri == null) Icons.Default.UploadFile else Icons.Default.CheckCircle, null); Spacer(Modifier.width(8.dp)); Text(if (receiptUri == null) "Upload Receipt" else "Receipt selected")
+                }
+            }
+            if (receiptUri != null) item { ReceiptThumbnail(receiptUri!!) }
         }
         Button(
             onClick = {
@@ -407,11 +532,11 @@ private fun AddExpenseScreen(onSave: (Expense) -> Unit) {
                         title = title.ifBlank { category },
                         category = if (isIncome && category == "Food") "Income" else category,
                         amount = amount.toInt(),
-                        date = "2026-07-28",
+                        date = date.toString(),
                         time = "Just now",
                         income = isIncome,
                         note = note
-                    )
+                    ), receiptUri
                 )
             },
             modifier = Modifier.padding(16.dp).fillMaxWidth().height(54.dp),
@@ -446,6 +571,45 @@ private fun CalendarScreen(expenses: List<Expense>) {
             }
         }
         items(expenses.filterNot { it.income }) { TransactionRow(it) }
+    }
+}
+
+@Composable
+private fun CalendarV2(expenses: List<Expense>) {
+    var selected by remember { mutableStateOf(LocalDate.now()) }
+    var month by remember { mutableStateOf(YearMonth.now()) }
+    val offset = month.atDay(1).dayOfWeek.value % 7
+    val cells: List<LocalDate?> = List(offset) { null } + (1..month.lengthOfMonth()).map { month.atDay(it) }
+    val visible = expenses.filter { it.date == selected.toString() }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Calendar") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { month = month.minusMonths(1) }) { Icon(Icons.Default.ChevronLeft, null) }
+                        Text(month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold, color = Ink)
+                        IconButton(onClick = { month = month.plusMonths(1) }) { Icon(Icons.Default.ChevronRight, null) }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        listOf("S","M","T","W","T","F","S").forEach { Text(it, Modifier.width(38.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Muted) }
+                    }
+                    cells.chunked(7).forEach { week ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            week.forEach { day ->
+                                Surface(shape = CircleShape, color = if (day == selected) Blue else Color.Transparent, modifier = Modifier.size(38.dp).clickable(enabled = day != null) { selected = day!! }) {
+                                    Box(contentAlignment = Alignment.Center) { Text(day?.dayOfMonth?.toString() ?: "", color = if (day == selected) Color.White else Ink) }
+                                }
+                            }
+                            repeat(7 - week.size) { Spacer(Modifier.size(38.dp)) }
+                        }
+                    }
+                }
+                SectionTitle(selected.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM")), "BDT ${visible.filterNot { it.income }.sumOf { it.amount }}")
+            }
+        }
+        if (visible.isEmpty()) item { Text("No entries for this date", Modifier.padding(24.dp), color = Muted) }
+        items(visible) { TransactionRow(it) }
     }
 }
 
@@ -506,6 +670,70 @@ private fun TransactionRowContent(expense: Expense) {
             Text("${expense.category} • ${expense.date}", fontSize = 11.sp, color = Muted)
         }
         Text("${if (expense.income) "+" else "-"}৳ ${expense.amount}", color = if (expense.income) Green else Red, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun categoryIcon(name: String): ImageVector = when (name) {
+    "food" -> Icons.Default.Restaurant
+    "transport" -> Icons.Default.DirectionsBus
+    "shopping" -> Icons.Default.ShoppingBag
+    "bills" -> Icons.Default.Bolt
+    "health" -> Icons.Default.Favorite
+    "education" -> Icons.Default.School
+    "home" -> Icons.Default.Home
+    else -> Icons.Default.MoreHoriz
+}
+
+@Composable
+private fun CategoryDialog(onDismiss: () -> Unit, onAdd: (CategoryEntity) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var icon by remember { mutableStateOf("food") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add category") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("Category name") })
+                Text("Choose an icon")
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("food", "transport", "shopping", "bills").forEach { value ->
+                        FilterChip(icon == value, { icon = value }, { Icon(categoryIcon(value), value) })
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("health", "education", "home", "other").forEach { value ->
+                        FilterChip(icon == value, { icon = value }, { Icon(categoryIcon(value), value) })
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = { if (name.isNotBlank()) onAdd(CategoryEntity(name = name.trim(), iconName = icon)) }, enabled = name.isNotBlank()) { Text("Add") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun CategoriesScreenV2(categories: List<CategoryEntity>, expenses: List<Expense>, onAdd: (CategoryEntity) -> Unit, onDelete: (CategoryEntity) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+    if (showDialog) CategoryDialog({ showDialog = false }) { onAdd(it); showDialog = false }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Categories") }
+        items(categories.chunked(2)) { row ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { item ->
+                    Card(Modifier.weight(1f), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(categoryIcon(item.iconName), null, tint = Blue, modifier = Modifier.size(34.dp))
+                            Text(item.name, fontWeight = FontWeight.Bold)
+                            Text("BDT ${expenses.filter { !it.income && it.category == item.name }.sumOf { it.amount }}", color = Muted, fontSize = 11.sp)
+                            IconButton(onClick = { onDelete(item) }) { Icon(Icons.Default.DeleteOutline, "Delete category", tint = Red) }
+                        }
+                    }
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+        item { Button(onClick = { showDialog = true }, Modifier.padding(16.dp).fillMaxWidth()) { Icon(Icons.Default.Add, null); Text("Add Category") } }
     }
 }
 
@@ -831,7 +1059,7 @@ private fun ReceiptThumbnail(uriString: String) {
 }
 
 @Composable
-private fun SettingsScreen() {
+private fun SettingsScreen(darkMode: Boolean, onDarkModeChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
     var currency by remember { mutableStateOf(prefs.getString("currency", "BDT") ?: "BDT") }
@@ -859,6 +1087,14 @@ private fun SettingsScreen() {
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) { Text("Notifications", fontWeight = FontWeight.Bold, color = Ink); Text("Expense and payment reminders", fontSize = 11.sp, color = Muted) }
                         Switch(checked = notifications, onCheckedChange = { notifications = it; prefs.edit().putBoolean("notifications", it).apply() })
+                    }
+                }
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (darkMode) Icons.Default.DarkMode else Icons.Default.LightMode, null, tint = Blue)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) { Text("Dark mode", fontWeight = FontWeight.Bold); Text("Switch between light and dark appearance", fontSize = 11.sp, color = Muted) }
+                        Switch(darkMode, onDarkModeChange)
                     }
                 }
                 Text("Settings are saved automatically on this device.", color = Muted, fontSize = 12.sp)
@@ -918,16 +1154,29 @@ private fun BackupScreen(
 }
 
 @Composable
-private fun ProfileScreen(onNavigate: (Screen) -> Unit) {
+private fun ProfileScreen(name: String, photo: String, onNameChange: (String) -> Unit, onPhotoChange: (String) -> Unit, onNavigate: (Screen) -> Unit) {
+    val context = LocalContext.current
+    var editName by remember { mutableStateOf(false) }
+    var draft by remember(name) { mutableStateOf(name) }
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            onPhotoChange(uri.toString())
+        }
+    }
+    if (editName) AlertDialog(onDismissRequest = { editName = false }, title = { Text("Edit profile") }, text = { OutlinedTextField(draft, { draft = it }, label = { Text("Name") }) }, confirmButton = { Button(onClick = { onNameChange(draft.trim()); editName = false }) { Text("Save") } }, dismissButton = { TextButton(onClick = { editName = false }) { Text("Cancel") } })
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader("Settings & Profile") }
         item {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 AppCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(Modifier.size(70.dp), CircleShape, color = Color(0xFFFFE4E8)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, tint = Red, modifier = Modifier.size(42.dp)) } }
+                        Box(Modifier.clickable { picker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                            if (photo.isNotBlank()) ReceiptThumbnail(photo) else Surface(Modifier.size(70.dp), CircleShape, color = Color(0xFFFFE4E8)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, tint = Red, modifier = Modifier.size(42.dp)) } }
+                        }
                         Spacer(Modifier.width(14.dp))
-                        Column { Text("Mirza Galib Palash", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Ink); Text("galib@example.com", color = Muted, fontSize = 12.sp) }
+                        Column(Modifier.weight(1f)) { Text(name, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Ink); Text("Tap photo to change", color = Muted, fontSize = 12.sp) }
+                        IconButton(onClick = { editName = true }) { Icon(Icons.Default.Edit, "Edit profile") }
                     }
                 }
                 Text("Preferences", fontWeight = FontWeight.Bold, color = Ink)
