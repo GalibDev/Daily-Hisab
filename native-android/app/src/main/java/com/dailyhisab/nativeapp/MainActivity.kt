@@ -229,7 +229,7 @@ fun DailyHisabApp() {
 }
 
 @Composable
-private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null) {
+private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null, onCalculator: (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().background(Color.White).statusBarsPadding().padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -241,6 +241,9 @@ private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null) {
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
             subtitle?.let { Text(it, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Muted) }
+        }
+        if (onCalculator != null) {
+            IconButton(onClick = onCalculator) { Icon(Icons.Default.Calculate, "Open calculator", tint = Blue) }
         }
         BadgedBox(badge = { Badge(containerColor = Orange) }) {
             IconButton(onClick = {}) { Icon(Icons.Default.NotificationsNone, "Notifications", tint = Ink) }
@@ -619,6 +622,7 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
     var date by remember { mutableStateOf(LocalDate.now()) }
     var receiptUri by remember { mutableStateOf<String?>(null) }
     var showCategoryDialog by remember { mutableStateOf(false) }
+    var calculatorMode by remember { mutableIntStateOf(0) }
     val receiptPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
@@ -629,7 +633,7 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
         onAddCategory(it); category = it.name; showCategoryDialog = false
     }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        AppHeader("Add Expense")
+        AppHeader("Add Expense", onCalculator = { calculatorMode = if (calculatorMode == 0) 1 else 0 })
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -696,6 +700,120 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
             shape = RoundedCornerShape(16.dp),
             enabled = amount.isNotBlank()
         ) { Text(if (isIncome) "Save Income" else "Save Expense", fontWeight = FontWeight.Bold) }
+    }
+    if (calculatorMode == 1) {
+        androidx.compose.ui.window.Popup(
+            alignment = Alignment.BottomEnd,
+            offset = androidx.compose.ui.unit.IntOffset(-24, -190),
+            onDismissRequest = { calculatorMode = 0 }
+        ) {
+            CalculatorWidget(
+                compact = true,
+                onClose = { calculatorMode = 0 },
+                onResize = { calculatorMode = 2 },
+                onUseResult = { amount = it }
+            )
+        }
+    }
+    if (calculatorMode == 2) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { calculatorMode = 1 }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                CalculatorWidget(
+                    compact = false,
+                    onClose = { calculatorMode = 0 },
+                    onResize = { calculatorMode = 1 },
+                    onUseResult = { amount = it; calculatorMode = 1 }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalculatorWidget(
+    compact: Boolean,
+    onClose: () -> Unit,
+    onResize: () -> Unit,
+    onUseResult: (String) -> Unit
+) {
+    var display by remember { mutableStateOf("0") }
+    var stored by remember { mutableDoubleStateOf(0.0) }
+    var operation by remember { mutableStateOf<String?>(null) }
+    var replaceDisplay by remember { mutableStateOf(false) }
+
+    fun formatted(value: Double): String =
+        if (value % 1.0 == 0.0) value.toLong().toString() else String.format(Locale.US, "%.2f", value).trimEnd('0').trimEnd('.')
+
+    fun calculate() {
+        val current = display.toDoubleOrNull() ?: 0.0
+        val result = when (operation) {
+            "+" -> stored + current
+            "-" -> stored - current
+            "×" -> stored * current
+            "÷" -> if (current == 0.0) 0.0 else stored / current
+            else -> current
+        }
+        display = formatted(result)
+        stored = result
+        operation = null
+        replaceDisplay = true
+    }
+
+    fun press(value: String) {
+        when (value) {
+            "C" -> { display = "0"; stored = 0.0; operation = null; replaceDisplay = false }
+            "⌫" -> display = if (display.length > 1) display.dropLast(1) else "0"
+            "+", "-", "×", "÷" -> {
+                if (operation != null && !replaceDisplay) calculate()
+                stored = display.toDoubleOrNull() ?: 0.0
+                operation = value
+                replaceDisplay = true
+            }
+            "=" -> calculate()
+            "." -> {
+                if (replaceDisplay) { display = "0."; replaceDisplay = false }
+                else if (!display.contains(".")) display += "."
+            }
+            else -> {
+                display = if (replaceDisplay || display == "0") value else display + value
+                replaceDisplay = false
+            }
+        }
+    }
+
+    Card(
+        modifier = if (compact) Modifier.width(270.dp) else Modifier.fillMaxWidth().widthIn(max = 440.dp).padding(20.dp),
+        shape = RoundedCornerShape(if (compact) 22.dp else 28.dp),
+        elevation = CardDefaults.cardElevation(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(if (compact) 12.dp else 20.dp), verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Calculate, null, tint = Blue)
+                Text(" Calculator", Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
+                IconButton(onClick = onResize, modifier = Modifier.size(34.dp)) { Icon(if (compact) Icons.Default.OpenInFull else Icons.Default.CloseFullscreen, if (compact) "Expand" else "Minimize") }
+                IconButton(onClick = onClose, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Close, "Close") }
+            }
+            Surface(Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), color = Soft) {
+                Text(display, Modifier.padding(horizontal = 14.dp, vertical = if (compact) 12.dp else 20.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontSize = if (compact) 25.sp else 38.sp, fontWeight = FontWeight.ExtraBold, color = Ink, maxLines = 1)
+            }
+            val keys = listOf(listOf("C", "⌫", "÷"), listOf("7", "8", "9", "×"), listOf("4", "5", "6", "-"), listOf("1", "2", "3", "+"), listOf("0", ".", "="))
+            keys.forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 9.dp)) {
+                    row.forEach { key ->
+                        FilledTonalButton(
+                            onClick = { press(key) },
+                            modifier = Modifier.weight(1f).height(if (compact) 38.dp else 54.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(containerColor = if (key in listOf("+", "-", "×", "÷", "=")) Blue else Soft, contentColor = if (key in listOf("+", "-", "×", "÷", "=")) Color.White else Ink)
+                        ) { Text(key, fontWeight = FontWeight.Bold, fontSize = if (compact) 14.sp else 18.sp) }
+                    }
+                }
+            }
+            Button(onClick = { onUseResult(display.substringBefore(".")) }, Modifier.fillMaxWidth().height(if (compact) 40.dp else 50.dp)) {
+                Text("Use as amount")
+            }
+        }
     }
 }
 
