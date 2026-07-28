@@ -100,6 +100,30 @@ function getScopedItem(ownerId: string, key: string) {
   return window.localStorage.getItem(scopedStorageKey(ownerId, key));
 }
 
+function mergeItemsById<T extends { id: number }>(cloud: T[], local: T[]) {
+  const merged = new Map<number, T>();
+  cloud.forEach((item) => merged.set(item.id, item));
+  local.forEach((item) => merged.set(item.id, item));
+  return Array.from(merged.values());
+}
+
+function readLegacyItems<T>(key: string): T[] {
+  const candidates = [window.localStorage.getItem(key), window.localStorage.getItem(scopedStorageKey(STORAGE_OWNER_GUEST, key))];
+  const items: T[] = [];
+
+  for (const saved of candidates) {
+    if (!saved) continue;
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) items.push(...parsed);
+    } catch {
+      // Ignore an invalid legacy value and keep the valid account data.
+    }
+  }
+
+  return items;
+}
+
 export function FinanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const { loading: authLoading, user } = useAuth();
   const canSyncSupabase = false as boolean;
@@ -184,12 +208,29 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         if (cancelled) return;
 
         if (cloud) {
+          const legacyEntries = readLegacyItems<Entry>(STORAGE_KEY);
+          const legacyRecurring = readLegacyItems<RecurringExpense>(RECURRING_STORAGE_KEY);
+          const legacyReminders = readLegacyItems<Reminder>(REMINDER_STORAGE_KEY);
+          const legacyCategories = readLegacyItems<string>(CATEGORY_STORAGE_KEY);
+          const mergedEntries = mergeItemsById(cloud.entries, [...legacyEntries, ...entries]);
+          const mergedRecurring = mergeItemsById(cloud.recurringExpenses, [...legacyRecurring, ...recurringExpenses]);
+          const mergedReminders = mergeItemsById(cloud.reminders, [...legacyReminders, ...reminders]);
+          const mergedCategories = Array.from(new Set([...cloud.categories, ...legacyCategories, ...categories])).filter(Boolean);
+          const mergedHiddenDates = Array.from(new Set([...cloud.hiddenSummaryDates, ...hiddenSummaryDates]));
+
           skipNextCloudSave.current = true;
-          setEntries(cloud.entries);
-          setCategories(cloud.categories.length > 0 ? cloud.categories : initialCategories);
-          setHiddenSummaryDates(cloud.hiddenSummaryDates);
-          setRecurringExpenses(cloud.recurringExpenses);
-          setReminders(cloud.reminders);
+          setEntries(mergedEntries);
+          setCategories(mergedCategories.length > 0 ? mergedCategories : initialCategories);
+          setHiddenSummaryDates(mergedHiddenDates);
+          setRecurringExpenses(mergedRecurring);
+          setReminders(mergedReminders);
+          await saveCloudFinance(user!.id, {
+            entries: mergedEntries,
+            categories: mergedCategories,
+            hiddenSummaryDates: mergedHiddenDates,
+            recurringExpenses: mergedRecurring,
+            reminders: mergedReminders,
+          });
         } else {
           const hasLocalUserData =
             entries.length > 0 || recurringExpenses.length > 0 || reminders.length > 0 || hiddenSummaryDates.length > 0;
