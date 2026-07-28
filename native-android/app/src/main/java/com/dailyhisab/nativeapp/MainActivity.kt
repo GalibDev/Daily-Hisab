@@ -18,6 +18,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
@@ -223,12 +225,21 @@ private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null) {
 
 @Composable
 private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
-    val spent = expenses.filterNot { it.income }.sumOf { it.amount }
+    val today = LocalDate.now()
+    val currentMonth = YearMonth.from(today)
+    val monthEntries = expenses.filter { item ->
+        runCatching { YearMonth.from(LocalDate.parse(item.date)) == currentMonth }.getOrDefault(false)
+    }
+    val todaySpent = expenses.filter { !it.income && it.date == today.toString() }.sumOf { it.amount }
+    val monthSpent = monthEntries.filterNot { it.income }.sumOf { it.amount }
+    val monthIncome = monthEntries.filter { it.income }.sumOf { it.amount }
+    val allSpent = expenses.filterNot { it.income }.sumOf { it.amount }
+    val dailyAverage = monthSpent / today.dayOfMonth.coerceAtLeast(1)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { AppHeader(subtitle = "Your Daily Expense Tracker") }
         item {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                BalanceHero(spent)
+                HomeHeroPager(todaySpent, monthSpent, allSpent, dailyAverage, monthIncome)
                 Text("Quick Add", fontWeight = FontWeight.Bold, color = Ink)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     QuickAction("Expense", Icons.Default.ShoppingBag, Red) { onNavigate(Screen.Add) }
@@ -236,7 +247,7 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
                     QuickAction("Categories", Icons.Default.GridView, Color(0xFF7C3AED)) { onNavigate(Screen.Categories) }
                     QuickAction("Budget", Icons.Default.AccountBalance, Muted) { onNavigate(Screen.Budget) }
                 }
-                MonthOverview(spent)
+                MonthOverviewLive(monthEntries)
                 Row(
                     Modifier.fillMaxWidth().clickable { onNavigate(Screen.Entries) },
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -251,7 +262,77 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
 }
 
 @Composable
-private fun BalanceHero(spent: Int) {
+private fun HomeHeroPager(todaySpent: Int, monthSpent: Int, allSpent: Int, dailyAverage: Int, monthIncome: Int) {
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().height(190.dp), pageSpacing = 12.dp) { page ->
+            if (page == 0) TodayExpenseHero(todaySpent, monthSpent, allSpent, dailyAverage)
+            else BalanceHeroLive(monthIncome, monthSpent)
+        }
+        Spacer(Modifier.height(9.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(2) { page ->
+                Box(Modifier.width(if (pagerState.currentPage == page) 22.dp else 7.dp).height(7.dp).background(if (pagerState.currentPage == page) Blue else Muted.copy(.3f), CircleShape))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayExpenseHero(todaySpent: Int, monthSpent: Int, allSpent: Int, dailyAverage: Int) {
+    Card(
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(8.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF4C1D95), Color(0xFF7C3AED), Color(0xFF9333EA)))).padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("TODAY'S EXPENSE", color = Color.White.copy(.72f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("৳ $todaySpent", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            HorizontalDivider(color = Color.White.copy(.18f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                HeroMetric("This Month", "৳ $monthSpent", Color.White)
+                HeroMetric("All Expense", "৳ $allSpent", Color.White)
+                HeroMetric("Daily Average", "৳ $dailyAverage", Color(0xFFFFD166))
+            }
+        }
+    }
+}
+
+@Composable
+private fun BalanceHeroLive(income: Int, spent: Int) {
+    Card(
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(8.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Navy, Blue, Color(0xFF1949C6)))).padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("${YearMonth.now().format(DateTimeFormatter.ofPattern("MMMM yyyy"))} • Monthly Summary", color = Color.White.copy(.78f), fontSize = 12.sp)
+                Text("Wallet Balance", color = Color.White.copy(.78f), fontSize = 12.sp)
+            }
+            Text("৳ ${income - spent}", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+            HorizontalDivider(color = Color.White.copy(.16f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                HeroMetric("Income", "৳ $income", Green)
+                HeroMetric("Expense", "৳ $spent", Color(0xFFFF7A7A))
+                HeroMetric("Savings", "৳ ${income - spent}", Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BalanceHero(income: Int, spent: Int) {
     Card(
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -290,6 +371,31 @@ private fun QuickAction(label: String, icon: ImageVector, color: Color, onClick:
         }
         Spacer(Modifier.height(6.dp))
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+    }
+}
+
+@Composable
+private fun MonthOverviewLive(entries: List<Expense>) {
+    val spent = entries.filterNot { it.income }.sumOf { it.amount }
+    val categories = entries.filterNot { it.income }.groupBy { it.category }
+        .mapValues { (_, items) -> items.sumOf { it.amount } }
+        .toList().sortedByDescending { it.second }.take(4)
+    val colors = listOf(Orange, Color(0xFF8B5CF6), Green, Red)
+    AppCard {
+        SectionTitle("This Month Overview", YearMonth.now().format(DateTimeFormatter.ofPattern("MMMM yyyy")))
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(116.dp).background(Brush.sweepGradient(colors + Orange), CircleShape), contentAlignment = Alignment.Center) {
+                Surface(Modifier.size(78.dp), CircleShape, color = Color.White) {
+                    Box(contentAlignment = Alignment.Center) { Text("৳ $spent\nTotal", fontWeight = FontWeight.Bold, color = Ink) }
+                }
+            }
+            Spacer(Modifier.width(18.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (categories.isEmpty()) Text("No expenses this month", color = Muted, fontSize = 12.sp)
+                categories.forEachIndexed { index, (name, amount) -> Legend(name, "৳ $amount", colors[index]) }
+            }
+        }
     }
 }
 
