@@ -10,7 +10,6 @@ interface InstallPromptEvent extends Event {
 export function PwaInstall() {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showIosHelp, setShowIosHelp] = useState(false);
-  const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -25,66 +24,45 @@ export function PwaInstall() {
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
     if (isIos && !dismissed) {
       setShowIosHelp(true);
-      setHidden(false);
+      window.dispatchEvent(new CustomEvent("daily-hisab:pwa-status", { detail: { available: true, ios: true } }));
     }
 
     function handleInstallPrompt(event: Event) {
       event.preventDefault();
       setInstallPrompt(event as InstallPromptEvent);
-      if (!dismissed) setHidden(false);
+      if (!dismissed) {
+        window.dispatchEvent(new CustomEvent("daily-hisab:pwa-status", { detail: { available: true, ios: false } }));
+      }
     }
 
     function handleInstalled() {
-      setHidden(true);
       setInstallPrompt(null);
+      window.dispatchEvent(new CustomEvent("daily-hisab:pwa-status", { detail: { available: false, ios: false } }));
+    }
+
+    async function handleInstallRequest() {
+      if (installPrompt) {
+        await installPrompt.prompt();
+        const choice = await installPrompt.userChoice;
+        if (choice.outcome === "accepted") {
+          window.dispatchEvent(new CustomEvent("daily-hisab:pwa-status", { detail: { available: false, ios: false } }));
+        }
+        setInstallPrompt(null);
+      } else if (isIos) {
+        window.alert("Safari-এর Share বাটন চাপুন, তারপর “Add to Home Screen” নির্বাচন করুন।");
+      }
     }
 
     window.addEventListener("beforeinstallprompt", handleInstallPrompt);
     window.addEventListener("appinstalled", handleInstalled);
+    window.addEventListener("daily-hisab:pwa-install", handleInstallRequest);
     return () => {
       window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
+      window.removeEventListener("daily-hisab:pwa-install", handleInstallRequest);
     };
-  }, []);
+  }, [installPrompt]);
 
-  async function install() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === "accepted") setHidden(true);
-    setInstallPrompt(null);
-  }
-
-  function dismiss() {
-    window.localStorage.setItem("daily-hisab.pwa-install-dismissed", "1");
-    setHidden(true);
-  }
-
-  if (hidden || (!installPrompt && !showIosHelp)) return null;
-
-  return (
-    <aside className="fixed inset-x-3 bottom-3 z-[110] mx-auto max-w-md rounded-2xl border border-[#d9def5] bg-white p-4 shadow-2xl">
-      <div className="flex items-start gap-3">
-        <img src="/icon-192.png" alt="" className="size-12 rounded-xl" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-extrabold text-[#111936]">Daily Hisab ফোনে ইনস্টল করুন</p>
-          <p className="mt-1 text-xs leading-5 text-[#59627a]">
-            {showIosHelp
-              ? "Safari-এর Share বাটন চাপুন, তারপর “Add to Home Screen” নির্বাচন করুন।"
-              : "Home Screen থেকে অ্যাপের মতো দ্রুত ব্যবহার করুন।"}
-          </p>
-        </div>
-      </div>
-      <div className="mt-3 flex gap-2">
-        {installPrompt && (
-          <button type="button" onClick={install} className="flex-1 rounded-xl bg-[#11298f] px-3 py-2 text-xs font-bold text-white">
-            Install App
-          </button>
-        )}
-        <button type="button" onClick={dismiss} className="rounded-xl border border-[#d9def5] px-3 py-2 text-xs font-bold text-[#59627a]">
-          পরে
-        </button>
-      </div>
-    </aside>
-  );
+  void showIosHelp;
+  return null;
 }

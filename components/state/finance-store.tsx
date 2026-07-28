@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import {
   categories as initialCategories,
@@ -25,6 +25,7 @@ import {
   type EntryInput,
 } from "@/lib/supabase/finance";
 import type { Entry, RecurringExpense, Reminder } from "@/types";
+import { loadCloudFinance, saveCloudFinance } from "@/lib/firebase/user-data";
 
 const STORAGE_KEY = "daily-hisab.entries.v1";
 const CATEGORY_STORAGE_KEY = "daily-hisab.categories.v1";
@@ -110,6 +111,8 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
   const [hydrated, setHydrated] = useState(false);
   const [activeStorageOwner, setActiveStorageOwner] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [cloudReadyOwner, setCloudReadyOwner] = useState<string | null>(null);
+  const skipNextCloudSave = useRef(false);
   const storageOwner = user?.id ?? STORAGE_OWNER_GUEST;
 
   useEffect(() => {
@@ -172,6 +175,58 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
   }, [authLoading, user]);
 
   useEffect(() => {
+    if (authLoading || !user || !hydrated || activeStorageOwner !== user.id) return;
+    let cancelled = false;
+
+    async function initializeCloud() {
+      try {
+        const cloud = await loadCloudFinance(user!.id);
+        if (cancelled) return;
+
+        if (cloud) {
+          skipNextCloudSave.current = true;
+          setEntries(cloud.entries);
+          setCategories(cloud.categories.length > 0 ? cloud.categories : initialCategories);
+          setHiddenSummaryDates(cloud.hiddenSummaryDates);
+          setRecurringExpenses(cloud.recurringExpenses);
+          setReminders(cloud.reminders);
+        } else {
+          const hasLocalUserData =
+            entries.length > 0 || recurringExpenses.length > 0 || reminders.length > 0 || hiddenSummaryDates.length > 0;
+          if (hasLocalUserData) {
+            await saveCloudFinance(user!.id, { entries, categories, hiddenSummaryDates, recurringExpenses, reminders });
+          }
+        }
+        setCloudReadyOwner(user!.id);
+        setSyncError(null);
+      } catch (error: unknown) {
+        if (!cancelled) setSyncError(error instanceof Error ? error.message : "Cloud sync failed");
+      }
+    }
+
+    void initializeCloud();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeStorageOwner, authLoading, hydrated, user?.id]);
+
+  useEffect(() => {
+    if (!user || cloudReadyOwner !== user.id || activeStorageOwner !== user.id) return;
+    if (skipNextCloudSave.current) {
+      skipNextCloudSave.current = false;
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      saveCloudFinance(user.id, { entries, categories, hiddenSummaryDates, recurringExpenses, reminders })
+        .then(() => setSyncError(null))
+        .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Cloud sync failed"));
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [activeStorageOwner, categories, cloudReadyOwner, entries, hiddenSummaryDates, recurringExpenses, reminders, user]);
+
+  useEffect(() => {
     if (hydrated && activeStorageOwner === storageOwner && !authLoading) {
       window.localStorage.setItem(scopedStorageKey(storageOwner, STORAGE_KEY), JSON.stringify(entries));
       window.localStorage.setItem(scopedStorageKey(storageOwner, CATEGORY_STORAGE_KEY), JSON.stringify(categories));
@@ -206,7 +261,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       hiddenSummaryDates,
       recurringExpenses,
       reminders,
-      syncEnabled: Boolean(user && canSyncSupabase && !syncError),
+      syncEnabled: Boolean(user && cloudReadyOwner === user.id && !syncError),
       syncError,
       addEntry: (entry) => {
         const optimistic = { ...entry, id: Date.now(), time: currentTime() };

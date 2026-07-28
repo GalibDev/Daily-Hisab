@@ -70,6 +70,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const { entries } = useFinance();
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [pwaInstall, setPwaInstall] = useState({ available: false, ios: false });
   const [localProfileName, setLocalProfileName] = useState(() => typeof window === "undefined" ? "Guest User" : window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
   const today = getTodayIso();
@@ -112,6 +114,20 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    function handlePwaStatus(event: Event) {
+      const detail = (event as CustomEvent<{ available: boolean; ios: boolean }>).detail;
+      if (detail) setPwaInstall(detail);
+    }
+    window.addEventListener("daily-hisab:pwa-status", handlePwaStatus);
+    return () => window.removeEventListener("daily-hisab:pwa-status", handlePwaStatus);
+  }, []);
+
+  function requestPwaInstall() {
+    window.dispatchEvent(new Event("daily-hisab:pwa-install"));
+    setNotificationOpen(false);
+  }
 
   const drawerGroups = [
     {
@@ -253,10 +269,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[26px] leading-9 text-[#111936] sm:text-[28px]" : pathname === "/backup-restore" || pathname === "/categories" || pathname === "/reports" ? "text-lg leading-7 text-[#111936] sm:text-2xl sm:leading-8" : "text-sm")}>{mobileTitle}</h1>
               </div>
             )}
-            <Link href={mobileActionHref} aria-label={mobileActionLabel} onClick={(event) => { if (pathname === "/categories") { event.preventDefault(); document.getElementById("add-category")?.click(); } }} className={cn("relative grid size-11 place-items-center rounded-lg text-[#111936]", pathname === "/categories" && "bg-[#11298f] text-white shadow-[0_10px_20px_rgba(17,41,143,0.22)]")}>
+            {isHome ? (
+              <button type="button" aria-label="Notifications" onClick={() => setNotificationOpen((open) => !open)} className="relative grid size-11 place-items-center rounded-lg text-[#111936]">
+                <Bell size={19} />
+                {pwaInstall.available && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
+              </button>
+            ) : <Link href={mobileActionHref} aria-label={mobileActionLabel} onClick={(event) => { if (pathname === "/categories") { event.preventDefault(); document.getElementById("add-category")?.click(); } }} className={cn("relative grid size-11 place-items-center rounded-lg text-[#111936]", pathname === "/categories" && "bg-[#11298f] text-white shadow-[0_10px_20px_rgba(17,41,143,0.22)]")}>
               {pathname === "/backup-restore" ? <Info size={24} /> : pathname === "/calendar" || pathname === "/reports" ? <CalendarDays size={20} /> : pathname === "/budget" || pathname === "/reminders" || pathname === "/categories" ? <Plus size={21} /> : <Bell size={19} />}
               {pathname !== "/budget" && pathname !== "/reminders" && pathname !== "/calendar" && pathname !== "/categories" && pathname !== "/backup-restore" && pathname !== "/reports" && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
-            </Link>
+            </Link>}
           </div>
 
           <div className="hidden items-center gap-4 lg:flex">
@@ -271,9 +292,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             <button className="hidden h-12 items-center gap-3 rounded-xl border border-[#ece8ff] bg-white px-4 text-sm font-semibold md:flex">
               <CalendarDays size={18} /> {displayDateLong(today)}
             </button>
-            <button className="relative grid size-11 place-items-center rounded-xl bg-white shadow-sm">
+            <button type="button" onClick={() => setNotificationOpen((open) => !open)} className="relative grid size-11 place-items-center rounded-xl bg-white shadow-sm">
               <Bell size={19} />
-              <span className="absolute right-2 top-2 grid size-4 place-items-center rounded-full bg-[#EF4444] text-[10px] text-white">3</span>
+              {pwaInstall.available && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-[#EF4444]" />}
             </button>
             <div className="hidden items-center gap-3 md:flex">
               <div className="relative grid size-11 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
@@ -287,6 +308,25 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </div>
           </div>
         </header>
+        {notificationOpen && (
+          <div className="fixed right-4 top-[72px] z-[90] w-[min(360px,calc(100vw-2rem))] rounded-2xl border border-[#dfe3f5] bg-white p-3 shadow-2xl lg:right-8 lg:top-[82px]">
+            <div className="flex items-center justify-between px-2 py-1">
+              <strong className="text-sm text-[#111936]">Notifications</strong>
+              <button type="button" onClick={() => setNotificationOpen(false)} className="text-xs font-bold text-[#59627a]">Close</button>
+            </div>
+            {pwaInstall.available ? (
+              <button type="button" onClick={requestPwaInstall} className="mt-2 flex w-full items-center gap-3 rounded-xl bg-[#f2f4ff] p-3 text-left">
+                <img src="/icon-192.png" alt="" className="size-11 rounded-xl" />
+                <span>
+                  <strong className="block text-sm text-[#111936]">Install Daily Hisab</strong>
+                  <small className="text-xs text-[#59627a]">{pwaInstall.ios ? "Add to iPhone Home Screen" : "Use it like a mobile app"}</small>
+                </span>
+              </button>
+            ) : (
+              <p className="p-4 text-center text-xs font-semibold text-[#69718a]">No new notifications</p>
+            )}
+          </div>
+        )}
         <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">{children}</div>
       </main>
 

@@ -5,6 +5,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
 import { getTodayIso } from "@/lib/utils";
 import type { WalletSource } from "@/types";
+import { loadCloudWallet, saveCloudWallet } from "@/lib/firebase/user-data";
 
 type WalletDeposit = { id: number; wallet: WalletSource; amount: number; note: string; date: string };
 type WalletStore = {
@@ -36,6 +37,7 @@ export function WalletProvider({ children }: Readonly<{ children: React.ReactNod
   const [deposits, setDeposits] = useState<WalletDeposit[]>([]);
   const [walletSettings, setWalletSettings] = useState({ personal: true, family: false });
   const [activeOwner, setActiveOwner] = useState("");
+  const [cloudReadyOwner, setCloudReadyOwner] = useState("");
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -51,6 +53,38 @@ export function WalletProvider({ children }: Readonly<{ children: React.ReactNod
       setActiveOwner(owner);
     });
   }, [owner]);
+
+  useEffect(() => {
+    if (!user || activeOwner !== user.id) return;
+    let cancelled = false;
+
+    loadCloudWallet(user.id)
+      .then(async (cloud) => {
+        if (cancelled) return;
+        if (cloud) {
+          setDeposits(cloud.deposits);
+          setWalletSettings(cloud.settings);
+        } else if (deposits.length > 0) {
+          await saveCloudWallet(user.id, { deposits, settings: walletSettings });
+        }
+        if (!cancelled) setCloudReadyOwner(user.id);
+      })
+      .catch(() => {
+        // Local wallet data remains available if the network is offline.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOwner, user?.id]);
+
+  useEffect(() => {
+    if (!user || cloudReadyOwner !== user.id || activeOwner !== user.id) return;
+    const timer = window.setTimeout(() => {
+      void saveCloudWallet(user.id, { deposits, settings: walletSettings });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [activeOwner, cloudReadyOwner, deposits, user, walletSettings]);
 
   useEffect(() => {
     if (activeOwner === owner) {
