@@ -7,4 +7,9 @@
         <item name="android:navigationBarColor">#FFFFFF</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="Theme.DailyHisab.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#07194E</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_daily_hisab</item>
+        <item name="postSplashScreenTheme">@style/Theme.DailyHisab</item>
+    </style>
 </resources>

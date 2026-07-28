@@ -1,8 +1,12 @@
 package com.dailyhisab.nativeapp
 
+import android.Manifest
 import android.os.Bundle
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +33,7 @@ import com.dailyhisab.nativeapp.data.NoteEntity
 import com.dailyhisab.nativeapp.data.RecurringEntity
 import com.dailyhisab.nativeapp.data.ReminderEntity
 import com.dailyhisab.nativeapp.data.TransactionEntity
+import com.dailyhisab.nativeapp.notifications.ReminderWorker
 import kotlinx.coroutines.launch
 
 private val Navy = Color(0xFF07194E)
@@ -54,7 +59,11 @@ enum class Screen { Home, Reports, Add, Entries, Categories, Budget, Calendar, P
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         setContent { DailyHisabApp() }
     }
 }
@@ -137,7 +146,10 @@ fun DailyHisabApp() {
                     )
                     Screen.Reminders -> RemindersScreen(
                         reminders,
-                        onAdd = { scope.launch { reminderDao.insert(it) } },
+                        onAdd = {
+                            scope.launch { reminderDao.insert(it) }
+                            ReminderWorker.schedule(context, it.title, it.date, it.time)
+                        },
                         onToggle = { item -> scope.launch { reminderDao.setCompleted(item.id, !item.completed) } },
                         onDelete = { scope.launch { reminderDao.delete(it) } }
                     )
