@@ -5,12 +5,19 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Daily Hisab – দৈনিক হিসাব",
     short_name: "Daily Hisab",
     description: "দৈনিক আয়-ব্যয়, বাজেট ও খরচের হিসাব রাখার বাংলা অ্যাপ।",
+    id: "/",
     start_url: "/",
+    scope: "/",
     display: "standalone",
+    orientation: "portrait-primary",
     background_color: "#f8f7ff",
     theme_color: "#11298f",
     lang: "bn-BD",
     categories: ["finance", "productivity", "utilities"],
-    icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
+    icons: [
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
   };
 }

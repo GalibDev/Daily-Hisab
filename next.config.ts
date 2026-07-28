@@ -31,10 +31,19 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    return privateRoutes.map((source) => ({
+    return [
+      ...privateRoutes.map((source) => ({
       source,
       headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-    }));
+      })),
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
   },
 };
 
