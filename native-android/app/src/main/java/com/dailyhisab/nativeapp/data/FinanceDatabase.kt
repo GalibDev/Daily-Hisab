@@ -51,6 +51,15 @@ data class NoteEntity(
     val pinned: Boolean = false
 )
 
+@Entity(tableName = "receipts")
+data class ReceiptEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val uri: String,
+    val title: String,
+    val amount: Int = 0,
+    val createdAt: String
+)
+
 @Dao
 interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
@@ -91,9 +100,17 @@ interface NoteDao {
     @Delete suspend fun delete(item: NoteEntity)
 }
 
+@Dao
+interface ReceiptDao {
+    @Query("SELECT * FROM receipts ORDER BY id DESC")
+    fun observeAll(): Flow<List<ReceiptEntity>>
+    @Insert suspend fun insert(item: ReceiptEntity)
+    @Delete suspend fun delete(item: ReceiptEntity)
+}
+
 @Database(
-    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class],
-    version = 2,
+    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -101,6 +118,7 @@ abstract class FinanceDatabase : RoomDatabase() {
     abstract fun recurringDao(): RecurringDao
     abstract fun reminderDao(): ReminderDao
     abstract fun noteDao(): NoteDao
+    abstract fun receiptDao(): ReceiptDao
 
     companion object {
         @Volatile private var instance: FinanceDatabase? = null

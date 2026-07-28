@@ -1,6 +1,10 @@
 package com.dailyhisab.nativeapp
 
 import android.Manifest
+import android.content.Intent
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.net.Uri
 import android.os.Bundle
 import android.os.Build
 import androidx.activity.ComponentActivity
@@ -23,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,9 +37,12 @@ import com.dailyhisab.nativeapp.data.FinanceDatabase
 import com.dailyhisab.nativeapp.data.NoteEntity
 import com.dailyhisab.nativeapp.data.RecurringEntity
 import com.dailyhisab.nativeapp.data.ReminderEntity
+import com.dailyhisab.nativeapp.data.ReceiptEntity
 import com.dailyhisab.nativeapp.data.TransactionEntity
 import com.dailyhisab.nativeapp.notifications.ReminderWorker
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 
 private val Navy = Color(0xFF07194E)
 private val Blue = Color(0xFF11298F)
@@ -55,7 +63,7 @@ data class Expense(
     val income: Boolean = false,
     val note: String = ""
 )
-enum class Screen { Home, Reports, Add, Entries, Categories, Budget, Calendar, Profile, Recurring, Reminders, Notes }
+enum class Screen { Home, Reports, Add, Entries, Categories, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +89,8 @@ fun DailyHisabApp() {
     val recurringItems by recurringDao.observeAll().collectAsState(initial = emptyList())
     val reminders by reminderDao.observeAll().collectAsState(initial = emptyList())
     val notes by noteDao.observeAll().collectAsState(initial = emptyList())
+    val receiptDao = remember { FinanceDatabase.get(context).receiptDao() }
+    val receipts by receiptDao.observeAll().collectAsState(initial = emptyList())
     val expenses = storedTransactions.map {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
     }
@@ -159,6 +169,13 @@ fun DailyHisabApp() {
                         onPin = { item -> scope.launch { noteDao.setPinned(item.id, !item.pinned) } },
                         onDelete = { scope.launch { noteDao.delete(it) } }
                     )
+                    Screen.Receipts -> ReceiptsScreen(
+                        receipts,
+                        onAdd = { scope.launch { receiptDao.insert(it) } },
+                        onDelete = { scope.launch { receiptDao.delete(it) } }
+                    )
+                    Screen.Settings -> SettingsScreen()
+                    Screen.Backup -> BackupScreen(expenses, recurringItems, reminders, notes)
                 }
             }
         }
@@ -739,6 +756,168 @@ private fun AddItemDialog(
 }
 
 @Composable
+private fun ReceiptsScreen(receipts: List<ReceiptEntity>, onAdd: (ReceiptEntity) -> Unit, onDelete: (ReceiptEntity) -> Unit) {
+    val context = LocalContext.current
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            onAdd(ReceiptEntity(uri = uri.toString(), title = "Receipt ${receipts.size + 1}", createdAt = "Jul 28, 2026"))
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Receipts") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AppCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(Modifier.size(62.dp), RoundedCornerShape(18.dp), color = Blue.copy(.1f)) {
+                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.DocumentScanner, null, tint = Blue, modifier = Modifier.size(30.dp)) }
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Save your receipts", fontWeight = FontWeight.ExtraBold, color = Ink)
+                            Text("Select an image from your device", color = Muted, fontSize = 11.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = { picker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Icon(Icons.Default.AddPhotoAlternate, null); Text("Choose Receipt Image") }
+                }
+                SectionTitle("Receipt Gallery", "${receipts.size} saved")
+            }
+        }
+        items(receipts, key = { it.id }) { receipt ->
+            Card(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ReceiptThumbnail(receipt.uri)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(receipt.title, fontWeight = FontWeight.Bold, color = Ink)
+                        Text(receipt.createdAt, color = Muted, fontSize = 11.sp)
+                    }
+                    IconButton(onClick = { onDelete(receipt) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReceiptThumbnail(uriString: String) {
+    val context = LocalContext.current
+    val bitmap by produceState<android.graphics.Bitmap?>(initialValue = null, uriString) {
+        value = runCatching {
+            val uri = Uri.parse(uriString)
+            if (Build.VERSION.SDK_INT >= 28) {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+            } else {
+                context.contentResolver.openInputStream(uri).use(BitmapFactory::decodeStream)
+            }
+        }.getOrNull()
+    }
+    Surface(Modifier.size(64.dp), RoundedCornerShape(14.dp), color = Soft) {
+        if (bitmap != null) {
+            androidx.compose.foundation.Image(bitmap!!.asImageBitmap(), null, modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+        } else {
+            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.ReceiptLong, null, tint = Muted) }
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
+    var currency by remember { mutableStateOf(prefs.getString("currency", "BDT") ?: "BDT") }
+    var language by remember { mutableStateOf(prefs.getString("language", "English") ?: "English") }
+    var notifications by remember { mutableStateOf(prefs.getBoolean("notifications", true)) }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Settings") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Currency", fontWeight = FontWeight.Bold, color = Ink)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("BDT", "USD").forEachIndexed { index, value ->
+                        SegmentedButton(selected = currency == value, onClick = { currency = value; prefs.edit().putString("currency", value).apply() }, shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(value) }
+                    }
+                }
+                Text("Language", fontWeight = FontWeight.Bold, color = Ink)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("English", "বাংলা").forEachIndexed { index, value ->
+                        SegmentedButton(selected = language == value, onClick = { language = value; prefs.edit().putString("language", value).apply() }, shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(value) }
+                    }
+                }
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Notifications, null, tint = Orange)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) { Text("Notifications", fontWeight = FontWeight.Bold, color = Ink); Text("Expense and payment reminders", fontSize = 11.sp, color = Muted) }
+                        Switch(checked = notifications, onCheckedChange = { notifications = it; prefs.edit().putBoolean("notifications", it).apply() })
+                    }
+                }
+                Text("Settings are saved automatically on this device.", color = Muted, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackupScreen(
+    expenses: List<Expense>,
+    recurring: List<RecurringEntity>,
+    reminders: List<ReminderEntity>,
+    notes: List<NoteEntity>
+) {
+    val context = LocalContext.current
+    var status by remember { mutableStateOf("Ready to create a backup") }
+    val backupJson = remember(expenses, recurring, reminders, notes) {
+        JSONObject().apply {
+            put("version", 1)
+            put("createdAt", System.currentTimeMillis())
+            put("transactions", JSONArray().apply { expenses.forEach { put(JSONObject().put("title", it.title).put("category", it.category).put("amount", it.amount).put("date", it.date).put("time", it.time).put("income", it.income).put("note", it.note)) } })
+            put("recurring", JSONArray().apply { recurring.forEach { put(JSONObject().put("title", it.title).put("amount", it.amount).put("frequency", it.frequency).put("nextDueDate", it.nextDueDate)) } })
+            put("reminders", JSONArray().apply { reminders.forEach { put(JSONObject().put("title", it.title).put("date", it.date).put("time", it.time).put("completed", it.completed)) } })
+            put("notes", JSONArray().apply { notes.forEach { put(JSONObject().put("title", it.title).put("body", it.body).put("createdAt", it.createdAt).put("pinned", it.pinned)) } })
+        }.toString(2)
+    }
+    val createDocument = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(backupJson) } }
+                .onSuccess { status = "Backup saved successfully" }
+                .onFailure { status = "Backup failed: ${it.message}" }
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Backup & Restore") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AppCard {
+                    Icon(Icons.Default.CloudDone, null, tint = Green, modifier = Modifier.size(52.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text("Your offline data is ready", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Ink)
+                    Text(status, color = Muted)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { createDocument.launch("daily-hisab-backup.json") }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.CloudUpload, null); Text("Export Backup")
+                    }
+                }
+                AppCard {
+                    Text("Backup includes", fontWeight = FontWeight.Bold, color = Ink)
+                    Text("• ${expenses.size} transactions\n• ${recurring.size} recurring expenses\n• ${reminders.size} reminders\n• ${notes.size} notes", color = Muted, lineHeight = 24.sp)
+                }
+                Text("The JSON backup is saved to a location you choose and can be kept in Google Drive.", color = Muted, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProfileScreen(onNavigate: (Screen) -> Unit) {
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader("Settings & Profile") }
@@ -757,6 +936,11 @@ private fun ProfileScreen(onNavigate: (Screen) -> Unit) {
                     ToolShortcut("Recurring", Icons.Default.Repeat, Green, Modifier.weight(1f)) { onNavigate(Screen.Recurring) }
                     ToolShortcut("Reminders", Icons.Default.Alarm, Orange, Modifier.weight(1f)) { onNavigate(Screen.Reminders) }
                     ToolShortcut("Notes", Icons.Default.NoteAlt, Color(0xFF7C3AED), Modifier.weight(1f)) { onNavigate(Screen.Notes) }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ToolShortcut("Receipts", Icons.Default.ReceiptLong, Red, Modifier.weight(1f)) { onNavigate(Screen.Receipts) }
+                    ToolShortcut("Backup", Icons.Default.CloudUpload, Green, Modifier.weight(1f)) { onNavigate(Screen.Backup) }
+                    ToolShortcut("Settings", Icons.Default.Settings, Blue, Modifier.weight(1f)) { onNavigate(Screen.Settings) }
                 }
                 AppCard {
                     SettingsRow(Icons.Default.CurrencyExchange, "Currency", "Bangladeshi Taka (BDT)")
