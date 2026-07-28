@@ -4,6 +4,7 @@ import { FamilyAccessProvider } from "@/components/state/family-access-store";
 import { FinanceProvider } from "@/components/state/finance-store";
 import { ThemeProvider } from "@/components/state/theme-store";
 import { WalletProvider } from "@/components/state/wallet-store";
+import { LegacyDataMigration } from "@/components/state/legacy-data-migration";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
@@ -96,7 +97,10 @@ export default function RootLayout({
             <AuthProvider>
               <FinanceProvider>
                 <WalletProvider>
-                  <FamilyAccessProvider>{children}</FamilyAccessProvider>
+                  <FamilyAccessProvider>
+                    {children}
+                    <LegacyDataMigration />
+                  </FamilyAccessProvider>
                 </WalletProvider>
               </FinanceProvider>
             </AuthProvider>
