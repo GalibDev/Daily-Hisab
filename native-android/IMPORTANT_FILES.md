@@ -10,6 +10,7 @@ App-এর প্রধান UI ও navigation এখানে আছে।
 
 - Firebase Email/Password login
 - নতুন account তৈরি
+- Gmail/email verification link এবং verification gate
 - Google sign-in
 - Forgot password
 - Login session ধরে রাখা
@@ -20,6 +21,8 @@ App-এর প্রধান UI ও navigation এখানে আছে।
 - Calculator এবং expense edit/delete flow
 
 Login screen-এর প্রধান composable: `AuthScreen`
+
+Email verification screen-এর composable: `EmailVerificationScreen`
 
 App entry point: `MainActivity`
 

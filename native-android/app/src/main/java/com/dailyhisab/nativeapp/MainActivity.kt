@@ -47,6 +47,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.dailyhisab.nativeapp.data.FinanceDatabase
@@ -133,6 +134,7 @@ fun DailyHisabApp() {
     var selectedCategory by remember { mutableStateOf("") }
     val auth = remember { FirebaseAuth.getInstance() }
     var authUser by remember { mutableStateOf(auth.currentUser) }
+    var authRefresh by remember { mutableIntStateOf(0) }
     val expenses = storedTransactions.map {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
     }
@@ -154,7 +156,10 @@ fun DailyHisabApp() {
         }
     }
     DisposableEffect(auth) {
-        val listener = FirebaseAuth.AuthStateListener { authUser = it.currentUser }
+        val listener = FirebaseAuth.AuthStateListener {
+            authUser = it.currentUser
+            authRefresh++
+        }
         auth.addAuthStateListener(listener)
         onDispose { auth.removeAuthStateListener(listener) }
     }
@@ -164,6 +169,20 @@ fun DailyHisabApp() {
             colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFF9DB2FF), secondary = Orange) else lightColorScheme(primary = Blue, secondary = Orange, surface = Color.White, background = Soft)
         ) {
             AuthScreen(auth)
+        }
+        return
+    }
+
+    val emailVerified = authRefresh.let { authUser?.isEmailVerified == true }
+    if (!emailVerified) {
+        MaterialTheme(
+            colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFF9DB2FF), secondary = Orange) else lightColorScheme(primary = Blue, secondary = Orange, surface = Color.White, background = Soft)
+        ) {
+            EmailVerificationScreen(
+                user = authUser!!,
+                onVerified = { authRefresh++ },
+                onSignOut = { auth.signOut() }
+            )
         }
         return
     }
@@ -1773,6 +1792,7 @@ private fun AuthScreen(auth: FirebaseAuth) {
                             result.user?.updateProfile(
                                 UserProfileChangeRequest.Builder().setDisplayName(name.trim()).build()
                             )
+                            result.user?.sendEmailVerification()
                             loading = false
                         }
                         .addOnFailureListener { exception ->
@@ -1913,6 +1933,106 @@ private fun AuthScreen(auth: FirebaseAuth) {
                     ) { Text("Forgot password?") }
                 }
                 Spacer(Modifier.height(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmailVerificationScreen(
+    user: FirebaseUser,
+    onVerified: () -> Unit,
+    onSignOut: () -> Unit
+) {
+    var loading by remember { mutableStateOf(false) }
+    var message by remember {
+        mutableStateOf("We sent a verification link to ${user.email.orEmpty()}. Open Gmail and tap the link.")
+    }
+    var isError by remember { mutableStateOf(false) }
+
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(Color(0xFFF4F6FF), Color.White))
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(5.dp)
+        ) {
+            Column(
+                Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Surface(Modifier.size(70.dp), CircleShape, color = Blue.copy(.1f)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.MarkEmailUnread, null, tint = Blue, modifier = Modifier.size(38.dp))
+                    }
+                }
+                Text("Verify your email", color = Navy, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    message,
+                    color = if (isError) Red else Muted,
+                    fontSize = 14.sp
+                )
+                Button(
+                    onClick = {
+                        loading = true
+                        user.reload()
+                            .addOnSuccessListener {
+                                loading = false
+                                if (user.isEmailVerified) {
+                                    onVerified()
+                                } else {
+                                    isError = true
+                                    message = "Email is not verified yet. Open the email link, then check again."
+                                }
+                            }
+                            .addOnFailureListener {
+                                loading = false
+                                isError = true
+                                message = it.message ?: "Could not check verification. Try again."
+                            }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    enabled = !loading,
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    if (loading) CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+                    else {
+                        Icon(Icons.Default.Verified, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("I've verified — continue", fontWeight = FontWeight.Bold)
+                    }
+                }
+                OutlinedButton(
+                    onClick = {
+                        loading = true
+                        user.sendEmailVerification()
+                            .addOnSuccessListener {
+                                loading = false
+                                isError = false
+                                message = "A new verification email was sent to ${user.email.orEmpty()}."
+                            }
+                            .addOnFailureListener {
+                                loading = false
+                                isError = true
+                                message = it.message ?: "Could not resend the email. Try again later."
+                            }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !loading
+                ) {
+                    Icon(Icons.Default.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Resend verification email")
+                }
+                TextButton(onClick = onSignOut, enabled = !loading) {
+                    Text("Use another account")
+                }
             }
         }
     }
