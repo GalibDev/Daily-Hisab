@@ -22,7 +22,13 @@ export function LegacyDataMigration() {
 
     const entryKey = `daily-hisab.entries.v1.${user.id}`;
     const dismissedKey = `daily-hisab.legacy-migration-dismissed.${user.id}`;
-    const hasEntries = Boolean(window.localStorage.getItem(entryKey));
+    const savedEntries = window.localStorage.getItem(entryKey);
+    let hasEntries = false;
+    try {
+      hasEntries = savedEntries ? (JSON.parse(savedEntries) as unknown[]).length > 0 : false;
+    } catch {
+      hasEntries = false;
+    }
     setVisible(!hasEntries && window.localStorage.getItem(dismissedKey) !== "1");
   }, [loading, user]);
 
