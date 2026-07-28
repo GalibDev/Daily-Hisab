@@ -11,12 +11,12 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition active:scale-[0.98]",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition",
         variant === "primary" &&
-          "bg-[#11298f] text-white shadow-[0_10px_22px_rgba(17,41,143,0.24)] hover:bg-[#0b227f]",
+          "bg-[#6C4CF1] text-white shadow-[0_10px_22px_rgba(108,76,241,0.25)] hover:bg-[#5d3fe0]",
         variant === "outline" &&
-          "border border-[#d8dff2] bg-white text-[#11298f] hover:bg-[#f3f5ff]",
-        variant === "ghost" && "text-[#11298f] hover:bg-[#f3f5ff]",
+          "border border-[#d8d1ff] bg-white text-[#6C4CF1] hover:bg-[#f4f1ff]",
+        variant === "ghost" && "text-[#6C4CF1] hover:bg-[#f4f1ff]",
         className,
       )}
       {...props}

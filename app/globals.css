@@ -1,38 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f9ff;
-  --foreground: #111936;
-  --primary: #11298f;
-  --primary-strong: #07194e;
-  --accent: #f97316;
-  --success: #16a34a;
+  --background: #f8f7ff;
+  --foreground: #161421;
+  --primary: #6c4cf1;
+  --success: #22c55e;
   --danger: #ef4444;
   --warning: #f59e0b;
-  --surface: #ffffff;
-  --surface-soft: #f5f7ff;
-  --border: #e8ecf5;
 }
 
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html {
-  min-height: 100%;
-  background: var(--background);
-  overscroll-behavior-y: none;
 }
 
 body {
-  min-height: 100%;
   margin: 0;
-  background: var(--background);
+  background:
+    radial-gradient(circle at top right, rgba(108, 76, 241, 0.08), transparent 34rem),
+    var(--background);
   color: var(--foreground);
   font-family: "Inter", "Noto Sans Bengali", "Segoe UI", Arial, sans-serif;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -40,26 +27,6 @@ input,
 select,
 textarea {
   font: inherit;
-}
-
-button,
-a {
-  touch-action: manipulation;
-}
-
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid rgba(17, 41, 143, 0.2);
-  outline-offset: 2px;
-}
-
-@media (max-width: 1023px) {
-  body {
-    background: #fff;
-  }
 }
 
 .thin-scrollbar::-webkit-scrollbar {
