@@ -76,6 +76,31 @@ private val Red = Color(0xFFEF4444)
 private val Ink = Color(0xFF111936)
 private val Muted = Color(0xFF69718A)
 private val Soft = Color(0xFFF5F7FF)
+private var useBangla by mutableStateOf(false)
+
+private fun translated(text: String): String {
+    if (!useBangla) return text
+    return mapOf(
+        "Settings" to "সেটিংস",
+        "Reports" to "রিপোর্ট",
+        "Analytics" to "অ্যানালিটিক্স",
+        "Add Expense" to "খরচ যোগ করুন",
+        "All Expenses" to "সব খরচ",
+        "Categories" to "ক্যাটাগরি",
+        "Budget" to "বাজেট",
+        "Calendar" to "ক্যালেন্ডার",
+        "Profile" to "প্রোফাইল",
+        "Settings & Profile" to "সেটিংস ও প্রোফাইল",
+        "Recurring Expenses" to "নিয়মিত খরচ",
+        "Reminders" to "রিমাইন্ডার",
+        "Notes" to "নোট",
+        "Receipts" to "রসিদ",
+        "Backup & Restore" to "ব্যাকআপ ও রিস্টোর",
+        "Your Daily Expense Tracker" to "আপনার দৈনিক খরচের হিসাব",
+        "Home" to "হোম",
+        "Add" to "যোগ করুন"
+    )[text] ?: text
+}
 
 data class Expense(
     val id: Long = 0,
@@ -129,6 +154,9 @@ fun DailyHisabApp() {
     val categoryDao = remember { FinanceDatabase.get(context).categoryDao() }
     val categories by categoryDao.observeAll().collectAsState(initial = emptyList())
     val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
+    LaunchedEffect(Unit) {
+        useBangla = prefs.getString("language", "English") == "Bangla"
+    }
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     var profileName by remember { mutableStateOf(prefs.getString("profile_name", "Mirza Galib Palash") ?: "Mirza Galib Palash") }
     var profilePhoto by remember { mutableStateOf(prefs.getString("profile_photo", "") ?: "") }
@@ -286,8 +314,8 @@ private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null, o
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
-            subtitle?.let { Text(it, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Muted) }
+            Text(translated(title), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+            subtitle?.let { Text(translated(it), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Muted) }
         }
         if (onCalculator != null) {
             IconButton(onClick = onCalculator) { Icon(Icons.Default.Calculate, "Open calculator", tint = Blue) }
@@ -1578,29 +1606,39 @@ private fun SettingsScreen(darkMode: Boolean, onDarkModeChange: (Boolean) -> Uni
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
     var currency by remember { mutableStateOf(prefs.getString("currency", "BDT") ?: "BDT") }
-    var language by remember { mutableStateOf(prefs.getString("language", "English") ?: "English") }
     var notifications by remember { mutableStateOf(prefs.getBoolean("notifications", true)) }
+    val bangla = useBangla
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader("Settings") }
         item {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("Currency", fontWeight = FontWeight.Bold, color = Ink)
+                Text(if (bangla) "মুদ্রা" else "Currency", fontWeight = FontWeight.Bold, color = Ink)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("BDT", "USD").forEachIndexed { index, value ->
                         SegmentedButton(selected = currency == value, onClick = { currency = value; prefs.edit().putString("currency", value).apply() }, shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(value) }
                     }
                 }
-                Text("Language", fontWeight = FontWeight.Bold, color = Ink)
+                Text(if (bangla) "ভাষা" else "Language", fontWeight = FontWeight.Bold, color = Ink)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("English", "বাংলা").forEachIndexed { index, value ->
-                        SegmentedButton(selected = language == value, onClick = { language = value; prefs.edit().putString("language", value).apply() }, shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(value) }
+                    listOf(false to "English", true to "বাংলা").forEachIndexed { index, (isBangla, label) ->
+                        SegmentedButton(
+                            selected = bangla == isBangla,
+                            onClick = {
+                                useBangla = isBangla
+                                prefs.edit().putString("language", if (isBangla) "Bangla" else "English").apply()
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index, 2)
+                        ) { Text(label) }
                     }
                 }
                 AppCard {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Notifications, null, tint = Orange)
                         Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) { Text("Notifications", fontWeight = FontWeight.Bold, color = Ink); Text("Expense and payment reminders", fontSize = 11.sp, color = Muted) }
+                        Column(Modifier.weight(1f)) {
+                            Text(if (bangla) "নোটিফিকেশন" else "Notifications", fontWeight = FontWeight.Bold, color = Ink)
+                            Text(if (bangla) "খরচ ও পেমেন্টের রিমাইন্ডার" else "Expense and payment reminders", fontSize = 11.sp, color = Muted)
+                        }
                         Switch(checked = notifications, onCheckedChange = { notifications = it; prefs.edit().putBoolean("notifications", it).apply() })
                     }
                 }
@@ -1608,11 +1646,14 @@ private fun SettingsScreen(darkMode: Boolean, onDarkModeChange: (Boolean) -> Uni
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Icon(if (darkMode) Icons.Default.DarkMode else Icons.Default.LightMode, null, tint = Blue)
                         Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) { Text("Dark mode", fontWeight = FontWeight.Bold); Text("Switch between light and dark appearance", fontSize = 11.sp, color = Muted) }
+                        Column(Modifier.weight(1f)) {
+                            Text(if (bangla) "ডার্ক মোড" else "Dark mode", fontWeight = FontWeight.Bold)
+                            Text(if (bangla) "লাইট ও ডার্ক থিম পরিবর্তন করুন" else "Switch between light and dark appearance", fontSize = 11.sp, color = Muted)
+                        }
                         Switch(darkMode, onDarkModeChange)
                     }
                 }
-                Text("Settings are saved automatically on this device.", color = Muted, fontSize = 12.sp)
+                Text(if (bangla) "সেটিংস এই ডিভাইসে স্বয়ংক্রিয়ভাবে সংরক্ষিত হয়।" else "Settings are saved automatically on this device.", color = Muted, fontSize = 12.sp)
             }
         }
     }
@@ -1694,8 +1735,8 @@ private fun ProfileScreen(name: String, photo: String, onNameChange: (String) ->
                         IconButton(onClick = { editName = true }) { Icon(Icons.Default.Edit, "Edit profile") }
                     }
                 }
-                Text("Preferences", fontWeight = FontWeight.Bold, color = Ink)
-                Text("Tools", fontWeight = FontWeight.Bold, color = Ink)
+                Text(if (useBangla) "পছন্দসমূহ" else "Preferences", fontWeight = FontWeight.Bold, color = Ink)
+                Text(if (useBangla) "টুলস" else "Tools", fontWeight = FontWeight.Bold, color = Ink)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ToolShortcut("Recurring", Icons.Default.Repeat, Green, Modifier.weight(1f)) { onNavigate(Screen.Recurring) }
                     ToolShortcut("Reminders", Icons.Default.Alarm, Orange, Modifier.weight(1f)) { onNavigate(Screen.Reminders) }
@@ -1708,7 +1749,7 @@ private fun ProfileScreen(name: String, photo: String, onNameChange: (String) ->
                 }
                 AppCard {
                     SettingsRow(Icons.Default.CurrencyExchange, "Currency", "Bangladeshi Taka (BDT)")
-                    SettingsRow(Icons.Default.Language, "Language", "English / বাংলা")
+                    SettingsRow(Icons.Default.Language, if (useBangla) "ভাষা" else "Language", if (useBangla) "বাংলা" else "English")
                     SettingsRow(Icons.Default.Notifications, "Notifications", "Manage alerts and reminders")
                     SettingsRow(Icons.Default.Fingerprint, "Biometric Lock", "Use fingerprint to unlock")
                     SettingsRow(Icons.Default.DarkMode, "Appearance", "Light mode")
@@ -2089,11 +2130,11 @@ private fun SettingsRow(icon: ImageVector, title: String, subtitle: String) {
 private fun BottomNavigation(selected: Screen, onSelect: (Screen) -> Unit) {
     NavigationBar(containerColor = Color.White, tonalElevation = 8.dp) {
         listOf(
-            Triple(Screen.Home, "Home", Icons.Default.Home),
-            Triple(Screen.Reports, "Reports", Icons.Default.BarChart),
-            Triple(Screen.Add, "Add", Icons.Default.AddCircle),
-            Triple(Screen.Calendar, "Calendar", Icons.Default.CalendarMonth),
-            Triple(Screen.Profile, "Profile", Icons.Default.Person)
+            Triple(Screen.Home, translated("Home"), Icons.Default.Home),
+            Triple(Screen.Reports, translated("Reports"), Icons.Default.BarChart),
+            Triple(Screen.Add, translated("Add"), Icons.Default.AddCircle),
+            Triple(Screen.Calendar, translated("Calendar"), Icons.Default.CalendarMonth),
+            Triple(Screen.Profile, translated("Profile"), Icons.Default.Person)
         ).forEach { (screen, label, icon) ->
             NavigationBarItem(
                 selected = selected == screen,
