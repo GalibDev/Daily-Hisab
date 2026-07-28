@@ -9,10 +9,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -21,6 +23,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.dailyhisab.nativeapp.data.FinanceDatabase
+import com.dailyhisab.nativeapp.data.TransactionEntity
+import kotlinx.coroutines.launch
 
 private val Navy = Color(0xFF07194E)
 private val Blue = Color(0xFF11298F)
@@ -31,8 +37,17 @@ private val Ink = Color(0xFF111936)
 private val Muted = Color(0xFF69718A)
 private val Soft = Color(0xFFF5F7FF)
 
-data class Expense(val title: String, val category: String, val amount: Int, val time: String, val income: Boolean = false)
-enum class Screen { Home, Reports, Add, Calendar, Profile }
+data class Expense(
+    val id: Long = 0,
+    val title: String,
+    val category: String,
+    val amount: Int,
+    val date: String,
+    val time: String,
+    val income: Boolean = false,
+    val note: String = ""
+)
+enum class Screen { Home, Reports, Add, Entries, Categories, Budget, Calendar, Profile }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,15 +59,23 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun DailyHisabApp() {
     var screen by remember { mutableStateOf(Screen.Home) }
-    var expenses by remember {
-        mutableStateOf(
+    val context = LocalContext.current
+    val dao = remember { FinanceDatabase.get(context).transactionDao() }
+    val scope = rememberCoroutineScope()
+    val storedTransactions by dao.observeAll().collectAsState(initial = emptyList())
+    val expenses = storedTransactions.map {
+        Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
+    }
+
+    LaunchedEffect(storedTransactions) {
+        if (storedTransactions.isEmpty()) {
             listOf(
-                Expense("Groceries", "Food", 120, "10:30 AM"),
-                Expense("Transport (Ride)", "Transport", 100, "09:15 AM"),
-                Expense("Salary", "Income", 2500, "Yesterday", true),
-                Expense("Electricity Bill", "Utilities", 150, "Jul 10")
-            )
-        )
+                TransactionEntity(title = "Groceries", category = "Food", amount = 120, date = "2026-07-28", time = "10:30 AM", type = "expense"),
+                TransactionEntity(title = "Transport (Ride)", category = "Transport", amount = 100, date = "2026-07-28", time = "09:15 AM", type = "expense"),
+                TransactionEntity(title = "Salary", category = "Income", amount = 2500, date = "2026-07-27", time = "09:00 AM", type = "income"),
+                TransactionEntity(title = "Electricity Bill", category = "Utilities", amount = 150, date = "2026-07-10", time = "08:40 PM", type = "expense")
+            ).forEach { dao.insert(it) }
+        }
     }
 
     MaterialTheme(
@@ -75,12 +98,27 @@ fun DailyHisabApp() {
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
                 when (screen) {
-                    Screen.Home -> HomeScreen(expenses)
+                    Screen.Home -> HomeScreen(expenses, onNavigate = { screen = it })
                     Screen.Reports -> ReportsScreen(expenses)
                     Screen.Add -> AddExpenseScreen { expense ->
-                        expenses = listOf(expense) + expenses
-                        screen = Screen.Home
+                        scope.launch {
+                            dao.insert(
+                                TransactionEntity(
+                                    title = expense.title,
+                                    category = expense.category,
+                                    amount = expense.amount,
+                                    date = expense.date,
+                                    time = expense.time,
+                                    type = if (expense.income) "income" else "expense",
+                                    note = expense.note
+                                )
+                            )
+                            screen = Screen.Home
+                        }
                     }
+                    Screen.Entries -> EntriesScreen(expenses) { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
+                    Screen.Categories -> CategoriesScreen(expenses)
+                    Screen.Budget -> BudgetScreen(expenses)
                     Screen.Calendar -> CalendarScreen(expenses)
                     Screen.Profile -> ProfileScreen()
                 }
@@ -110,7 +148,7 @@ private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null) {
 }
 
 @Composable
-private fun HomeScreen(expenses: List<Expense>) {
+private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
     val spent = expenses.filterNot { it.income }.sumOf { it.amount }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { AppHeader(subtitle = "Your Daily Expense Tracker") }
@@ -119,13 +157,19 @@ private fun HomeScreen(expenses: List<Expense>) {
                 BalanceHero(spent)
                 Text("Quick Add", fontWeight = FontWeight.Bold, color = Ink)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    QuickAction("Expense", Icons.Default.ShoppingBag, Red)
-                    QuickAction("Income", Icons.Default.Payments, Green)
-                    QuickAction("Transfer", Icons.Default.SwapHoriz, Color(0xFF7C3AED))
-                    QuickAction("More", Icons.Default.MoreHoriz, Muted)
+                    QuickAction("Expense", Icons.Default.ShoppingBag, Red) { onNavigate(Screen.Add) }
+                    QuickAction("Income", Icons.Default.Payments, Green) { onNavigate(Screen.Add) }
+                    QuickAction("Categories", Icons.Default.GridView, Color(0xFF7C3AED)) { onNavigate(Screen.Categories) }
+                    QuickAction("Budget", Icons.Default.AccountBalance, Muted) { onNavigate(Screen.Budget) }
                 }
                 MonthOverview(spent)
-                SectionTitle("Recent Transactions", "See all")
+                Row(
+                    Modifier.fillMaxWidth().clickable { onNavigate(Screen.Entries) },
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Recent Transactions", fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text("See all", color = Blue, fontWeight = FontWeight.Bold)
+                }
             }
         }
         items(expenses.take(5)) { TransactionRow(it) }
@@ -165,8 +209,8 @@ private fun HeroMetric(label: String, value: String, color: Color) {
 }
 
 @Composable
-private fun QuickAction(label: String, icon: ImageVector, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun QuickAction(label: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
         Surface(shape = RoundedCornerShape(16.dp), color = color.copy(.1f), modifier = Modifier.size(54.dp)) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, label, tint = color) }
         }
@@ -262,15 +306,27 @@ private fun ReportsScreen(expenses: List<Expense>) {
 private fun AddExpenseScreen(onSave: (Expense) -> Unit) {
     var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Food") }
+    var title by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+    var isIncome by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(Color.White)) {
         AppHeader("Add Expense")
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(selected = !isIncome, onClick = { isIncome = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Expense") }
+                    SegmentedButton(selected = isIncome, onClick = { isIncome = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Income") }
+                }
+            }
             item {
                 OutlinedTextField(
                     value = amount, onValueChange = { amount = it.filter(Char::isDigit) },
                     label = { Text("Amount") }, leadingIcon = { Text("৳", fontSize = 24.sp, fontWeight = FontWeight.Bold) },
                     modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)
                 )
+            }
+            item {
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
             }
             item {
                 Text("Category", fontWeight = FontWeight.Bold, color = Ink)
@@ -282,7 +338,7 @@ private fun AddExpenseScreen(onSave: (Expense) -> Unit) {
                 }
             }
             item { OutlinedTextField("Jul 28, 2026", {}, label = { Text("Date") }, readOnly = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) }
-            item { OutlinedTextField("", {}, label = { Text("Note (Optional)") }, modifier = Modifier.fillMaxWidth().height(110.dp), shape = RoundedCornerShape(16.dp)) }
+            item { OutlinedTextField(note, { note = it }, label = { Text("Note (Optional)") }, modifier = Modifier.fillMaxWidth().height(110.dp), shape = RoundedCornerShape(16.dp)) }
             item {
                 OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth().height(62.dp), shape = RoundedCornerShape(16.dp)) {
                     Icon(Icons.Default.UploadFile, null); Spacer(Modifier.width(8.dp)); Text("Upload Receipt")
@@ -290,11 +346,23 @@ private fun AddExpenseScreen(onSave: (Expense) -> Unit) {
             }
         }
         Button(
-            onClick = { if (amount.isNotBlank()) onSave(Expense(category, category, amount.toInt(), "Just now")) },
+            onClick = {
+                if (amount.isNotBlank()) onSave(
+                    Expense(
+                        title = title.ifBlank { category },
+                        category = if (isIncome && category == "Food") "Income" else category,
+                        amount = amount.toInt(),
+                        date = "2026-07-28",
+                        time = "Just now",
+                        income = isIncome,
+                        note = note
+                    )
+                )
+            },
             modifier = Modifier.padding(16.dp).fillMaxWidth().height(54.dp),
             shape = RoundedCornerShape(16.dp),
             enabled = amount.isNotBlank()
-        ) { Text("Save Expense", fontWeight = FontWeight.Bold) }
+        ) { Text(if (isIncome) "Save Income" else "Save Expense", fontWeight = FontWeight.Bold) }
     }
 }
 
@@ -323,6 +391,151 @@ private fun CalendarScreen(expenses: List<Expense>) {
             }
         }
         items(expenses.filterNot { it.income }) { TransactionRow(it) }
+    }
+}
+
+@Composable
+private fun EntriesScreen(expenses: List<Expense>, onDelete: (Expense) -> Unit) {
+    var filter by remember { mutableStateOf("All") }
+    val visible = expenses.filter {
+        filter == "All" || (filter == "Income" && it.income) || (filter == "Expense" && !it.income)
+    }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("All Entries") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("All", "Income", "Expense").forEach { option ->
+                        FilterChip(filter == option, { filter = option }, { Text(option) })
+                    }
+                }
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        SummaryMetric("Income", expenses.filter { it.income }.sumOf { it.amount }, Green)
+                        SummaryMetric("Expense", expenses.filterNot { it.income }.sumOf { it.amount }, Red)
+                        SummaryMetric("Balance", expenses.sumOf { if (it.income) it.amount else -it.amount }, Blue)
+                    }
+                }
+            }
+        }
+        items(visible, key = { it.id }) { expense ->
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.weight(1f)) { TransactionRowContent(expense) }
+                IconButton(onClick = { onDelete(expense) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+            }
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun SummaryMetric(label: String, amount: Int, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 11.sp, color = Muted)
+        Text("৳ $amount", fontWeight = FontWeight.ExtraBold, color = color)
+    }
+}
+
+@Composable
+private fun TransactionRowContent(expense: Expense) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(shape = RoundedCornerShape(12.dp), color = (if (expense.income) Green else Red).copy(.1f), modifier = Modifier.size(42.dp)) {
+            Box(contentAlignment = Alignment.Center) { Icon(if (expense.income) Icons.Default.Work else Icons.Default.ReceiptLong, null, tint = if (expense.income) Green else Red) }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(expense.title, fontWeight = FontWeight.Bold, color = Ink)
+            Text("${expense.category} • ${expense.date}", fontSize = 11.sp, color = Muted)
+        }
+        Text("${if (expense.income) "+" else "-"}৳ ${expense.amount}", color = if (expense.income) Green else Red, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun CategoriesScreen(expenses: List<Expense>) {
+    val categories = listOf(
+        Triple("Food", Icons.Default.Restaurant, Orange),
+        Triple("Transport", Icons.Default.DirectionsBus, Color(0xFF8B5CF6)),
+        Triple("Shopping", Icons.Default.ShoppingBag, Red),
+        Triple("Utilities", Icons.Default.Bolt, Color(0xFFF59E0B)),
+        Triple("Health", Icons.Default.Favorite, Color(0xFFEC4899)),
+        Triple("Education", Icons.Default.School, Blue),
+        Triple("Entertainment", Icons.Default.SentimentSatisfied, Color(0xFF7C3AED)),
+        Triple("Others", Icons.Default.MoreHoriz, Muted)
+    )
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Categories") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                OutlinedTextField("", {}, readOnly = true, leadingIcon = { Icon(Icons.Default.Search, null) }, placeholder = { Text("Search categories") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+                categories.chunked(2).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        row.forEach { (name, icon, color) ->
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                            ) {
+                                Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Surface(Modifier.size(48.dp), RoundedCornerShape(14.dp), color = color.copy(.12f)) {
+                                        Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = color) }
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(name, fontWeight = FontWeight.Bold, color = Ink)
+                                    Text("৳ ${expenses.filter { !it.income && it.category == name }.sumOf { it.amount }}", color = Muted)
+                                }
+                            }
+                        }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Add, null); Text("Add Category") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BudgetScreen(expenses: List<Expense>) {
+    val budget = 2500
+    val spent = expenses.filterNot { it.income }.sumOf { it.amount }
+    val progress = (spent.toFloat() / budget).coerceIn(0f, 1f)
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Budget") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column { Text("Monthly Budget", color = Muted); Text("৳ $budget", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Ink) }
+                        Column(horizontalAlignment = Alignment.End) { Text("Spent", color = Muted); Text("৳ $spent", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Red) }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(12.dp), color = Orange, trackColor = Color(0xFFFFE4E6))
+                    Spacer(Modifier.height(8.dp))
+                    Text("${(progress * 100).toInt()}% used • ৳ ${maxOf(budget - spent, 0)} remaining", color = Muted, fontSize = 12.sp)
+                }
+                AppCard {
+                    Text("Daily Allowance", color = Muted)
+                    Text("৳ ${maxOf(budget - spent, 0) / 4}", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Blue)
+                    Text("Recommended spending for the remaining days", fontSize = 11.sp, color = Muted)
+                }
+                Text("Budget by Category", fontWeight = FontWeight.ExtraBold, color = Ink)
+                listOf("Food" to 500, "Transport" to 400, "Shopping" to 600, "Utilities" to 300).forEach { (name, limit) ->
+                    val categorySpent = expenses.filter { !it.income && it.category == name }.sumOf { it.amount }
+                    AppCard {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(name, fontWeight = FontWeight.Bold, color = Ink)
+                            Text("৳ $categorySpent / ৳ $limit", fontSize = 12.sp, color = Muted)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        LinearProgressIndicator(progress = { (categorySpent.toFloat() / limit).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth(), color = if (categorySpent > limit) Red else Blue)
+                    }
+                }
+            }
+        }
     }
 }
 
