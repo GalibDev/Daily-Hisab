@@ -46,6 +46,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.dailyhisab.nativeapp.data.FinanceDatabase
@@ -1774,9 +1775,22 @@ private fun AuthScreen(auth: FirebaseAuth) {
                             )
                             loading = false
                         }
-                        .addOnFailureListener {
-                            loading = false
-                            error = friendlyError(it.message)
+                        .addOnFailureListener { exception ->
+                            if (exception is FirebaseAuthUserCollisionException) {
+                                // A previous registration may have completed before the UI received
+                                // the auth-state update. Reusing the same credentials should sign the
+                                // user in instead of leaving them stuck on an "already exists" error.
+                                auth.signInWithEmailAndPassword(email.trim(), password)
+                                    .addOnSuccessListener { loading = false }
+                                    .addOnFailureListener {
+                                        loading = false
+                                        createAccount = false
+                                        error = "This email already has an account. Log in with its password or use Forgot password."
+                                    }
+                            } else {
+                                loading = false
+                                error = friendlyError(exception.message)
+                            }
                         }
                 } else {
                     auth.signInWithEmailAndPassword(email.trim(), password)
