@@ -21,37 +21,16 @@ function downloadBlob(filename: string, blob: Blob) {
 }
 
 async function downloadFromServer(filename: string, blob: Blob) {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
+  const form = new FormData();
+  form.append("filename", filename);
+  form.append("type", blob.type);
+  form.append("file", blob, filename);
 
-  const frameName = "daily-hisab-download-frame";
-  let frame = document.querySelector<HTMLIFrameElement>(`iframe[name="${frameName}"]`);
-  if (!frame) {
-    frame = document.createElement("iframe");
-    frame.name = frameName;
-    frame.hidden = true;
-    document.body.appendChild(frame);
-  }
-
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = "/api/download";
-  form.target = frameName;
-  form.hidden = true;
-  for (const [name, value] of [["filename", filename], ["type", blob.type], ["content", window.btoa(binary)]]) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = name;
-    input.value = value;
-    form.appendChild(input);
-  }
-  document.body.appendChild(form);
-  form.submit();
-  form.remove();
+  const response = await fetch("/api/download", { method: "POST", body: form });
+  if (!response.ok) throw new Error("Download request failed");
+  const downloadedBlob = await response.blob();
+  if (!downloadedBlob.size) throw new Error("Downloaded file is empty");
+  downloadBlob(filename, downloadedBlob);
 }
 
 function downloadFile(filename: string, content: string, type: string) {

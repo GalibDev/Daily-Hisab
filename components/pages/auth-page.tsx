@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Wallet } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,21 @@ export function AuthPage() {
   const { notify } = useToast();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const restoreLoginControls = () => setLoading(false);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") restoreLoginControls();
+    };
+    window.addEventListener("pageshow", restoreLoginControls);
+    window.addEventListener("focus", restoreLoginControls);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("pageshow", restoreLoginControls);
+      window.removeEventListener("focus", restoreLoginControls);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -3,10 +3,12 @@
 import type { User as FirebaseUser } from "firebase/auth";
 import {
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   reload,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   updateProfile,
 } from "firebase/auth";
@@ -58,6 +60,10 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       return;
     }
 
+    void getRedirectResult(firebaseAuth).catch(() => {
+      // A cancelled or abandoned redirect should leave the login page usable.
+    });
+
     return onAuthStateChanged(firebaseAuth, (nextUser) => {
       setFirebaseUser(nextUser);
       setLoading(false);
@@ -83,6 +89,14 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     },
     signInWithGoogle: async () => {
       if (!firebaseAuth) throw new Error("Firebase is not configured");
+      const useRedirect = typeof window !== "undefined" && (
+        window.matchMedia("(max-width: 767px)").matches ||
+        /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
+      );
+      if (useRedirect) {
+        await signInWithRedirect(firebaseAuth, googleProvider);
+        return;
+      }
       await signInWithPopup(firebaseAuth, googleProvider);
     },
     signOut: async () => {
