@@ -74,6 +74,17 @@ data class Expense(
     val income: Boolean = false,
     val note: String = ""
 )
+
+private fun Expense.toEntity() = TransactionEntity(
+    id = id,
+    title = title,
+    category = category,
+    amount = amount,
+    date = date,
+    time = time,
+    type = if (income) "income" else "expense",
+    note = note
+)
 enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
 
 class MainActivity : ComponentActivity() {
@@ -160,12 +171,21 @@ fun DailyHisabApp() {
                             screen = Screen.Home
                         }
                     }
-                    Screen.Entries -> AllExpensesScreen(expenses) { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
+                    Screen.Entries -> AllExpensesScreen(
+                        expenses,
+                        onUpdate = { edited -> scope.launch { dao.update(edited.toEntity()) } },
+                        onDelete = { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
+                    )
                     Screen.Categories -> CategoriesScreenV2(categories, expenses, { scope.launch { categoryDao.insert(it) } }, { scope.launch { categoryDao.delete(it) } }) {
                         selectedCategory = it.name
                         screen = Screen.CategoryDetails
                     }
-                    Screen.CategoryDetails -> CategoryExpenseScreen(selectedCategory, expenses)
+                    Screen.CategoryDetails -> CategoryExpenseScreen(
+                        selectedCategory,
+                        expenses,
+                        onUpdate = { edited -> scope.launch { dao.update(edited.toEntity()) } },
+                        onDelete = { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
+                    )
                     Screen.Budget -> FunctionalBudgetScreen(categories, expenses)
                     Screen.Calendar -> CalendarV2(expenses)
                     Screen.Profile -> ProfileScreen(profileName, profilePhoto, onNameChange = {
@@ -747,22 +767,29 @@ private fun CalendarV2(expenses: List<Expense>) {
 }
 
 @Composable
-private fun AllExpensesScreen(expenses: List<Expense>, onDelete: (Expense) -> Unit) {
-    FilteredExpenseScreen("All Expenses", expenses.filterNot { it.income }, onDelete)
+private fun AllExpensesScreen(expenses: List<Expense>, onUpdate: (Expense) -> Unit, onDelete: (Expense) -> Unit) {
+    FilteredExpenseScreen("All Expenses", expenses.filterNot { it.income }, onUpdate, onDelete)
 }
 
 @Composable
-private fun CategoryExpenseScreen(category: String, expenses: List<Expense>) {
-    FilteredExpenseScreen(category, expenses.filter { !it.income && it.category == category })
+private fun CategoryExpenseScreen(category: String, expenses: List<Expense>, onUpdate: (Expense) -> Unit, onDelete: (Expense) -> Unit) {
+    FilteredExpenseScreen(category, expenses.filter { !it.income && it.category == category }, onUpdate, onDelete)
 }
 
 @Composable
-private fun FilteredExpenseScreen(title: String, expenses: List<Expense>, onDelete: ((Expense) -> Unit)? = null) {
+private fun FilteredExpenseScreen(title: String, expenses: List<Expense>, onUpdate: (Expense) -> Unit, onDelete: (Expense) -> Unit) {
     val context = LocalContext.current
     var period by remember { mutableStateOf("Daily") }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var editing by remember { mutableStateOf<Expense?>(null) }
     val visible = remember(expenses, period, selectedDate) { expensesForPeriod(expenses, period, selectedDate) }
     val total = visible.sumOf { it.amount }
+    editing?.let { item ->
+        ExpenseEditDialog(item, onDismiss = { editing = null }) {
+            onUpdate(it)
+            editing = null
+        }
+    }
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader(title) }
         item {
@@ -780,7 +807,10 @@ private fun FilteredExpenseScreen(title: String, expenses: List<Expense>, onDele
                     }
                 }
                 OutlinedButton(onClick = {
-                    DatePickerDialog(context, { _, year, month, day -> selectedDate = LocalDate.of(year, month + 1, day) }, selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth).show()
+                    DatePickerDialog(context, { _, year, month, day ->
+                        selectedDate = LocalDate.of(year, month + 1, day)
+                        period = "Daily"
+                    }, selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth).show()
                 }, Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.CalendarMonth, null); Spacer(Modifier.width(8.dp)); Text("Select date: ${selectedDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))}")
                 }
@@ -791,11 +821,48 @@ private fun FilteredExpenseScreen(title: String, expenses: List<Expense>, onDele
         items(visible, key = { it.id }) { expense ->
             Row(Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) { TransactionRowContent(expense) }
-                if (onDelete != null) IconButton(onClick = { onDelete(expense) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+                IconButton(onClick = { editing = expense }) { Icon(Icons.Default.Edit, "Edit expense", tint = Blue) }
+                IconButton(onClick = { onDelete(expense) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
             }
         }
         item { Spacer(Modifier.height(24.dp)) }
     }
+}
+
+@Composable
+private fun ExpenseEditDialog(expense: Expense, onDismiss: () -> Unit, onSave: (Expense) -> Unit) {
+    val context = LocalContext.current
+    var title by remember(expense.id) { mutableStateOf(expense.title) }
+    var category by remember(expense.id) { mutableStateOf(expense.category) }
+    var amount by remember(expense.id) { mutableStateOf(expense.amount.toString()) }
+    var note by remember(expense.id) { mutableStateOf(expense.note) }
+    var date by remember(expense.id) { mutableStateOf(runCatching { LocalDate.parse(expense.date) }.getOrDefault(LocalDate.now())) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit expense") },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item { OutlinedTextField(title, { title = it }, label = { Text("Title") }) }
+                item { OutlinedTextField(category, { category = it }, label = { Text("Category") }) }
+                item { OutlinedTextField(amount, { amount = it.filter(Char::isDigit) }, label = { Text("Amount") }, leadingIcon = { Text("৳") }) }
+                item { OutlinedTextField(note, { note = it }, label = { Text("Note") }) }
+                item {
+                    OutlinedButton(onClick = {
+                        DatePickerDialog(context, { _, year, month, day -> date = LocalDate.of(year, month + 1, day) }, date.year, date.monthValue - 1, date.dayOfMonth).show()
+                    }, Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.CalendarMonth, null); Spacer(Modifier.width(8.dp)); Text(date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(expense.copy(title = title.trim(), category = category.trim(), amount = amount.toInt(), date = date.toString(), note = note)) },
+                enabled = title.isNotBlank() && category.isNotBlank() && amount.toIntOrNull() != null
+            ) { Text("Save changes") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable
