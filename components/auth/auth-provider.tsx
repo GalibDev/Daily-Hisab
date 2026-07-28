@@ -8,7 +8,6 @@ import {
   reload,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect,
   signOut as firebaseSignOut,
   updateProfile,
 } from "firebase/auth";
@@ -89,14 +88,10 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     },
     signInWithGoogle: async () => {
       if (!firebaseAuth) throw new Error("Firebase is not configured");
-      const useRedirect = typeof window !== "undefined" && (
-        window.matchMedia("(max-width: 767px)").matches ||
-        /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
-      );
-      if (useRedirect) {
-        await signInWithRedirect(firebaseAuth, googleProvider);
-        return;
-      }
+      // Redirect authentication can lose its pending state when the app uses a
+      // custom domain while Firebase Auth is hosted on firebaseapp.com. Opening
+      // the account picker directly from the user's click keeps that state in
+      // the current page and works consistently on desktop and mobile.
       await signInWithPopup(firebaseAuth, googleProvider);
     },
     signOut: async () => {
