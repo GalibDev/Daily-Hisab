@@ -1,5 +1,5 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { firebaseDb } from "@/lib/firebase/client";
+import { get, ref, set } from "firebase/database";
+import { firebaseDatabase } from "@/lib/firebase/client";
 import type { Entry, RecurringExpense, Reminder } from "@/types";
 
 export type CloudFinanceData = {
@@ -15,15 +15,15 @@ export type CloudWalletData = {
   settings: { personal: boolean; family: boolean };
 };
 
-function userDoc(userId: string, name: "finance" | "wallet") {
-  if (!firebaseDb) throw new Error("Firestore is not configured");
-  return doc(firebaseDb, "users", userId, "appData", name);
+function userDataRef(userId: string, name: "finance" | "wallet") {
+  if (!firebaseDatabase) throw new Error("Realtime Database is not configured");
+  return ref(firebaseDatabase, `users/${userId}/appData/${name}`);
 }
 
 export async function loadCloudFinance(userId: string): Promise<CloudFinanceData | null> {
-  const snapshot = await getDoc(userDoc(userId, "finance"));
+  const snapshot = await get(userDataRef(userId, "finance"));
   if (!snapshot.exists()) return null;
-  const data = snapshot.data() as Partial<CloudFinanceData>;
+  const data = snapshot.val() as Partial<CloudFinanceData>;
   return {
     entries: Array.isArray(data.entries) ? data.entries : [],
     categories: Array.isArray(data.categories) ? data.categories : [],
@@ -34,13 +34,13 @@ export async function loadCloudFinance(userId: string): Promise<CloudFinanceData
 }
 
 export async function saveCloudFinance(userId: string, data: CloudFinanceData) {
-  await setDoc(userDoc(userId, "finance"), { ...data, updatedAt: serverTimestamp() });
+  await set(userDataRef(userId, "finance"), { ...data, updatedAt: Date.now() });
 }
 
 export async function loadCloudWallet(userId: string): Promise<CloudWalletData | null> {
-  const snapshot = await getDoc(userDoc(userId, "wallet"));
+  const snapshot = await get(userDataRef(userId, "wallet"));
   if (!snapshot.exists()) return null;
-  const data = snapshot.data() as Partial<CloudWalletData>;
+  const data = snapshot.val() as Partial<CloudWalletData>;
   return {
     deposits: Array.isArray(data.deposits) ? data.deposits : [],
     settings: data.settings ?? { personal: true, family: false },
@@ -48,5 +48,5 @@ export async function loadCloudWallet(userId: string): Promise<CloudWalletData |
 }
 
 export async function saveCloudWallet(userId: string, data: CloudWalletData) {
-  await setDoc(userDoc(userId, "wallet"), { ...data, updatedAt: serverTimestamp() });
+  await set(userDataRef(userId, "wallet"), { ...data, updatedAt: Date.now() });
 }

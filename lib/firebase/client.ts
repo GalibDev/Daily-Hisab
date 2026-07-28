@@ -1,7 +1,7 @@
 import { getApps, initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getStorage } from "firebase/storage";
-import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -24,6 +24,11 @@ export const isFirebaseConfigured = Boolean(
 export const firebaseApp = isFirebaseConfigured && getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 export const firebaseStorage = firebaseApp ? getStorage(firebaseApp) : null;
-export const firebaseDb = firebaseApp ? getFirestore(firebaseApp) : null;
+const databaseUrl =
+  process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ||
+  (firebaseConfig.projectId
+    ? `https://${firebaseConfig.projectId}-default-rtdb.asia-southeast1.firebasedatabase.app`
+    : undefined);
+export const firebaseDatabase = firebaseApp && databaseUrl ? getDatabase(firebaseApp, databaseUrl) : null;
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
