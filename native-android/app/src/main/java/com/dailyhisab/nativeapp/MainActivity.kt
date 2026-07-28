@@ -74,7 +74,7 @@ data class Expense(
     val income: Boolean = false,
     val note: String = ""
 )
-enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
+enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,6 +108,7 @@ fun DailyHisabApp() {
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     var profileName by remember { mutableStateOf(prefs.getString("profile_name", "Mirza Galib Palash") ?: "Mirza Galib Palash") }
     var profilePhoto by remember { mutableStateOf(prefs.getString("profile_photo", "") ?: "") }
+    var selectedCategory by remember { mutableStateOf("") }
     val expenses = storedTransactions.map {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
     }
@@ -159,9 +160,13 @@ fun DailyHisabApp() {
                             screen = Screen.Home
                         }
                     }
-                    Screen.Entries -> EntriesScreen(expenses) { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
-                    Screen.Categories -> CategoriesScreenV2(categories, expenses, { scope.launch { categoryDao.insert(it) } }, { scope.launch { categoryDao.delete(it) } })
-                    Screen.Budget -> BudgetScreen(expenses)
+                    Screen.Entries -> AllExpensesScreen(expenses) { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
+                    Screen.Categories -> CategoriesScreenV2(categories, expenses, { scope.launch { categoryDao.insert(it) } }, { scope.launch { categoryDao.delete(it) } }) {
+                        selectedCategory = it.name
+                        screen = Screen.CategoryDetails
+                    }
+                    Screen.CategoryDetails -> CategoryExpenseScreen(selectedCategory, expenses)
+                    Screen.Budget -> FunctionalBudgetScreen(categories, expenses)
                     Screen.Calendar -> CalendarV2(expenses)
                     Screen.Profile -> ProfileScreen(profileName, profilePhoto, onNameChange = {
                         profileName = it; prefs.edit().putString("profile_name", it).apply()
@@ -242,7 +247,7 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
                 HomeHeroPager(todaySpent, monthSpent, allSpent, dailyAverage, monthIncome)
                 Text("Quick Add", fontWeight = FontWeight.Bold, color = Ink)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    QuickAction("Expense", Icons.Default.ShoppingBag, Red) { onNavigate(Screen.Add) }
+                    QuickAction("All Expenses", Icons.Default.ReceiptLong, Red) { onNavigate(Screen.Entries) }
                     QuickAction("Income", Icons.Default.Payments, Green) { onNavigate(Screen.Add) }
                     QuickAction("Categories", Icons.Default.GridView, Color(0xFF7C3AED)) { onNavigate(Screen.Categories) }
                     QuickAction("Budget", Icons.Default.AccountBalance, Muted) { onNavigate(Screen.Budget) }
@@ -742,6 +747,58 @@ private fun CalendarV2(expenses: List<Expense>) {
 }
 
 @Composable
+private fun AllExpensesScreen(expenses: List<Expense>, onDelete: (Expense) -> Unit) {
+    FilteredExpenseScreen("All Expenses", expenses.filterNot { it.income }, onDelete)
+}
+
+@Composable
+private fun CategoryExpenseScreen(category: String, expenses: List<Expense>) {
+    FilteredExpenseScreen(category, expenses.filter { !it.income && it.category == category })
+}
+
+@Composable
+private fun FilteredExpenseScreen(title: String, expenses: List<Expense>, onDelete: ((Expense) -> Unit)? = null) {
+    val context = LocalContext.current
+    var period by remember { mutableStateOf("Daily") }
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    val visible = remember(expenses, period, selectedDate) { expensesForPeriod(expenses, period, selectedDate) }
+    val total = visible.sumOf { it.amount }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader(title) }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Transparent), shape = RoundedCornerShape(22.dp)) {
+                    Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Navy, Blue, Color(0xFF0EA5E9)))).padding(20.dp)) {
+                        Text("${selectedDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))} • $period", color = Color.White.copy(.75f), fontSize = 12.sp)
+                        Text("৳ $total", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("${visible.size} expense entries", color = Color.White.copy(.75f), fontSize = 12.sp)
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    listOf("Daily", "Weekly", "Monthly", "Yearly").forEach { value ->
+                        FilterChip(period == value, { period = value }, { Text(value, fontSize = 10.sp) })
+                    }
+                }
+                OutlinedButton(onClick = {
+                    DatePickerDialog(context, { _, year, month, day -> selectedDate = LocalDate.of(year, month + 1, day) }, selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth).show()
+                }, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.CalendarMonth, null); Spacer(Modifier.width(8.dp)); Text("Select date: ${selectedDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))}")
+                }
+                SectionTitle("$period expenses", "${visible.size}")
+            }
+        }
+        if (visible.isEmpty()) item { Text("No expenses found for this period", Modifier.padding(24.dp), color = Muted) }
+        items(visible, key = { it.id }) { expense ->
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { TransactionRowContent(expense) }
+                if (onDelete != null) IconButton(onClick = { onDelete(expense) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+            }
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
 private fun EntriesScreen(expenses: List<Expense>, onDelete: (Expense) -> Unit) {
     var filter by remember { mutableStateOf("All") }
     val visible = expenses.filter {
@@ -841,7 +898,7 @@ private fun CategoryDialog(onDismiss: () -> Unit, onAdd: (CategoryEntity) -> Uni
 }
 
 @Composable
-private fun CategoriesScreenV2(categories: List<CategoryEntity>, expenses: List<Expense>, onAdd: (CategoryEntity) -> Unit, onDelete: (CategoryEntity) -> Unit) {
+private fun CategoriesScreenV2(categories: List<CategoryEntity>, expenses: List<Expense>, onAdd: (CategoryEntity) -> Unit, onDelete: (CategoryEntity) -> Unit, onOpen: (CategoryEntity) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
     if (showDialog) CategoryDialog({ showDialog = false }) { onAdd(it); showDialog = false }
     LazyColumn(Modifier.fillMaxSize()) {
@@ -849,7 +906,7 @@ private fun CategoriesScreenV2(categories: List<CategoryEntity>, expenses: List<
         items(categories.chunked(2)) { row ->
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { item ->
-                    Card(Modifier.weight(1f), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Card(Modifier.weight(1f).clickable { onOpen(item) }, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(categoryIcon(item.iconName), null, tint = Blue, modifier = Modifier.size(34.dp))
                             Text(item.name, fontWeight = FontWeight.Bold)
@@ -906,6 +963,88 @@ private fun CategoriesScreen(expenses: List<Expense>) {
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Add, null); Text("Add Category") }
             }
         }
+    }
+}
+
+@Composable
+private fun FunctionalBudgetScreen(categories: List<CategoryEntity>, expenses: List<Expense>) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("daily_hisab_budget", 0) }
+    var budget by remember { mutableIntStateOf(prefs.getInt("monthly_budget", 2500)) }
+    var editingCategory by remember { mutableStateOf<String?>(null) }
+    var editValue by remember { mutableStateOf("") }
+    val month = YearMonth.now()
+    val monthExpenses = expenses.filter { item ->
+        !item.income && runCatching { YearMonth.from(LocalDate.parse(item.date)) == month }.getOrDefault(false)
+    }
+    val spent = monthExpenses.sumOf { it.amount }
+    val remaining = budget - spent
+    val remainingDays = (month.lengthOfMonth() - LocalDate.now().dayOfMonth + 1).coerceAtLeast(1)
+    val progress = if (budget > 0) (spent.toFloat() / budget).coerceIn(0f, 1f) else 0f
+    if (editingCategory != null) {
+        AlertDialog(
+            onDismissRequest = { editingCategory = null },
+            title = { Text(if (editingCategory == "_total") "Set monthly budget" else "Set ${editingCategory} budget") },
+            text = { OutlinedTextField(editValue, { editValue = it.filter(Char::isDigit) }, label = { Text("Amount") }, leadingIcon = { Text("৳") }) },
+            confirmButton = {
+                Button(onClick = {
+                    val value = editValue.toIntOrNull() ?: 0
+                    if (editingCategory == "_total") {
+                        budget = value
+                        prefs.edit().putInt("monthly_budget", value).apply()
+                    } else prefs.edit().putInt("category_${editingCategory}", value).apply()
+                    editingCategory = null
+                }, enabled = editValue.isNotBlank()) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { editingCategory = null }) { Text("Cancel") } }
+        )
+    }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Budget") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column { Text("Monthly Budget", color = Muted); Text("৳ $budget", fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, color = Ink) }
+                        IconButton(onClick = { editingCategory = "_total"; editValue = budget.toString() }) { Icon(Icons.Default.Edit, "Edit budget", tint = Blue) }
+                    }
+                    Text("Spent ৳ $spent  •  ${if (remaining >= 0) "Remaining ৳ $remaining" else "Over ৳ ${-remaining}"}", color = if (remaining >= 0) Muted else Red)
+                    Spacer(Modifier.height(12.dp))
+                    LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth().height(12.dp), color = if (spent > budget) Red else Orange, trackColor = Color(0xFFFFE4E6))
+                    Text("${(progress * 100).toInt()}% used", fontSize = 12.sp, color = Muted)
+                }
+                AppCard {
+                    Text("Daily Allowance", color = Muted)
+                    Text("৳ ${maxOf(remaining, 0) / remainingDays}", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Blue)
+                    Text("$remainingDays days remaining this month", fontSize = 11.sp, color = Muted)
+                }
+                Text("Budget by Category", fontWeight = FontWeight.ExtraBold, color = Ink)
+            }
+        }
+        items(categories, key = { it.id }) { category ->
+            val limit = prefs.getInt("category_${category.name}", 500)
+            val categorySpent = monthExpenses.filter { it.category == category.name }.sumOf { it.amount }
+            AppCardContainer(Modifier.padding(horizontal = 16.dp, vertical = 5.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(categoryIcon(category.iconName), null, tint = Blue)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(category.name, fontWeight = FontWeight.Bold)
+                        Text("৳ $categorySpent / ৳ $limit", fontSize = 12.sp, color = Muted)
+                    }
+                    IconButton(onClick = { editingCategory = category.name; editValue = limit.toString() }) { Icon(Icons.Default.Edit, "Edit category budget") }
+                }
+                LinearProgressIndicator(progress = { if (limit > 0) (categorySpent.toFloat() / limit).coerceIn(0f, 1f) else 0f }, Modifier.fillMaxWidth(), color = if (categorySpent > limit) Red else Blue)
+            }
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun AppCardContainer(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.padding(16.dp), content = content)
     }
 }
 
