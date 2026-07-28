@@ -149,7 +149,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F7FF] text-[#171424]">
+    <div className="min-h-screen bg-[#f7f9ff] text-[#111936]">
       <aside className="thin-scrollbar fixed left-0 top-0 z-30 hidden h-screen w-[228px] flex-col overflow-y-auto border-r border-[#ece8ff] bg-white px-5 py-7 lg:flex">
         <Link href="/" className="mb-8 flex items-center gap-3">
           <span className="grid size-12 place-items-center rounded-xl bg-[#6C4CF1] text-white shadow-lg shadow-[#6C4CF1]/25">
@@ -225,7 +225,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       </aside>
 
       <main className="pb-[calc(9rem+env(safe-area-inset-bottom))] lg:ml-[228px] lg:pb-0">
-        <header className="sticky top-0 z-20 bg-white px-6 py-4 md:px-7 lg:border-b lg:border-[#ece8ff]/80 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4 lg:backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-[#eef1f7] bg-white/95 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl md:px-7 lg:border-[#e8ecf5] lg:bg-[#f7f9ff]/90 lg:px-8 lg:py-4">
           <div className="flex items-center gap-2 sm:gap-4 lg:hidden">
             {pathname !== "/settings" && (
               isHome ? (
@@ -287,7 +287,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </div>
           </div>
         </header>
-        <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">{children}</div>
+        <div className="mx-auto max-w-[480px] bg-white px-5 py-4 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">{children}</div>
       </main>
 
       {mobileMenuOpen && (
@@ -355,7 +355,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
       {pathname !== "/ai-helper" && <AiFloatingHelper />}
 
-      <nav className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-3 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] sm:px-5 lg:hidden">
+      <nav className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-3 right-3 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[24px] border border-[#e8ecf5] bg-white/95 px-3 pb-3 pt-3 shadow-[0_-8px_32px_rgba(20,35,90,0.12)] backdrop-blur-xl sm:px-5 lg:hidden">
         {[
           { href: "/", label: "Home", icon: Home },
           { href: "/reports", label: "Reports", icon: BarChart3 },
