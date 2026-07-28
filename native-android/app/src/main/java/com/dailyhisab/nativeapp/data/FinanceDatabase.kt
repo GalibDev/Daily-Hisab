@@ -24,6 +24,33 @@ data class TransactionEntity(
     val note: String = ""
 )
 
+@Entity(tableName = "recurring_expenses")
+data class RecurringEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val amount: Int,
+    val frequency: String,
+    val nextDueDate: String
+)
+
+@Entity(tableName = "reminders")
+data class ReminderEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val date: String,
+    val time: String,
+    val completed: Boolean = false
+)
+
+@Entity(tableName = "notes")
+data class NoteEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val body: String,
+    val createdAt: String,
+    val pinned: Boolean = false
+)
+
 @Dao
 interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
@@ -36,9 +63,44 @@ interface TransactionDao {
     suspend fun delete(transaction: TransactionEntity)
 }
 
-@Database(entities = [TransactionEntity::class], version = 1, exportSchema = false)
+@Dao
+interface RecurringDao {
+    @Query("SELECT * FROM recurring_expenses ORDER BY nextDueDate ASC")
+    fun observeAll(): Flow<List<RecurringEntity>>
+    @Insert suspend fun insert(item: RecurringEntity)
+    @Delete suspend fun delete(item: RecurringEntity)
+}
+
+@Dao
+interface ReminderDao {
+    @Query("SELECT * FROM reminders ORDER BY completed ASC, date ASC, time ASC")
+    fun observeAll(): Flow<List<ReminderEntity>>
+    @Insert suspend fun insert(item: ReminderEntity)
+    @Query("UPDATE reminders SET completed = :completed WHERE id = :id")
+    suspend fun setCompleted(id: Long, completed: Boolean)
+    @Delete suspend fun delete(item: ReminderEntity)
+}
+
+@Dao
+interface NoteDao {
+    @Query("SELECT * FROM notes ORDER BY pinned DESC, id DESC")
+    fun observeAll(): Flow<List<NoteEntity>>
+    @Insert suspend fun insert(item: NoteEntity)
+    @Query("UPDATE notes SET pinned = :pinned WHERE id = :id")
+    suspend fun setPinned(id: Long, pinned: Boolean)
+    @Delete suspend fun delete(item: NoteEntity)
+}
+
+@Database(
+    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class],
+    version = 2,
+    exportSchema = false
+)
 abstract class FinanceDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
+    abstract fun recurringDao(): RecurringDao
+    abstract fun reminderDao(): ReminderDao
+    abstract fun noteDao(): NoteDao
 
     companion object {
         @Volatile private var instance: FinanceDatabase? = null
@@ -49,7 +111,7 @@ abstract class FinanceDatabase : RoomDatabase() {
                     context.applicationContext,
                     FinanceDatabase::class.java,
                     "daily_hisab.db"
-                ).build().also { instance = it }
+                ).fallbackToDestructiveMigration().build().also { instance = it }
             }
     }
 }

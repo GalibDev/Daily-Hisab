@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.dailyhisab.nativeapp.data.FinanceDatabase
+import com.dailyhisab.nativeapp.data.NoteEntity
+import com.dailyhisab.nativeapp.data.RecurringEntity
+import com.dailyhisab.nativeapp.data.ReminderEntity
 import com.dailyhisab.nativeapp.data.TransactionEntity
 import kotlinx.coroutines.launch
 
@@ -47,7 +50,7 @@ data class Expense(
     val income: Boolean = false,
     val note: String = ""
 )
-enum class Screen { Home, Reports, Add, Entries, Categories, Budget, Calendar, Profile }
+enum class Screen { Home, Reports, Add, Entries, Categories, Budget, Calendar, Profile, Recurring, Reminders, Notes }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +66,12 @@ fun DailyHisabApp() {
     val dao = remember { FinanceDatabase.get(context).transactionDao() }
     val scope = rememberCoroutineScope()
     val storedTransactions by dao.observeAll().collectAsState(initial = emptyList())
+    val recurringDao = remember { FinanceDatabase.get(context).recurringDao() }
+    val reminderDao = remember { FinanceDatabase.get(context).reminderDao() }
+    val noteDao = remember { FinanceDatabase.get(context).noteDao() }
+    val recurringItems by recurringDao.observeAll().collectAsState(initial = emptyList())
+    val reminders by reminderDao.observeAll().collectAsState(initial = emptyList())
+    val notes by noteDao.observeAll().collectAsState(initial = emptyList())
     val expenses = storedTransactions.map {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
     }
@@ -120,7 +129,24 @@ fun DailyHisabApp() {
                     Screen.Categories -> CategoriesScreen(expenses)
                     Screen.Budget -> BudgetScreen(expenses)
                     Screen.Calendar -> CalendarScreen(expenses)
-                    Screen.Profile -> ProfileScreen()
+                    Screen.Profile -> ProfileScreen(onNavigate = { screen = it })
+                    Screen.Recurring -> RecurringScreen(
+                        recurringItems,
+                        onAdd = { scope.launch { recurringDao.insert(it) } },
+                        onDelete = { scope.launch { recurringDao.delete(it) } }
+                    )
+                    Screen.Reminders -> RemindersScreen(
+                        reminders,
+                        onAdd = { scope.launch { reminderDao.insert(it) } },
+                        onToggle = { item -> scope.launch { reminderDao.setCompleted(item.id, !item.completed) } },
+                        onDelete = { scope.launch { reminderDao.delete(it) } }
+                    )
+                    Screen.Notes -> NotesScreen(
+                        notes,
+                        onAdd = { scope.launch { noteDao.insert(it) } },
+                        onPin = { item -> scope.launch { noteDao.setPinned(item.id, !item.pinned) } },
+                        onDelete = { scope.launch { noteDao.delete(it) } }
+                    )
                 }
             }
         }
@@ -540,7 +566,168 @@ private fun BudgetScreen(expenses: List<Expense>) {
 }
 
 @Composable
-private fun ProfileScreen() {
+private fun RecurringScreen(
+    items: List<RecurringEntity>,
+    onAdd: (RecurringEntity) -> Unit,
+    onDelete: (RecurringEntity) -> Unit
+) {
+    var showAdd by remember { mutableStateOf(false) }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Recurring Expenses") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AppCard {
+                    Text("Monthly Recurring Total", color = Muted)
+                    Text("৳ ${items.sumOf { it.amount }}", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, color = Green)
+                    Text("${items.size} active recurring items", color = Muted, fontSize = 12.sp)
+                }
+                Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Add, null); Text("Add Recurring Expense")
+                }
+            }
+        }
+        items(items, key = { it.id }) { item ->
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(Modifier.size(44.dp), RoundedCornerShape(12.dp), color = Green.copy(.1f)) {
+                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Repeat, null, tint = Green) }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(item.title, fontWeight = FontWeight.Bold, color = Ink)
+                    Text("${item.frequency} • Next: ${item.nextDueDate}", fontSize = 11.sp, color = Muted)
+                }
+                Text("৳ ${item.amount}", fontWeight = FontWeight.Bold, color = Red)
+                IconButton(onClick = { onDelete(item) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Muted) }
+            }
+        }
+    }
+    if (showAdd) {
+        AddItemDialog(
+            title = "Add Recurring Expense",
+            amountEnabled = true,
+            onDismiss = { showAdd = false }
+        ) { name, detail, amount ->
+            onAdd(RecurringEntity(title = name, amount = amount, frequency = "Monthly", nextDueDate = detail.ifBlank { "2026-08-01" }))
+            showAdd = false
+        }
+    }
+}
+
+@Composable
+private fun RemindersScreen(
+    reminders: List<ReminderEntity>,
+    onAdd: (ReminderEntity) -> Unit,
+    onToggle: (ReminderEntity) -> Unit,
+    onDelete: (ReminderEntity) -> Unit
+) {
+    var showAdd by remember { mutableStateOf(false) }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Reminders") }
+        item {
+            Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column { Text("Upcoming", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Ink); Text("${reminders.count { !it.completed }} reminders pending", color = Muted) }
+                FloatingActionButton(onClick = { showAdd = true }, containerColor = Blue, contentColor = Color.White, modifier = Modifier.size(50.dp)) { Icon(Icons.Default.Add, null) }
+            }
+        }
+        items(reminders, key = { it.id }) { item ->
+            Card(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = item.completed, onCheckedChange = { onToggle(item) })
+                    Column(Modifier.weight(1f)) {
+                        Text(item.title, fontWeight = FontWeight.Bold, color = if (item.completed) Muted else Ink)
+                        Text("${item.date} • ${item.time}", fontSize = 11.sp, color = Muted)
+                    }
+                    IconButton(onClick = { onDelete(item) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+                }
+            }
+        }
+    }
+    if (showAdd) {
+        AddItemDialog(title = "Add Reminder", amountEnabled = false, onDismiss = { showAdd = false }) { name, detail, _ ->
+            onAdd(ReminderEntity(title = name, date = detail.ifBlank { "2026-07-29" }, time = "09:00 AM"))
+            showAdd = false
+        }
+    }
+}
+
+@Composable
+private fun NotesScreen(
+    notes: List<NoteEntity>,
+    onAdd: (NoteEntity) -> Unit,
+    onPin: (NoteEntity) -> Unit,
+    onDelete: (NoteEntity) -> Unit
+) {
+    var showAdd by remember { mutableStateOf(false) }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item { AppHeader("Notes") }
+        item {
+            Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField("", {}, readOnly = true, leadingIcon = { Icon(Icons.Default.Search, null) }, placeholder = { Text("Search notes") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp))
+                Spacer(Modifier.width(10.dp))
+                FloatingActionButton(onClick = { showAdd = true }, containerColor = Blue, contentColor = Color.White, modifier = Modifier.size(50.dp)) { Icon(Icons.Default.Add, null) }
+            }
+        }
+        items(notes, key = { it.id }) { item ->
+            Card(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = if (item.pinned) Color(0xFFFFF8E8) else Color.White)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(item.title, Modifier.weight(1f), fontWeight = FontWeight.ExtraBold, color = Ink)
+                        IconButton(onClick = { onPin(item) }) { Icon(Icons.Default.PushPin, "Pin", tint = if (item.pinned) Orange else Muted) }
+                        IconButton(onClick = { onDelete(item) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+                    }
+                    Text(item.body, color = Muted)
+                    Spacer(Modifier.height(8.dp))
+                    Text(item.createdAt, fontSize = 10.sp, color = Muted)
+                }
+            }
+        }
+    }
+    if (showAdd) {
+        AddItemDialog(title = "Add Note", amountEnabled = false, onDismiss = { showAdd = false }) { name, detail, _ ->
+            onAdd(NoteEntity(title = name, body = detail, createdAt = "Jul 28, 2026"))
+            showAdd = false
+        }
+    }
+}
+
+@Composable
+private fun AddItemDialog(
+    title: String,
+    amountEnabled: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String, String, Int) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var detail by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("Title") }, shape = RoundedCornerShape(14.dp))
+                OutlinedTextField(detail, { detail = it }, label = { Text(if (title.contains("Note")) "Details" else "Date") }, shape = RoundedCornerShape(14.dp))
+                if (amountEnabled) OutlinedTextField(amount, { amount = it.filter(Char::isDigit) }, label = { Text("Amount") }, shape = RoundedCornerShape(14.dp))
+            }
+        },
+        confirmButton = { Button(onClick = { if (name.isNotBlank()) onSave(name, detail, amount.toIntOrNull() ?: 0) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun ProfileScreen(onNavigate: (Screen) -> Unit) {
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader("Settings & Profile") }
         item {
@@ -553,6 +740,12 @@ private fun ProfileScreen() {
                     }
                 }
                 Text("Preferences", fontWeight = FontWeight.Bold, color = Ink)
+                Text("Tools", fontWeight = FontWeight.Bold, color = Ink)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ToolShortcut("Recurring", Icons.Default.Repeat, Green, Modifier.weight(1f)) { onNavigate(Screen.Recurring) }
+                    ToolShortcut("Reminders", Icons.Default.Alarm, Orange, Modifier.weight(1f)) { onNavigate(Screen.Reminders) }
+                    ToolShortcut("Notes", Icons.Default.NoteAlt, Color(0xFF7C3AED), Modifier.weight(1f)) { onNavigate(Screen.Notes) }
+                }
                 AppCard {
                     SettingsRow(Icons.Default.CurrencyExchange, "Currency", "Bangladeshi Taka (BDT)")
                     SettingsRow(Icons.Default.Language, "Language", "English / বাংলা")
@@ -567,6 +760,21 @@ private fun ProfileScreen() {
                     SettingsRow(Icons.Default.Help, "Help & Support", "Get help and contact support")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ToolShortcut(label: String, icon: ImageVector, color: Color, modifier: Modifier, onClick: () -> Unit) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null, tint = color)
+            Spacer(Modifier.height(7.dp))
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ink)
         }
     }
 }
