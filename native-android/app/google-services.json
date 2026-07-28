@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "18709848069",
+    "project_id": "daily-hisab-ead32",
+    "storage_bucket": "daily-hisab-ead32.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:18709848069:android:bde9860933088d5b0e7c6c",
+        "android_client_info": {
+          "package_name": "com.dailyhisab.nativeapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "18709848069-l1u1qffgf0n8qv2rmb0r6ato944f3au7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dailyhisab.nativeapp",
+            "certificate_hash": "e1d1f6fd955f4a67a25d523de0ab12061ce47c04"
+          }
+        },
+        {
+          "client_id": "18709848069-3lsu2ulurnml91errigvld1sdk1klh6c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1ATvJCJrsUjyLxDZqpyoIb6nyoi_Igj0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "18709848069-3lsu2ulurnml91errigvld1sdk1klh6c.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

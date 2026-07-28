@@ -40,6 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.dailyhisab.nativeapp.data.FinanceDatabase
 import com.dailyhisab.nativeapp.data.CategoryEntity
 import com.dailyhisab.nativeapp.data.NoteEntity
@@ -122,6 +130,8 @@ fun DailyHisabApp() {
     var profileName by remember { mutableStateOf(prefs.getString("profile_name", "Mirza Galib Palash") ?: "Mirza Galib Palash") }
     var profilePhoto by remember { mutableStateOf(prefs.getString("profile_photo", "") ?: "") }
     var selectedCategory by remember { mutableStateOf("") }
+    val auth = remember { FirebaseAuth.getInstance() }
+    var authUser by remember { mutableStateOf(auth.currentUser) }
     val expenses = storedTransactions.map {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
     }
@@ -141,6 +151,20 @@ fun DailyHisabApp() {
             listOf("Food" to "food", "Transport" to "transport", "Shopping" to "shopping", "Utilities" to "bills", "Health" to "health", "Education" to "education", "Home" to "home", "Others" to "other")
                 .forEach { (name, icon) -> categoryDao.insert(CategoryEntity(name = name, iconName = icon)) }
         }
+    }
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { authUser = it.currentUser }
+        auth.addAuthStateListener(listener)
+        onDispose { auth.removeAuthStateListener(listener) }
+    }
+
+    if (authUser == null) {
+        MaterialTheme(
+            colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFF9DB2FF), secondary = Orange) else lightColorScheme(primary = Blue, secondary = Orange, surface = Color.White, background = Soft)
+        ) {
+            AuthScreen(auth)
+        }
+        return
     }
 
     MaterialTheme(
@@ -194,7 +218,7 @@ fun DailyHisabApp() {
                         profileName = it; prefs.edit().putString("profile_name", it).apply()
                     }, onPhotoChange = {
                         profilePhoto = it; prefs.edit().putString("profile_photo", it).apply()
-                    }, onNavigate = { screen = it })
+                    }, onNavigate = { screen = it }, onSignOut = { auth.signOut() })
                     Screen.Recurring -> RecurringScreen(
                         recurringItems,
                         onAdd = { scope.launch { recurringDao.insert(it) } },
@@ -1624,7 +1648,7 @@ private fun BackupScreen(
 }
 
 @Composable
-private fun ProfileScreen(name: String, photo: String, onNameChange: (String) -> Unit, onPhotoChange: (String) -> Unit, onNavigate: (Screen) -> Unit) {
+private fun ProfileScreen(name: String, photo: String, onNameChange: (String) -> Unit, onPhotoChange: (String) -> Unit, onNavigate: (Screen) -> Unit, onSignOut: () -> Unit) {
     val context = LocalContext.current
     var editName by remember { mutableStateOf(false) }
     var draft by remember(name) { mutableStateOf(name) }
@@ -1674,6 +1698,207 @@ private fun ProfileScreen(name: String, photo: String, onNameChange: (String) ->
                     SettingsRow(Icons.Default.PrivacyTip, "Privacy Policy", "Read our privacy policy")
                     SettingsRow(Icons.Default.Help, "Help & Support", "Get help and contact support")
                 }
+                OutlinedButton(
+                    onClick = onSignOut,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Red)
+                ) {
+                    Icon(Icons.Default.Logout, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Log out")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuthScreen(auth: FirebaseAuth) {
+    val context = LocalContext.current
+    var createAccount by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf("") }
+
+    fun friendlyError(message: String?): String = when {
+        message.isNullOrBlank() -> "Something went wrong. Please try again."
+        "password" in message.lowercase() -> "Password must be at least 6 characters."
+        "email address is already" in message.lowercase() -> "An account already exists with this email."
+        "credential is incorrect" in message.lowercase() -> "Email or password is incorrect."
+        else -> message
+    }
+
+    val googleLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != android.app.Activity.RESULT_OK) {
+            loading = false
+            if (result.data != null) error = "Google sign-in was not completed."
+            return@rememberLauncherForActivityResult
+        }
+        runCatching { GoogleSignIn.getSignedInAccountFromIntent(result.data).result }
+            .onSuccess { account ->
+                val token = account.idToken
+                if (token == null) {
+                    loading = false
+                    error = "Google sign-in configuration is incomplete."
+                } else {
+                    auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null))
+                        .addOnFailureListener {
+                            loading = false
+                            error = friendlyError(it.message)
+                        }
+                }
+            }
+            .onFailure {
+                loading = false
+                error = friendlyError(it.message)
+            }
+    }
+
+    fun submitEmail() {
+        error = ""
+        when {
+            email.isBlank() -> error = "Enter your email address."
+            password.length < 6 -> error = "Password must be at least 6 characters."
+            createAccount && name.isBlank() -> error = "Enter your name."
+            else -> {
+                loading = true
+                if (createAccount) {
+                    auth.createUserWithEmailAndPassword(email.trim(), password)
+                        .addOnSuccessListener { result ->
+                            result.user?.updateProfile(
+                                UserProfileChangeRequest.Builder().setDisplayName(name.trim()).build()
+                            )
+                            loading = false
+                        }
+                        .addOnFailureListener {
+                            loading = false
+                            error = friendlyError(it.message)
+                        }
+                } else {
+                    auth.signInWithEmailAndPassword(email.trim(), password)
+                        .addOnFailureListener {
+                            loading = false
+                            error = friendlyError(it.message)
+                        }
+                }
+            }
+        }
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(Color(0xFFF4F6FF), Color.White))
+        )
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            item {
+                Surface(Modifier.size(72.dp), RoundedCornerShape(22.dp), color = Blue) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.AccountBalanceWallet, null, tint = Color.White, modifier = Modifier.size(38.dp))
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("Daily hisab", color = Navy, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+                Text(if (createAccount) "Create your account" else "Welcome back", color = Muted)
+                Spacer(Modifier.height(28.dp))
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        if (createAccount) {
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { name = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Full name") },
+                                leadingIcon = { Icon(Icons.Default.Person, null) },
+                                singleLine = true
+                            )
+                        }
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Email") },
+                            leadingIcon = { Icon(Icons.Default.Email, null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, null) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            singleLine = true
+                        )
+                        if (error.isNotBlank()) Text(error, color = Red, fontSize = 13.sp)
+                        Button(
+                            onClick = { submitEmail() },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            enabled = !loading,
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            if (loading) CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+                            else Text(if (createAccount) "Create account" else "Log in", fontWeight = FontWeight.Bold)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            HorizontalDivider(Modifier.weight(1f))
+                            Text("  or  ", color = Muted, fontSize = 12.sp)
+                            HorizontalDivider(Modifier.weight(1f))
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                error = ""
+                                loading = true
+                                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                    .requestIdToken(context.getString(com.dailyhisab.nativeapp.R.string.default_web_client_id))
+                                    .requestEmail()
+                                    .build()
+                                val client = GoogleSignIn.getClient(context, options)
+                                client.signOut().addOnCompleteListener { googleLauncher.launch(client.signInIntent) }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            enabled = !loading,
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.GMobiledata, null, tint = Blue, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Continue with Google", color = Ink, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                TextButton(onClick = {
+                    createAccount = !createAccount
+                    error = ""
+                }) {
+                    Text(if (createAccount) "Already have an account? Log in" else "New here? Create an account")
+                }
+                if (!createAccount) {
+                    TextButton(
+                        onClick = {
+                            if (email.isBlank()) error = "Enter your email first."
+                            else {
+                                auth.sendPasswordResetEmail(email.trim())
+                                    .addOnSuccessListener { error = "Password reset email sent." }
+                                    .addOnFailureListener { error = friendlyError(it.message) }
+                            }
+                        }
+                    ) { Text("Forgot password?") }
+                }
+                Spacer(Modifier.height(20.dp))
             }
         }
     }
