@@ -1101,6 +1101,7 @@ export function DashboardPage() {
 
   return (
     <AppShell>
+      <h1 className="sr-only">Daily Hisab – দৈনিক আয়-ব্যয়, বাজেট ও খরচের হিসাব অ্যাপ</h1>
       <MobileDashboard categoryData={categoryData} entries={entries} monthExpense={monthExpense} />
 
       <DesktopDashboard categoryData={categoryData} entries={entries} monthExpense={monthExpense} summaryRows={summaryRows} today={today} todaySummary={todaySummary} trendData={trendData} />
