@@ -23,6 +23,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
 import com.dailyhisab.nativeapp.data.FinanceDatabase
 import com.dailyhisab.nativeapp.data.CategoryEntity
 import com.dailyhisab.nativeapp.data.NoteEntity
@@ -623,6 +625,7 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
     var receiptUri by remember { mutableStateOf<String?>(null) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var calculatorMode by remember { mutableIntStateOf(0) }
+    var calculatorOffset by remember { mutableStateOf(androidx.compose.ui.unit.IntOffset(-24, -190)) }
     val receiptPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
@@ -704,14 +707,15 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
     if (calculatorMode == 1) {
         androidx.compose.ui.window.Popup(
             alignment = Alignment.BottomEnd,
-            offset = androidx.compose.ui.unit.IntOffset(-24, -190),
+            offset = calculatorOffset,
             onDismissRequest = { calculatorMode = 0 }
         ) {
             CalculatorWidget(
                 compact = true,
                 onClose = { calculatorMode = 0 },
                 onResize = { calculatorMode = 2 },
-                onUseResult = { amount = it }
+                onUseResult = { amount = it },
+                onDrag = { dx, dy -> calculatorOffset = androidx.compose.ui.unit.IntOffset(calculatorOffset.x + dx.toInt(), calculatorOffset.y + dy.toInt()) }
             )
         }
     }
@@ -722,7 +726,8 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
                     compact = false,
                     onClose = { calculatorMode = 0 },
                     onResize = { calculatorMode = 1 },
-                    onUseResult = { amount = it; calculatorMode = 1 }
+                    onUseResult = { amount = it; calculatorMode = 1 },
+                    onDrag = { _, _ -> }
                 )
             }
         }
@@ -734,7 +739,8 @@ private fun CalculatorWidget(
     compact: Boolean,
     onClose: () -> Unit,
     onResize: () -> Unit,
-    onUseResult: (String) -> Unit
+    onUseResult: (String) -> Unit,
+    onDrag: (Float, Float) -> Unit
 ) {
     var display by remember { mutableStateOf("0") }
     var stored by remember { mutableDoubleStateOf(0.0) }
@@ -743,6 +749,8 @@ private fun CalculatorWidget(
 
     fun formatted(value: Double): String =
         if (value % 1.0 == 0.0) value.toLong().toString() else String.format(Locale.US, "%.2f", value).trimEnd('0').trimEnd('.')
+
+    val expression = if (operation != null) "${formatted(stored)} $operation ${if (replaceDisplay) "" else display}" else display
 
     fun calculate() {
         val current = display.toDoubleOrNull() ?: 0.0
@@ -788,14 +796,24 @@ private fun CalculatorWidget(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(Modifier.padding(if (compact) 12.dp else 20.dp), verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 12.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().then(
+                    if (compact) Modifier.pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            onDrag(dragAmount.x, dragAmount.y)
+                        }
+                    } else Modifier
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(Icons.Default.Calculate, null, tint = Blue)
-                Text(" Calculator", Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
+                Text(if (compact) " Calculator • drag" else " Calculator", Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
                 IconButton(onClick = onResize, modifier = Modifier.size(34.dp)) { Icon(if (compact) Icons.Default.OpenInFull else Icons.Default.CloseFullscreen, if (compact) "Expand" else "Minimize") }
                 IconButton(onClick = onClose, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Close, "Close") }
             }
             Surface(Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), color = Soft) {
-                Text(display, Modifier.padding(horizontal = 14.dp, vertical = if (compact) 12.dp else 20.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontSize = if (compact) 25.sp else 38.sp, fontWeight = FontWeight.ExtraBold, color = Ink, maxLines = 1)
+                Text(expression, Modifier.padding(horizontal = 14.dp, vertical = if (compact) 12.dp else 20.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontSize = if (compact) 25.sp else 38.sp, fontWeight = FontWeight.ExtraBold, color = Ink, maxLines = 1)
             }
             val keys = listOf(listOf("C", "⌫", "÷"), listOf("7", "8", "9", "×"), listOf("4", "5", "6", "-"), listOf("1", "2", "3", "+"), listOf("0", ".", "="))
             keys.forEach { row ->
