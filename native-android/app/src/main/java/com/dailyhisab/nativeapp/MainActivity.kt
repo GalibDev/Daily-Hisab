@@ -59,6 +59,7 @@ import com.dailyhisab.nativeapp.data.ReceiptEntity
 import com.dailyhisab.nativeapp.data.TransactionEntity
 import com.dailyhisab.nativeapp.notifications.ReminderWorker
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -1744,6 +1745,10 @@ private fun AuthScreen(auth: FirebaseAuth) {
 
     fun friendlyError(message: String?): String = when {
         message.isNullOrBlank() -> "Something went wrong. Please try again."
+        "blocked all requests" in message.lowercase() || "unusual activity" in message.lowercase() ->
+            "Firebase temporarily paused requests from this device. Wait a few minutes, then try again."
+        "too many" in message.lowercase() ->
+            "Too many attempts. Wait a few minutes, then try again."
         "password" in message.lowercase() -> "Password must be at least 6 characters."
         "email address is already" in message.lowercase() -> "An account already exists with this email."
         "credential is incorrect" in message.lowercase() -> "Email or password is incorrect."
@@ -1945,10 +1950,18 @@ private fun EmailVerificationScreen(
     onSignOut: () -> Unit
 ) {
     var loading by remember { mutableStateOf(false) }
+    var resendCooldown by remember { mutableIntStateOf(60) }
     var message by remember {
         mutableStateOf("We sent a verification link to ${user.email.orEmpty()}. Open Gmail and tap the link.")
     }
     var isError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(resendCooldown) {
+        if (resendCooldown > 0) {
+            delay(1_000)
+            resendCooldown--
+        }
+    }
 
     Box(
         Modifier.fillMaxSize().background(
@@ -2014,21 +2027,30 @@ private fun EmailVerificationScreen(
                         user.sendEmailVerification()
                             .addOnSuccessListener {
                                 loading = false
+                                resendCooldown = 60
                                 isError = false
                                 message = "A new verification email was sent to ${user.email.orEmpty()}."
                             }
                             .addOnFailureListener {
                                 loading = false
                                 isError = true
-                                message = it.message ?: "Could not resend the email. Try again later."
+                                val blocked = it.message?.contains("blocked all requests", ignoreCase = true) == true ||
+                                    it.message?.contains("unusual activity", ignoreCase = true) == true ||
+                                    it.message?.contains("too many", ignoreCase = true) == true
+                                if (blocked) {
+                                    resendCooldown = 120
+                                    message = "Too many emails were requested. Firebase temporarily paused this device. Wait a few minutes, then try again once."
+                                } else {
+                                    message = it.message ?: "Could not resend the email. Try again later."
+                                }
                             }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !loading
+                    enabled = !loading && resendCooldown == 0
                 ) {
                     Icon(Icons.Default.Refresh, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Resend verification email")
+                    Text(if (resendCooldown > 0) "Resend in ${resendCooldown}s" else "Resend verification email")
                 }
                 TextButton(onClick = onSignOut, enabled = !loading) {
                     Text("Use another account")
