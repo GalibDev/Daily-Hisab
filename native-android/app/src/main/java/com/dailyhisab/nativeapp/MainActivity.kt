@@ -217,16 +217,6 @@ fun DailyHisabApp() {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
     }
 
-    LaunchedEffect(storedTransactions) {
-        if (storedTransactions.isEmpty()) {
-            listOf(
-                TransactionEntity(title = "Groceries", category = "Food", amount = 120, date = "2026-07-28", time = "10:30 AM", type = "expense"),
-                TransactionEntity(title = "Transport (Ride)", category = "Transport", amount = 100, date = "2026-07-28", time = "09:15 AM", type = "expense"),
-                TransactionEntity(title = "Salary", category = "Income", amount = 2500, date = "2026-07-27", time = "09:00 AM", type = "income"),
-                TransactionEntity(title = "Electricity Bill", category = "Utilities", amount = 150, date = "2026-07-10", time = "08:40 PM", type = "expense")
-            ).forEach { dao.insert(it) }
-        }
-    }
     LaunchedEffect(categories) {
         if (categories.isEmpty()) {
             listOf("Food" to "food", "Transport" to "transport", "Shopping" to "shopping", "Utilities" to "bills", "Health" to "health", "Education" to "education", "Home" to "home", "Others" to "other")
