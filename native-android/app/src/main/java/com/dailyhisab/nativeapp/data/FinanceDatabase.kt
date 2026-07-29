@@ -75,6 +75,12 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
     fun observeAll(): Flow<List<TransactionEntity>>
 
+    @Query("SELECT COUNT(*) FROM transactions WHERE type = 'expense' AND date = :date")
+    suspend fun expenseCountForDate(date: String): Int
+
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'expense' AND date >= :startDate AND date <= :endDate")
+    suspend fun expenseTotalBetween(startDate: String, endDate: String): Int
+
     @Insert
     suspend fun insert(transaction: TransactionEntity)
 

@@ -68,6 +68,7 @@ import com.dailyhisab.nativeapp.data.ReminderEntity
 import com.dailyhisab.nativeapp.data.ReceiptEntity
 import com.dailyhisab.nativeapp.data.TransactionEntity
 import com.dailyhisab.nativeapp.notifications.ReminderWorker
+import com.dailyhisab.nativeapp.notifications.DailyInsightWorker
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import org.json.JSONArray
@@ -87,6 +88,14 @@ private val Ink = Color(0xFF111936)
 private val Muted = Color(0xFF69718A)
 private val Soft = Color(0xFFF5F7FF)
 private var useBangla by mutableStateOf(false)
+private var selectedCurrency by mutableStateOf("BDT")
+private const val BDT_PER_USD = 120.0
+
+private fun money(amount: Int): String = when (selectedCurrency) {
+    "USD" -> "$ ${String.format(Locale.US, "%.2f", amount / BDT_PER_USD)}"
+    "USDT" -> "USDT ${String.format(Locale.US, "%.2f", amount / BDT_PER_USD)}"
+    else -> "৳ $amount"
+}
 
 private fun translated(text: String): String {
     if (!useBangla) return text
@@ -142,6 +151,7 @@ class MainActivity : FragmentActivity() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel("daily_hisab_reminders", "Expense reminders", NotificationManager.IMPORTANCE_HIGH)
         )
+        DailyInsightWorker.schedule(this)
         setContent { DailyHisabApp() }
     }
 }
@@ -202,6 +212,7 @@ fun DailyHisabApp() {
     val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
     LaunchedEffect(Unit) {
         useBangla = prefs.getString("language", "English") == "Bangla"
+        selectedCurrency = prefs.getString("currency", "BDT") ?: "BDT"
     }
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
@@ -264,14 +275,7 @@ fun DailyHisabApp() {
 
     if (biometricEnabled && !biometricUnlocked) {
         BiometricLockScreen(
-            onUnlock = {
-                showBiometricPrompt(
-                    context as FragmentActivity,
-                    onSuccess = { biometricUnlocked = true },
-                    onError = {}
-                )
-            },
-            onSignOut = { auth.signOut() }
+            onUnlocked = { biometricUnlocked = true }
         )
         return
     }
@@ -385,8 +389,21 @@ fun DailyHisabApp() {
 }
 
 @Composable
-private fun BiometricLockScreen(onUnlock: () -> Unit, onSignOut: () -> Unit) {
-    LaunchedEffect(Unit) { onUnlock() }
+private fun BiometricLockScreen(onUnlocked: () -> Unit) {
+    val activity = LocalContext.current as FragmentActivity
+    var retryKey by remember { mutableIntStateOf(0) }
+    var status by remember { mutableStateOf("Touch the fingerprint sensor") }
+    LaunchedEffect(retryKey) {
+        delay(if (retryKey == 0) 150 else 700)
+        showBiometricPrompt(
+            activity,
+            onSuccess = onUnlocked,
+            onError = {
+                status = "Waiting for fingerprint…"
+                retryKey++
+            }
+        )
+    }
     MaterialTheme {
         Box(Modifier.fillMaxSize().background(Soft).padding(28.dp), contentAlignment = Alignment.Center) {
             AppCard {
@@ -399,13 +416,8 @@ private fun BiometricLockScreen(onUnlock: () -> Unit, onSignOut: () -> Unit) {
                     Spacer(Modifier.height(18.dp))
                     Text("Daily Hisab is locked", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
                     Text("Authenticate to view your financial data.", color = Muted, fontSize = 13.sp)
-                    Spacer(Modifier.height(20.dp))
-                    Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Fingerprint, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Unlock")
-                    }
-                    TextButton(onClick = onSignOut) { Text("Sign out") }
+                    Spacer(Modifier.height(16.dp))
+                    Text(status, color = Blue, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -446,7 +458,8 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
     val monthSpent = monthEntries.filterNot { it.income }.sumOf { it.amount }
     val monthIncome = monthEntries.filter { it.income }.sumOf { it.amount }
     val allSpent = expenses.filterNot { it.income }.sumOf { it.amount }
-    val dailyAverage = monthSpent / today.dayOfMonth.coerceAtLeast(1)
+    val activeExpenseDays = monthEntries.filterNot { it.income }.map { it.date }.distinct().size.coerceAtLeast(1)
+    val dailyAverage = (monthSpent.toDouble() / activeExpenseDays).toInt()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { AppHeader(subtitle = "Your Daily Expense Tracker") }
         item {
@@ -504,13 +517,13 @@ private fun TodayExpenseHero(todaySpent: Int, monthSpent: Int, allSpent: Int, da
         ) {
             Column {
                 Text("TODAY'S EXPENSE", color = Color.White.copy(.72f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text("৳ $todaySpent", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+                Text(money(todaySpent), color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
             }
             HorizontalDivider(color = Color.White.copy(.18f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                HeroMetric("This Month", "৳ $monthSpent", Color.White)
-                HeroMetric("All Expense", "৳ $allSpent", Color.White)
-                HeroMetric("Daily Average", "৳ $dailyAverage", Color(0xFFFFD166))
+                HeroMetric("This Month", money(monthSpent), Color.White)
+                HeroMetric("All Expense", money(allSpent), Color.White)
+                HeroMetric("Daily Average", money(dailyAverage), Color(0xFFFFD166))
             }
         }
     }
@@ -532,12 +545,12 @@ private fun BalanceHeroLive(income: Int, spent: Int) {
                 Text("${YearMonth.now().format(DateTimeFormatter.ofPattern("MMMM yyyy"))} • Monthly Summary", color = Color.White.copy(.78f), fontSize = 12.sp)
                 Text("Wallet Balance", color = Color.White.copy(.78f), fontSize = 12.sp)
             }
-            Text("৳ ${income - spent}", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+            Text(money(income - spent), color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
             HorizontalDivider(color = Color.White.copy(.16f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                HeroMetric("Income", "৳ $income", Green)
-                HeroMetric("Expense", "৳ $spent", Color(0xFFFF7A7A))
-                HeroMetric("Savings", "৳ ${income - spent}", Color.White)
+                HeroMetric("Income", money(income), Green)
+                HeroMetric("Expense", money(spent), Color(0xFFFF7A7A))
+                HeroMetric("Savings", money(income - spent), Color.White)
             }
         }
     }
@@ -599,13 +612,13 @@ private fun MonthOverviewLive(entries: List<Expense>) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(116.dp).background(Brush.sweepGradient(colors + Orange), CircleShape), contentAlignment = Alignment.Center) {
                 Surface(Modifier.size(78.dp), CircleShape, color = Color.White) {
-                    Box(contentAlignment = Alignment.Center) { Text("৳ $spent\nTotal", fontWeight = FontWeight.Bold, color = Ink) }
+                    Box(contentAlignment = Alignment.Center) { Text("${money(spent)}\nTotal", fontWeight = FontWeight.Bold, color = Ink) }
                 }
             }
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (categories.isEmpty()) Text("No expenses this month", color = Muted, fontSize = 12.sp)
-                categories.forEachIndexed { index, (name, amount) -> Legend(name, "৳ $amount", colors[index]) }
+                categories.forEachIndexed { index, (name, amount) -> Legend(name, money(amount), colors[index]) }
             }
         }
     }
@@ -655,7 +668,7 @@ private fun TransactionRow(expense: Expense) {
             Text(expense.title, fontWeight = FontWeight.Bold, color = Ink)
             Text("${expense.category} • ${expense.time}", fontSize = 11.sp, color = Muted)
         }
-        Text("${if (expense.income) "+" else "-"}৳ ${expense.amount}", color = if (expense.income) Green else Red, fontWeight = FontWeight.Bold)
+        Text("${if (expense.income) "+" else "-"}${money(expense.amount)}", color = if (expense.income) Green else Red, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -782,7 +795,7 @@ private fun AnalyticsScreen(expenses: List<Expense>) {
                             Box(Modifier.weight(1f).height(12.dp).background(Soft, RoundedCornerShape(8.dp))) {
                                 Box(Modifier.fillMaxWidth(amount.toFloat() / largest).fillMaxHeight().background(listOf(Orange, Blue, Green, Red, Color(0xFF8B5CF6))[index], RoundedCornerShape(8.dp)))
                             }
-                            Text("৳ $amount", Modifier.width(72.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(money(amount), Modifier.width(86.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(10.dp))
                     }
@@ -829,7 +842,7 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
             item {
                 OutlinedTextField(
                     value = amount, onValueChange = { amount = it.filter(Char::isDigit) },
-                    label = { Text("Amount") }, leadingIcon = { Text("৳", fontSize = 24.sp, fontWeight = FontWeight.Bold) },
+                    label = { Text("Amount") }, leadingIcon = { Text(when (selectedCurrency) { "USD" -> "$"; "USDT" -> "₮"; else -> "৳" }, fontSize = 24.sp, fontWeight = FontWeight.Bold) },
                     modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)
                 )
             }
@@ -1076,7 +1089,7 @@ private fun CalendarV2(expenses: List<Expense>) {
                         }
                     }
                 }
-                SectionTitle(selected.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM")), "BDT ${visible.filterNot { it.income }.sumOf { it.amount }}")
+                SectionTitle(selected.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM")), money(visible.filterNot { it.income }.sumOf { it.amount }))
             }
         }
         if (visible.isEmpty()) item { Text("No entries for this date", Modifier.padding(24.dp), color = Muted) }
@@ -1115,13 +1128,20 @@ private fun FilteredExpenseScreen(title: String, expenses: List<Expense>, onUpda
                 Card(colors = CardDefaults.cardColors(containerColor = Color.Transparent), shape = RoundedCornerShape(22.dp)) {
                     Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Navy, Blue, Color(0xFF0EA5E9)))).padding(20.dp)) {
                         Text("${selectedDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))} • $period", color = Color.White.copy(.75f), fontSize = 12.sp)
-                        Text("৳ $total", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(money(total), color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
                         Text("${visible.size} expense entries", color = Color.White.copy(.75f), fontSize = 12.sp)
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     listOf("Daily", "Weekly", "Monthly", "Yearly").forEach { value ->
-                        FilterChip(period == value, { period = value }, { Text(value, fontSize = 10.sp) })
+                        FilterChip(
+                            period == value,
+                            {
+                                period = value
+                                selectedDate = LocalDate.now()
+                            },
+                            { Text(value, fontSize = 10.sp) }
+                        )
                     }
                 }
                 OutlinedButton(onClick = {
@@ -1224,7 +1244,7 @@ private fun EntriesScreen(expenses: List<Expense>, onDelete: (Expense) -> Unit) 
 private fun SummaryMetric(label: String, amount: Int, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, fontSize = 11.sp, color = Muted)
-        Text("৳ $amount", fontWeight = FontWeight.ExtraBold, color = color)
+        Text(money(amount), fontWeight = FontWeight.ExtraBold, color = color)
     }
 }
 
@@ -1239,7 +1259,7 @@ private fun TransactionRowContent(expense: Expense) {
             Text(expense.title, fontWeight = FontWeight.Bold, color = Ink)
             Text("${expense.category} • ${expense.date}", fontSize = 11.sp, color = Muted)
         }
-        Text("${if (expense.income) "+" else "-"}৳ ${expense.amount}", color = if (expense.income) Green else Red, fontWeight = FontWeight.Bold)
+        Text("${if (expense.income) "+" else "-"}${money(expense.amount)}", color = if (expense.income) Green else Red, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1295,7 +1315,7 @@ private fun CategoriesScreenV2(categories: List<CategoryEntity>, expenses: List<
                         Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(categoryIcon(item.iconName), null, tint = Blue, modifier = Modifier.size(34.dp))
                             Text(item.name, fontWeight = FontWeight.Bold)
-                            Text("BDT ${expenses.filter { !it.income && it.category == item.name }.sumOf { it.amount }}", color = Muted, fontSize = 11.sp)
+                            Text(money(expenses.filter { !it.income && it.category == item.name }.sumOf { it.amount }), color = Muted, fontSize = 11.sp)
                             IconButton(onClick = { onDelete(item) }) { Icon(Icons.Default.DeleteOutline, "Delete category", tint = Red) }
                         }
                     }
@@ -1338,7 +1358,7 @@ private fun CategoriesScreen(expenses: List<Expense>) {
                                     }
                                     Spacer(Modifier.height(8.dp))
                                     Text(name, fontWeight = FontWeight.Bold, color = Ink)
-                                    Text("৳ ${expenses.filter { !it.income && it.category == name }.sumOf { it.amount }}", color = Muted)
+                                    Text(money(expenses.filter { !it.income && it.category == name }.sumOf { it.amount }), color = Muted)
                                 }
                             }
                         }
@@ -1355,7 +1375,7 @@ private fun CategoriesScreen(expenses: List<Expense>) {
 private fun FunctionalBudgetScreen(categories: List<CategoryEntity>, expenses: List<Expense>) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("daily_hisab_budget", 0) }
-    var budget by remember { mutableIntStateOf(prefs.getInt("monthly_budget", 2500)) }
+    var budget by remember { mutableIntStateOf(prefs.getInt("monthly_budget", 0)) }
     var editingCategory by remember { mutableStateOf<String?>(null) }
     var editValue by remember { mutableStateOf("") }
     val month = YearMonth.now()
@@ -1390,24 +1410,24 @@ private fun FunctionalBudgetScreen(categories: List<CategoryEntity>, expenses: L
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 AppCard {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column { Text("Monthly Budget", color = Muted); Text("৳ $budget", fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, color = Ink) }
+                        Column { Text("Monthly Budget", color = Muted); Text(money(budget), fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, color = Ink) }
                         IconButton(onClick = { editingCategory = "_total"; editValue = budget.toString() }) { Icon(Icons.Default.Edit, "Edit budget", tint = Blue) }
                     }
-                    Text("Spent ৳ $spent  •  ${if (remaining >= 0) "Remaining ৳ $remaining" else "Over ৳ ${-remaining}"}", color = if (remaining >= 0) Muted else Red)
+                    Text("Spent ${money(spent)}  •  ${if (remaining >= 0) "Remaining ${money(remaining)}" else "Over ${money(-remaining)}"}", color = if (remaining >= 0) Muted else Red)
                     Spacer(Modifier.height(12.dp))
                     LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth().height(12.dp), color = if (spent > budget) Red else Orange, trackColor = Color(0xFFFFE4E6))
                     Text("${(progress * 100).toInt()}% used", fontSize = 12.sp, color = Muted)
                 }
                 AppCard {
                     Text("Daily Allowance", color = Muted)
-                    Text("৳ ${maxOf(remaining, 0) / remainingDays}", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Blue)
+                    Text(money(maxOf(remaining, 0) / remainingDays), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Blue)
                     Text("$remainingDays days remaining this month", fontSize = 11.sp, color = Muted)
                 }
                 Text("Budget by Category", fontWeight = FontWeight.ExtraBold, color = Ink)
             }
         }
         items(categories, key = { it.id }) { category ->
-            val limit = prefs.getInt("category_${category.name}", 500)
+            val limit = prefs.getInt("category_${category.name}", 0)
             val categorySpent = monthExpenses.filter { it.category == category.name }.sumOf { it.amount }
             AppCardContainer(Modifier.padding(horizontal = 16.dp, vertical = 5.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1415,7 +1435,7 @@ private fun FunctionalBudgetScreen(categories: List<CategoryEntity>, expenses: L
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(category.name, fontWeight = FontWeight.Bold)
-                        Text("৳ $categorySpent / ৳ $limit", fontSize = 12.sp, color = Muted)
+                        Text("${money(categorySpent)} / ${money(limit)}", fontSize = 12.sp, color = Muted)
                     }
                     IconButton(onClick = { editingCategory = category.name; editValue = limit.toString() }) { Icon(Icons.Default.Edit, "Edit category budget") }
                 }
@@ -1728,6 +1748,7 @@ private fun SettingsScreen(
         notifications = granted
         prefs.edit().putBoolean("notifications", granted).apply()
         notificationMessage = if (granted) "Notifications enabled" else "Notification permission was denied"
+        if (granted) DailyInsightWorker.schedule(context)
     }
     val bangla = useBangla
     LazyColumn(Modifier.fillMaxSize()) {
@@ -1736,8 +1757,16 @@ private fun SettingsScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(if (bangla) "মুদ্রা" else "Currency", fontWeight = FontWeight.Bold, color = Ink)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("BDT", "USD").forEachIndexed { index, value ->
-                        SegmentedButton(selected = currency == value, onClick = { currency = value; prefs.edit().putString("currency", value).apply() }, shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(value) }
+                    listOf("BDT", "USD", "USDT").forEachIndexed { index, value ->
+                        SegmentedButton(
+                            selected = currency == value,
+                            onClick = {
+                                currency = value
+                                selectedCurrency = value
+                                prefs.edit().putString("currency", value).apply()
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index, 3)
+                        ) { Text(value) }
                     }
                 }
                 Text(if (bangla) "ভাষা" else "Language", fontWeight = FontWeight.Bold, color = Ink)
@@ -1772,7 +1801,12 @@ private fun SettingsScreen(
                                     notifications = enabled
                                     prefs.edit().putBoolean("notifications", enabled).apply()
                                     notificationMessage = if (enabled) "Notifications enabled" else "Notifications disabled"
-                                    if (!enabled) ReminderWorker.cancelAll(context)
+                                    if (!enabled) {
+                                        ReminderWorker.cancelAll(context)
+                                        DailyInsightWorker.cancel(context)
+                                    } else {
+                                        DailyInsightWorker.schedule(context)
+                                    }
                                 }
                             }
                         )
