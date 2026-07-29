@@ -2234,6 +2234,7 @@ private fun BackupScreen(
     val scope = rememberCoroutineScope()
     val database = remember { FinanceDatabase.get(context) }
     var status by remember { mutableStateOf("Ready to create a backup") }
+    var automaticBackupEnabled by remember { mutableStateOf(AutomaticBackupWorker.isEnabled(context)) }
     var selectedInterval by remember { mutableLongStateOf(AutomaticBackupWorker.configuredIntervalDays(context)) }
     var configuredDriveUri by remember { mutableStateOf(AutomaticBackupWorker.configuredDriveUri(context)) }
     var pendingInterval by remember { mutableLongStateOf(selectedInterval) }
@@ -2284,6 +2285,7 @@ private fun BackupScreen(
             }.onSuccess {
                 selectedInterval = pendingInterval
                 configuredDriveUri = uri.toString()
+                automaticBackupEnabled = true
                 status = "Automatic Drive backup is active every $pendingInterval day${if (pendingInterval == 1L) "" else "s"}"
             }.onFailure { status = "Drive setup failed: ${it.message}" }
         }
@@ -2315,9 +2317,21 @@ private fun BackupScreen(
                         Icon(Icons.Default.Backup, null, tint = Green)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Automatic daily backup", fontWeight = FontWeight.ExtraBold, color = Ink)
-                            Text(if (automaticBackupFile.exists()) "Latest local copy is ready" else "Will run automatically every 24 hours", color = Muted, fontSize = 11.sp)
+                            Text("Automatic backup", fontWeight = FontWeight.ExtraBold, color = Ink)
+                            Text(
+                                if (automaticBackupEnabled) "On • every $selectedInterval day${if (selectedInterval == 1L) "" else "s"}" else "Off • no scheduled backup will run",
+                                color = if (automaticBackupEnabled) Green else Muted,
+                                fontSize = 11.sp
+                            )
                         }
+                        Switch(
+                            checked = automaticBackupEnabled,
+                            onCheckedChange = { enabled ->
+                                automaticBackupEnabled = enabled
+                                AutomaticBackupWorker.setEnabled(context, enabled)
+                                status = if (enabled) "Automatic backup enabled" else "Automatic backup disabled"
+                            }
+                        )
                     }
                     if (automaticBackupFile.exists()) {
                         Spacer(Modifier.height(10.dp))
@@ -2336,8 +2350,8 @@ private fun BackupScreen(
                         Column {
                             Text("Automatic Google Drive backup", fontWeight = FontWeight.ExtraBold, color = Ink)
                             Text(
-                                if (configuredDriveUri != null) "Active • every $selectedInterval day${if (selectedInterval == 1L) "" else "s"}" else "Choose an interval and Drive file once",
-                                color = if (configuredDriveUri != null) Green else Muted,
+                                if (configuredDriveUri != null && automaticBackupEnabled) "Active • every $selectedInterval day${if (selectedInterval == 1L) "" else "s"}" else if (configuredDriveUri != null) "Configured • currently off" else "Choose an interval and Drive file once",
+                                color = if (configuredDriveUri != null && automaticBackupEnabled) Green else Muted,
                                 fontSize = 11.sp
                             )
                         }
@@ -2348,7 +2362,11 @@ private fun BackupScreen(
                         listOf(1L to "1 day", 7L to "7 days", 30L to "30 days").forEach { (days, label) ->
                             FilterChip(
                                 selected = selectedInterval == days,
-                                onClick = { selectedInterval = days },
+                                onClick = {
+                                    selectedInterval = days
+                                    AutomaticBackupWorker.setInterval(context, days)
+                                    status = if (automaticBackupEnabled) "Backup interval changed to $label" else "Interval saved; turn automatic backup on to use it"
+                                },
                                 label = { Text(label) },
                                 modifier = Modifier.weight(1f)
                             )

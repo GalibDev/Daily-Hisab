@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
 
 class AutomaticBackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = runCatching {
+        if (!isEnabled(applicationContext)) return Result.success()
         val db = FinanceDatabase.get(applicationContext)
         val transactions = db.transactionDao().getAll()
         val recurring = db.recurringDao().getAll()
@@ -60,6 +61,10 @@ class AutomaticBackupWorker(context: Context, params: WorkerParameters) : Corout
         private const val UNIQUE_WORK = "daily_hisab_automatic_backup"
 
         fun schedule(context: Context, intervalDays: Long = configuredIntervalDays(context)) {
+            if (!isEnabled(context)) {
+                cancel(context)
+                return
+            }
             WorkManager.getInstance(context).enqueueUniqueWork(
                 "${UNIQUE_WORK}_initial",
                 ExistingWorkPolicy.REPLACE,
@@ -77,6 +82,7 @@ class AutomaticBackupWorker(context: Context, params: WorkerParameters) : Corout
             context.getSharedPreferences(PREFS, 0).edit()
                 .putString(KEY_DRIVE_URI, uri)
                 .putLong(KEY_INTERVAL_DAYS, intervalDays)
+                .putBoolean(KEY_ENABLED, true)
                 .apply()
             schedule(context, intervalDays)
         }
@@ -87,12 +93,31 @@ class AutomaticBackupWorker(context: Context, params: WorkerParameters) : Corout
         fun configuredIntervalDays(context: Context): Long =
             context.getSharedPreferences(PREFS, 0).getLong(KEY_INTERVAL_DAYS, 1L)
 
+        fun isEnabled(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, 0).getBoolean(KEY_ENABLED, false)
+
+        fun setEnabled(context: Context, enabled: Boolean) {
+            context.getSharedPreferences(PREFS, 0).edit().putBoolean(KEY_ENABLED, enabled).apply()
+            if (enabled) schedule(context) else cancel(context)
+        }
+
+        fun setInterval(context: Context, intervalDays: Long) {
+            context.getSharedPreferences(PREFS, 0).edit().putLong(KEY_INTERVAL_DAYS, intervalDays).apply()
+            if (isEnabled(context)) schedule(context, intervalDays)
+        }
+
         fun disableDrive(context: Context) {
             context.getSharedPreferences(PREFS, 0).edit().remove(KEY_DRIVE_URI).apply()
+        }
+
+        private fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK)
+            WorkManager.getInstance(context).cancelUniqueWork("${UNIQUE_WORK}_initial")
         }
 
         private const val PREFS = "daily_hisab_backup"
         private const val KEY_DRIVE_URI = "drive_uri"
         private const val KEY_INTERVAL_DAYS = "interval_days"
+        private const val KEY_ENABLED = "backup_enabled"
     }
 }
