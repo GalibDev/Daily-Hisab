@@ -2234,6 +2234,9 @@ private fun BackupScreen(
     val scope = rememberCoroutineScope()
     val database = remember { FinanceDatabase.get(context) }
     var status by remember { mutableStateOf("Ready to create a backup") }
+    var selectedInterval by remember { mutableLongStateOf(AutomaticBackupWorker.configuredIntervalDays(context)) }
+    var configuredDriveUri by remember { mutableStateOf(AutomaticBackupWorker.configuredDriveUri(context)) }
+    var pendingInterval by remember { mutableLongStateOf(selectedInterval) }
     val automaticBackupFile = remember { java.io.File(context.filesDir, "backups/daily-hisab-auto-backup.json") }
     val backupJson = remember(expenses, recurring, reminders, notes, categories) {
         JSONObject().apply {
@@ -2266,6 +2269,23 @@ private fun BackupScreen(
             runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("Empty backup") }
                 .onSuccess(::restore)
                 .onFailure { status = "Could not open backup: ${it.message}" }
+        }
+    }
+    val configureDriveDocument = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                context.contentResolver.openOutputStream(uri, "wt")?.bufferedWriter()?.use { it.write(backupJson) }
+                    ?: error("Could not write the Drive backup")
+                AutomaticBackupWorker.configureDrive(context, uri.toString(), pendingInterval)
+            }.onSuccess {
+                selectedInterval = pendingInterval
+                configuredDriveUri = uri.toString()
+                status = "Automatic Drive backup is active every $pendingInterval day${if (pendingInterval == 1L) "" else "s"}"
+            }.onFailure { status = "Drive setup failed: ${it.message}" }
         }
     }
     LazyColumn(Modifier.fillMaxSize()) {
@@ -2307,6 +2327,68 @@ private fun BackupScreen(
                         ) {
                             Icon(Icons.Default.History, null); Spacer(Modifier.width(8.dp)); Text("Restore latest automatic backup")
                         }
+                    }
+                }
+                AppCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AddToDrive, null, tint = Blue, modifier = Modifier.size(34.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text("Automatic Google Drive backup", fontWeight = FontWeight.ExtraBold, color = Ink)
+                            Text(
+                                if (configuredDriveUri != null) "Active • every $selectedInterval day${if (selectedInterval == 1L) "" else "s"}" else "Choose an interval and Drive file once",
+                                color = if (configuredDriveUri != null) Green else Muted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text("Backup interval", color = Muted, fontSize = 11.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(1L to "1 day", 7L to "7 days", 30L to "30 days").forEach { (days, label) ->
+                            FilterChip(
+                                selected = selectedInterval == days,
+                                onClick = { selectedInterval = days },
+                                label = { Text(label) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            pendingInterval = selectedInterval
+                            configureDriveDocument.launch("daily-hisab-auto-backup.json")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Sync, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (configuredDriveUri == null) "Select Drive & enable" else "Change Drive / interval")
+                    }
+                    if (configuredDriveUri != null) {
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                runCatching {
+                                    context.contentResolver.openInputStream(Uri.parse(configuredDriveUri))
+                                        ?.bufferedReader()?.use { it.readText() } ?: error("Drive backup is unavailable")
+                                }.onSuccess(::restore).onFailure { status = "Drive restore failed: ${it.message}" }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Restore, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Restore automatic Drive backup")
+                        }
+                        TextButton(
+                            onClick = {
+                                AutomaticBackupWorker.disableDrive(context)
+                                configuredDriveUri = null
+                                status = "Automatic Drive backup disabled"
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Disable automatic Drive backup", color = Red) }
                     }
                 }
                 Text("Choose Google Drive in the Android file picker to keep an online copy. Daily automatic backups are kept securely inside the app.", color = Muted, fontSize = 12.sp)

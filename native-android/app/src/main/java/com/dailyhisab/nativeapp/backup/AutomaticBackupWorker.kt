@@ -1,6 +1,7 @@
 package com.dailyhisab.nativeapp.backup
 
 import android.content.Context
+import android.net.Uri
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -46,23 +47,52 @@ class AutomaticBackupWorker(context: Context, params: WorkerParameters) : Corout
         }
         val directory = File(applicationContext.filesDir, "backups").apply { mkdirs() }
         File(directory, "daily-hisab-auto-backup.json").writeText(json.toString(2))
+        val driveUri = applicationContext.getSharedPreferences(PREFS, 0).getString(KEY_DRIVE_URI, null)
+        if (!driveUri.isNullOrBlank()) {
+            applicationContext.contentResolver.openOutputStream(Uri.parse(driveUri), "wt")
+                ?.bufferedWriter()
+                ?.use { it.write(json.toString(2)) }
+                ?: error("Could not open the selected Drive backup")
+        }
     }.fold(onSuccess = { Result.success() }, onFailure = { Result.retry() })
 
     companion object {
         private const val UNIQUE_WORK = "daily_hisab_automatic_backup"
 
-        fun schedule(context: Context) {
+        fun schedule(context: Context, intervalDays: Long = configuredIntervalDays(context)) {
             WorkManager.getInstance(context).enqueueUniqueWork(
                 "${UNIQUE_WORK}_initial",
                 ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<AutomaticBackupWorker>().build()
             )
-            val request = PeriodicWorkRequestBuilder<AutomaticBackupWorker>(24, TimeUnit.HOURS).build()
+            val request = PeriodicWorkRequestBuilder<AutomaticBackupWorker>(intervalDays.coerceAtLeast(1), TimeUnit.DAYS).build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_WORK,
                 ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
         }
+
+        fun configureDrive(context: Context, uri: String, intervalDays: Long) {
+            context.getSharedPreferences(PREFS, 0).edit()
+                .putString(KEY_DRIVE_URI, uri)
+                .putLong(KEY_INTERVAL_DAYS, intervalDays)
+                .apply()
+            schedule(context, intervalDays)
+        }
+
+        fun configuredDriveUri(context: Context): String? =
+            context.getSharedPreferences(PREFS, 0).getString(KEY_DRIVE_URI, null)
+
+        fun configuredIntervalDays(context: Context): Long =
+            context.getSharedPreferences(PREFS, 0).getLong(KEY_INTERVAL_DAYS, 1L)
+
+        fun disableDrive(context: Context) {
+            context.getSharedPreferences(PREFS, 0).edit().remove(KEY_DRIVE_URI).apply()
+        }
+
+        private const val PREFS = "daily_hisab_backup"
+        private const val KEY_DRIVE_URI = "drive_uri"
+        private const val KEY_INTERVAL_DAYS = "interval_days"
     }
 }
