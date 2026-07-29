@@ -15,6 +15,8 @@ import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.dailyhisab.nativeapp.data.AppNotificationEntity
+import com.dailyhisab.nativeapp.data.FinanceDatabase
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -30,6 +32,14 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         if (!enabled) return Result.success()
 
         val title = inputData.getString("title") ?: "Daily Hisab Reminder"
+        FinanceDatabase.get(applicationContext).appNotificationDao().insert(
+            AppNotificationEntity(
+                title = "Scheduled reminder",
+                message = title,
+                type = "reminder",
+                createdAt = LocalDateTime.now().toString()
+            )
+        )
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Expense reminders", NotificationManager.IMPORTANCE_HIGH)

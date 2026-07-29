@@ -13,6 +13,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "transactions")
@@ -68,6 +70,16 @@ data class CategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val iconName: String = "other"
+)
+
+@Entity(tableName = "app_notifications")
+data class AppNotificationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val message: String,
+    val type: String,
+    val createdAt: String,
+    val isRead: Boolean = false
 )
 
 @Dao
@@ -136,9 +148,22 @@ interface CategoryDao {
     @Delete suspend fun delete(item: CategoryEntity)
 }
 
+@Dao
+interface AppNotificationDao {
+    @Query("SELECT * FROM app_notifications ORDER BY id DESC")
+    fun observeAll(): Flow<List<AppNotificationEntity>>
+    @Insert suspend fun insert(item: AppNotificationEntity)
+    @Query("UPDATE app_notifications SET isRead = 1 WHERE id = :id")
+    suspend fun markRead(id: Long)
+    @Query("UPDATE app_notifications SET isRead = 1")
+    suspend fun markAllRead()
+    @Query("DELETE FROM app_notifications")
+    suspend fun clearAll()
+}
+
 @Database(
-    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class, CategoryEntity::class],
-    version = 4,
+    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class, CategoryEntity::class, AppNotificationEntity::class],
+    version = 5,
     exportSchema = false
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -148,6 +173,7 @@ abstract class FinanceDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun receiptDao(): ReceiptDao
     abstract fun categoryDao(): CategoryDao
+    abstract fun appNotificationDao(): AppNotificationDao
 
     companion object {
         @Volatile private var instance: FinanceDatabase? = null
@@ -158,7 +184,22 @@ abstract class FinanceDatabase : RoomDatabase() {
                     context.applicationContext,
                     FinanceDatabase::class.java,
                     "daily_hisab.db"
-                ).fallbackToDestructiveMigration().build().also { instance = it }
+                ).addMigrations(MIGRATION_4_5).fallbackToDestructiveMigration().build().also { instance = it }
             }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS app_notifications (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        message TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        createdAt TEXT NOT NULL,
+                        isRead INTEGER NOT NULL DEFAULT 0
+                    )""".trimIndent()
+                )
+            }
+        }
     }
 }

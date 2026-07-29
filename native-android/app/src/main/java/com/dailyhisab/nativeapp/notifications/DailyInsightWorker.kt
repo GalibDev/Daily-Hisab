@@ -17,6 +17,7 @@ import androidx.work.WorkerParameters
 import com.dailyhisab.nativeapp.MainActivity
 import com.dailyhisab.nativeapp.R
 import com.dailyhisab.nativeapp.data.FinanceDatabase
+import com.dailyhisab.nativeapp.data.AppNotificationEntity
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -28,17 +29,13 @@ class DailyInsightWorker(context: Context, params: WorkerParameters) : Coroutine
     override suspend fun doWork(): Result {
         val settings = applicationContext.getSharedPreferences("daily_hisab_settings", 0)
         if (!settings.getBoolean("notifications", true)) return Result.success()
-        if (ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            return Result.success()
-        }
-
         val today = LocalDate.now()
         val dao = FinanceDatabase.get(applicationContext).transactionDao()
         if (dao.expenseCountForDate(today.toString()) == 0) {
             notify(
                 7101,
                 "আজকের খরচ যোগ করেছেন?",
-                "আপনি আজকের খরচ যোগ করতে ভুলে গেছেন কি না একবার দেখে নিন।"
+                "আজ কোনো খরচ যোগ করা হয়নি। প্রয়োজন হলে এখনই আজকের হিসাব যোগ করুন।"
             )
         }
 
@@ -48,22 +45,36 @@ class DailyInsightWorker(context: Context, params: WorkerParameters) : Coroutine
             val month = YearMonth.from(today)
             val spent = dao.expenseTotalBetween(month.atDay(1).toString(), month.atEndOfMonth().toString())
             val expectedSpend = monthlyBudget.toDouble() * today.dayOfMonth / month.lengthOfMonth()
-            if (spent > expectedSpend && spent < monthlyBudget) {
+            val usedPercent = spent * 100 / monthlyBudget
+            if (usedPercent >= 80 && spent < monthlyBudget) {
                 val remaining = (monthlyBudget - spent).coerceAtLeast(0)
                 val remainingDays = (month.lengthOfMonth() - today.dayOfMonth).coerceAtLeast(1)
                 notify(
                     7102,
-                    "বাজেট দ্রুত শেষ হচ্ছে",
-                    "বাকি ৳$remaining। মাস চালাতে প্রতিদিন সর্বোচ্চ ৳${remaining / remainingDays} খরচ করুন।"
+                    "Budget $usedPercent% used",
+                    "Remaining ৳$remaining. Keep daily spending within ৳${remaining / remainingDays} for the rest of the month."
                 )
+            } else if (spent > expectedSpend && spent < monthlyBudget) {
+                val remaining = (monthlyBudget - spent).coerceAtLeast(0)
+                val remainingDays = (month.lengthOfMonth() - today.dayOfMonth).coerceAtLeast(1)
+                notify(7102, "Budget is running ahead", "Remaining ৳$remaining. Spend up to ৳${remaining / remainingDays} per day to stay on track.")
             } else if (spent >= monthlyBudget) {
-                notify(7102, "মাসিক বাজেট শেষ", "আপনার ৳$monthlyBudget মাসিক বাজেট ইতিমধ্যে শেষ হয়েছে।")
+                notify(7102, "Monthly budget exceeded", "You have reached or exceeded your ৳$monthlyBudget monthly budget.")
             }
         }
         return Result.success()
     }
 
-    private fun notify(id: Int, title: String, message: String) {
+    private suspend fun notify(id: Int, title: String, message: String) {
+        FinanceDatabase.get(applicationContext).appNotificationDao().insert(
+            AppNotificationEntity(
+                title = title,
+                message = message,
+                type = if (id == 7102) "budget" else "daily",
+                createdAt = LocalDateTime.now().toString()
+            )
+        )
+        if (ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val intent = Intent(applicationContext, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,

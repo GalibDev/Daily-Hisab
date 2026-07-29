@@ -63,6 +63,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.dailyhisab.nativeapp.data.FinanceDatabase
 import com.dailyhisab.nativeapp.data.CategoryEntity
+import com.dailyhisab.nativeapp.data.AppNotificationEntity
 import com.dailyhisab.nativeapp.data.NoteEntity
 import com.dailyhisab.nativeapp.data.RecurringEntity
 import com.dailyhisab.nativeapp.data.ReminderEntity
@@ -93,6 +94,7 @@ private var useBangla by mutableStateOf(false)
 private var selectedCurrency by mutableStateOf("BDT")
 private const val BDT_PER_USD = 120.0
 private val LocalNotificationClick = staticCompositionLocalOf<() -> Unit> { {} }
+private val LocalUnreadNotificationCount = staticCompositionLocalOf { 0 }
 
 private fun money(amount: Int): String = when (selectedCurrency) {
     "USD" -> "$ ${String.format(Locale.US, "%.2f", amount / BDT_PER_USD)}"
@@ -145,7 +147,7 @@ private fun Expense.toEntity() = TransactionEntity(
     type = if (income) "income" else "expense",
     note = note
 )
-enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup, Privacy, Help }
+enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, NotificationCenter, Notes, Receipts, Settings, Backup, Privacy, Help }
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -204,9 +206,11 @@ fun DailyHisabApp() {
     val storedTransactions by dao.observeAll().collectAsState(initial = emptyList())
     val recurringDao = remember { FinanceDatabase.get(context).recurringDao() }
     val reminderDao = remember { FinanceDatabase.get(context).reminderDao() }
+    val notificationDao = remember { FinanceDatabase.get(context).appNotificationDao() }
     val noteDao = remember { FinanceDatabase.get(context).noteDao() }
     val recurringItems by recurringDao.observeAll().collectAsState(initial = emptyList())
     val reminders by reminderDao.observeAll().collectAsState(initial = emptyList())
+    val appNotifications by notificationDao.observeAll().collectAsState(initial = emptyList())
     val notes by noteDao.observeAll().collectAsState(initial = emptyList())
     val receiptDao = remember { FinanceDatabase.get(context).receiptDao() }
     val receipts by receiptDao.observeAll().collectAsState(initial = emptyList())
@@ -287,7 +291,10 @@ fun DailyHisabApp() {
         colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFF9DB2FF), secondary = Orange) else lightColorScheme(primary = Blue, secondary = Orange, surface = Color.White, background = Soft),
         typography = Typography()
     ) {
-        CompositionLocalProvider(LocalNotificationClick provides { screen = Screen.Reminders }) {
+        CompositionLocalProvider(
+            LocalNotificationClick provides { screen = Screen.NotificationCenter },
+            LocalUnreadNotificationCount provides appNotifications.count { !it.isRead }
+        ) {
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.background,
                 bottomBar = { BottomNavigation(screen) { screen = it } }
@@ -349,6 +356,13 @@ fun DailyHisabApp() {
                         },
                         onToggle = { item -> scope.launch { reminderDao.setCompleted(item.id, !item.completed) } },
                         onDelete = { scope.launch { reminderDao.delete(it) } }
+                    )
+                    Screen.NotificationCenter -> NotificationCenterScreen(
+                        notifications = appNotifications,
+                        reminders = reminders,
+                        onRead = { scope.launch { notificationDao.markRead(it.id) } },
+                        onReadAll = { scope.launch { notificationDao.markAllRead() } },
+                        onClear = { scope.launch { notificationDao.clearAll() } }
                     )
                     Screen.Notes -> NotesScreen(
                         notes,
@@ -434,6 +448,7 @@ private fun BiometricLockScreen(onUnlocked: () -> Unit) {
 @Composable
 private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null, onCalculator: (() -> Unit)? = null) {
     val openNotifications = LocalNotificationClick.current
+    val unreadCount = LocalUnreadNotificationCount.current
     Row(
         modifier = Modifier.fillMaxWidth().background(Color.White).statusBarsPadding().padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -449,7 +464,11 @@ private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null, o
         if (onCalculator != null) {
             IconButton(onClick = onCalculator) { Icon(Icons.Default.Calculate, "Open calculator", tint = Blue) }
         }
-        BadgedBox(badge = { Badge(containerColor = Orange) }) {
+        BadgedBox(badge = {
+            if (unreadCount > 0) Badge(containerColor = Orange) {
+                Text(if (unreadCount > 99) "99+" else unreadCount.toString())
+            }
+        }) {
             IconButton(onClick = openNotifications) { Icon(Icons.Default.NotificationsNone, "Notifications", tint = Ink) }
         }
     }
@@ -465,6 +484,22 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
     val todaySpent = expenses.filter { !it.income && it.date == today.toString() }.sumOf { it.amount }
     val monthSpent = monthEntries.filterNot { it.income }.sumOf { it.amount }
     val monthIncome = monthEntries.filter { it.income }.sumOf { it.amount }
+    val previousMonth = currentMonth.minusMonths(1)
+    val previousMonthSpent = expenses.filter { item ->
+        !item.income && runCatching { YearMonth.from(LocalDate.parse(item.date)) == previousMonth }.getOrDefault(false)
+    }.sumOf { it.amount }
+    val last7Spent = expenses.filter { item ->
+        !item.income && runCatching {
+            val date = LocalDate.parse(item.date)
+            !date.isBefore(today.minusDays(6)) && !date.isAfter(today)
+        }.getOrDefault(false)
+    }.sumOf { it.amount }
+    val previous7Spent = expenses.filter { item ->
+        !item.income && runCatching {
+            val date = LocalDate.parse(item.date)
+            !date.isBefore(today.minusDays(13)) && date.isBefore(today.minusDays(6))
+        }.getOrDefault(false)
+    }.sumOf { it.amount }
     val allSpent = expenses.filterNot { it.income }.sumOf { it.amount }
     val activeExpenseDays = monthEntries.filterNot { it.income }.map { it.date }.distinct().size.coerceAtLeast(1)
     val dailyAverage = (monthSpent.toDouble() / activeExpenseDays).toInt()
@@ -473,6 +508,7 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
         item {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 HomeHeroPager(todaySpent, monthSpent, allSpent, dailyAverage, monthIncome)
+                DashboardInsights(monthEntries, monthSpent, previousMonthSpent, last7Spent, previous7Spent)
                 Text("Quick Add", fontWeight = FontWeight.Bold, color = Ink)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     QuickAction("All Expenses", Icons.Default.ReceiptLong, Red) { onNavigate(Screen.Entries) }
@@ -491,6 +527,67 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
             }
         }
         items(expenses.take(5)) { TransactionRow(it) }
+    }
+}
+
+@Composable
+private fun DashboardInsights(
+    monthEntries: List<Expense>,
+    monthSpent: Int,
+    previousMonthSpent: Int,
+    last7Spent: Int,
+    previous7Spent: Int
+) {
+    val topCategory = monthEntries.filterNot { it.income }.groupBy { it.category }
+        .mapValues { (_, items) -> items.sumOf { it.amount } }
+        .maxByOrNull { it.value }
+    val monthChange = if (previousMonthSpent > 0) ((monthSpent - previousMonthSpent) * 100.0 / previousMonthSpent).toInt() else null
+    val weekChange = if (previous7Spent > 0) ((last7Spent - previous7Spent) * 100.0 / previous7Spent).toInt() else null
+    val topShare = if (monthSpent > 0) ((topCategory?.value ?: 0) * 100 / monthSpent) else 0
+    val alert = when {
+        topShare >= 45 -> "${topCategory?.key} is $topShare% of this month's spending. Consider setting a category limit."
+        weekChange != null && weekChange >= 25 -> "Spending rose $weekChange% this week. Review recent expenses to stay on track."
+        else -> "Your spending pattern looks balanced. Keep tracking daily for better insights."
+    }
+    AppCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Smart Insights", fontWeight = FontWeight.ExtraBold, color = Ink, fontSize = 18.sp)
+            Icon(Icons.Default.AutoGraph, null, tint = Blue)
+        }
+        Spacer(Modifier.height(13.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            InsightMetric(
+                "vs last month",
+                monthChange?.let { "${if (it > 0) "+" else ""}$it%" } ?: "New",
+                if ((monthChange ?: 0) > 0) Red else Green,
+                Modifier.weight(1f)
+            )
+            InsightMetric("Top category", topCategory?.key ?: "—", Orange, Modifier.weight(1f))
+            InsightMetric(
+                "Weekly trend",
+                weekChange?.let { "${if (it > 0) "+" else ""}$it%" } ?: money(last7Spent),
+                if ((weekChange ?: 0) > 0) Red else Green,
+                Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Surface(shape = RoundedCornerShape(14.dp), color = if (topShare >= 45 || (weekChange ?: 0) >= 25) Orange.copy(.1f) else Green.copy(.09f)) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                Icon(Icons.Default.Lightbulb, null, tint = if (topShare >= 45 || (weekChange ?: 0) >= 25) Orange else Green, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(alert, color = Ink, fontSize = 11.sp, lineHeight = 16.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightMetric(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Surface(modifier, RoundedCornerShape(13.dp), color = color.copy(.09f)) {
+        Column(Modifier.padding(horizontal = 9.dp, vertical = 10.dp)) {
+            Text(label, color = Muted, fontSize = 9.sp, maxLines = 1)
+            Text(value, color = color, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, maxLines = 1)
+        }
     }
 }
 
@@ -1393,6 +1490,9 @@ private fun FunctionalBudgetScreen(categories: List<CategoryEntity>, expenses: L
     val spent = monthExpenses.sumOf { it.amount }
     val remaining = budget - spent
     val remainingDays = (month.lengthOfMonth() - LocalDate.now().dayOfMonth + 1).coerceAtLeast(1)
+    val elapsedDays = LocalDate.now().dayOfMonth.coerceAtLeast(1)
+    val projectedSpend = (spent.toDouble() / elapsedDays * month.lengthOfMonth()).toInt()
+    val projectedOver = projectedSpend - budget
     val progress = if (budget > 0) (spent.toFloat() / budget).coerceIn(0f, 1f) else 0f
     if (editingCategory != null) {
         AlertDialog(
@@ -1430,6 +1530,31 @@ private fun FunctionalBudgetScreen(categories: List<CategoryEntity>, expenses: L
                     Text("Daily Allowance", color = Muted)
                     Text(money(maxOf(remaining, 0) / remainingDays), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Blue)
                     Text("$remainingDays days remaining this month", fontSize = 11.sp, color = Muted)
+                }
+                AppCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(Modifier.size(42.dp), CircleShape, color = (if (projectedOver > 0) Red else Green).copy(.1f)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.TrendingUp, null, tint = if (projectedOver > 0) Red else Green)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Month-end forecast", color = Muted, fontSize = 11.sp)
+                            Text(money(projectedSpend), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        when {
+                            budget <= 0 -> "Set a monthly budget to activate forecasting."
+                            projectedOver > 0 -> "At the current pace you may exceed the budget by ${money(projectedOver)}."
+                            else -> "At the current pace you may finish ${money(-projectedOver)} under budget."
+                        },
+                        color = if (budget > 0 && projectedOver > 0) Red else Green,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
                 Text("Budget by Category", fontWeight = FontWeight.ExtraBold, color = Ink)
             }
@@ -1594,6 +1719,103 @@ private fun RemindersScreen(
                 showAdd = false
             }
         )
+    }
+}
+
+@Composable
+private fun NotificationCenterScreen(
+    notifications: List<AppNotificationEntity>,
+    reminders: List<ReminderEntity>,
+    onRead: (AppNotificationEntity) -> Unit,
+    onReadAll: () -> Unit,
+    onClear: () -> Unit
+) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+        item { AppHeader("Notifications") }
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Notification Center", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text("${notifications.count { !it.isRead }} unread", color = Muted, fontSize = 12.sp)
+                }
+                Row {
+                    TextButton(onClick = onReadAll, enabled = notifications.any { !it.isRead }) { Text("Read all") }
+                    TextButton(onClick = onClear, enabled = notifications.isNotEmpty()) { Text("Clear") }
+                }
+            }
+        }
+        if (notifications.isEmpty()) {
+            item {
+                AppCardContainer(Modifier.padding(horizontal = 16.dp)) {
+                    Icon(Icons.Default.NotificationsNone, null, tint = Blue, modifier = Modifier.size(34.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("You're all caught up", fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text("Daily reminders, budget alerts and scheduled reminders will appear here.", color = Muted, fontSize = 12.sp)
+                }
+            }
+        } else {
+            items(notifications, key = { it.id }) { item ->
+                val color = when (item.type) {
+                    "budget" -> Orange
+                    "reminder" -> Blue
+                    else -> Color(0xFF7C3AED)
+                }
+                Card(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth()
+                        .clickable { onRead(item) },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = if (item.isRead) Color.White else color.copy(.09f))
+                ) {
+                    Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
+                        Surface(Modifier.size(40.dp), CircleShape, color = color.copy(.13f)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    if (item.type == "budget") Icons.Default.AccountBalanceWallet else Icons.Default.NotificationsActive,
+                                    null,
+                                    tint = color,
+                                    modifier = Modifier.size(21.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(item.title, Modifier.weight(1f), fontWeight = FontWeight.ExtraBold, color = Ink)
+                                if (!item.isRead) Box(Modifier.size(8.dp).background(Orange, CircleShape))
+                            }
+                            Text(item.message, color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+                            Text(item.createdAt.take(16).replace('T', ' '), color = Muted.copy(.75f), fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
+        if (reminders.any { !it.completed }) {
+            item {
+                Text(
+                    "Upcoming scheduled reminders",
+                    Modifier.padding(start = 16.dp, top = 18.dp, bottom = 8.dp),
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Ink
+                )
+            }
+            items(reminders.filter { !it.completed }.take(5), key = { "scheduled_${it.id}" }) { reminder ->
+                AppCardContainer(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Schedule, null, tint = Blue)
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(reminder.title, fontWeight = FontWeight.Bold, color = Ink)
+                            Text("${reminder.date} • ${reminder.time}", color = Muted, fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
