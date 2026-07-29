@@ -86,6 +86,8 @@ data class AppNotificationEntity(
 interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
     fun observeAll(): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
+    suspend fun getAll(): List<TransactionEntity>
 
     @Query("SELECT COUNT(*) FROM transactions WHERE type = 'expense' AND date = :date")
     suspend fun expenseCountForDate(date: String): Int
@@ -101,34 +103,48 @@ interface TransactionDao {
 
     @Update
     suspend fun update(transaction: TransactionEntity)
+    @Query("DELETE FROM transactions")
+    suspend fun clearAll()
 }
 
 @Dao
 interface RecurringDao {
     @Query("SELECT * FROM recurring_expenses ORDER BY nextDueDate ASC")
     fun observeAll(): Flow<List<RecurringEntity>>
+    @Query("SELECT * FROM recurring_expenses ORDER BY nextDueDate ASC")
+    suspend fun getAll(): List<RecurringEntity>
     @Insert suspend fun insert(item: RecurringEntity)
     @Delete suspend fun delete(item: RecurringEntity)
+    @Query("DELETE FROM recurring_expenses")
+    suspend fun clearAll()
 }
 
 @Dao
 interface ReminderDao {
     @Query("SELECT * FROM reminders ORDER BY completed ASC, date ASC, time ASC")
     fun observeAll(): Flow<List<ReminderEntity>>
+    @Query("SELECT * FROM reminders ORDER BY completed ASC, date ASC, time ASC")
+    suspend fun getAll(): List<ReminderEntity>
     @Insert suspend fun insert(item: ReminderEntity)
     @Query("UPDATE reminders SET completed = :completed WHERE id = :id")
     suspend fun setCompleted(id: Long, completed: Boolean)
     @Delete suspend fun delete(item: ReminderEntity)
+    @Query("DELETE FROM reminders")
+    suspend fun clearAll()
 }
 
 @Dao
 interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY pinned DESC, id DESC")
     fun observeAll(): Flow<List<NoteEntity>>
+    @Query("SELECT * FROM notes ORDER BY pinned DESC, id DESC")
+    suspend fun getAll(): List<NoteEntity>
     @Insert suspend fun insert(item: NoteEntity)
     @Query("UPDATE notes SET pinned = :pinned WHERE id = :id")
     suspend fun setPinned(id: Long, pinned: Boolean)
     @Delete suspend fun delete(item: NoteEntity)
+    @Query("DELETE FROM notes")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -143,9 +159,13 @@ interface ReceiptDao {
 interface CategoryDao {
     @Query("SELECT * FROM categories ORDER BY name ASC")
     fun observeAll(): Flow<List<CategoryEntity>>
+    @Query("SELECT * FROM categories ORDER BY name ASC")
+    suspend fun getAll(): List<CategoryEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(item: CategoryEntity)
     @Delete suspend fun delete(item: CategoryEntity)
+    @Query("DELETE FROM categories")
+    suspend fun clearAll()
 }
 
 @Dao

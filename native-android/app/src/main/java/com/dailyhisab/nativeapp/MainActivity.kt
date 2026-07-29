@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.room.withTransaction
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -71,6 +72,10 @@ import com.dailyhisab.nativeapp.data.ReceiptEntity
 import com.dailyhisab.nativeapp.data.TransactionEntity
 import com.dailyhisab.nativeapp.notifications.ReminderWorker
 import com.dailyhisab.nativeapp.notifications.DailyInsightWorker
+import com.dailyhisab.nativeapp.backup.AutomaticBackupWorker
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import org.json.JSONArray
@@ -220,6 +225,7 @@ fun DailyHisabApp() {
     LaunchedEffect(Unit) {
         useBangla = prefs.getString("language", "English") == "Bangla"
         selectedCurrency = prefs.getString("currency", "BDT") ?: "BDT"
+        AutomaticBackupWorker.schedule(context)
     }
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
@@ -399,7 +405,7 @@ fun DailyHisabApp() {
                             }
                         }
                     )
-                    Screen.Backup -> BackupScreen(expenses, recurringItems, reminders, notes)
+                    Screen.Backup -> BackupScreen(expenses, recurringItems, reminders, notes, categories)
                     Screen.Privacy -> PrivacyPolicyScreen()
                     Screen.Help -> HelpSupportScreen()
                     }
@@ -913,6 +919,52 @@ private fun AnalyticsScreen(expenses: List<Expense>) {
     }
 }
 
+private data class ReceiptScanResult(val merchant: String?, val amount: Int?, val date: LocalDate?)
+
+private fun scanReceipt(
+    context: android.content.Context,
+    uri: Uri,
+    onResult: (ReceiptScanResult) -> Unit,
+    onError: (String) -> Unit
+) {
+    val image = runCatching { InputImage.fromFilePath(context, uri) }
+        .getOrElse { onError(it.message ?: "Could not open receipt"); return }
+    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    recognizer.process(image)
+        .addOnSuccessListener { result ->
+            val lines = result.textBlocks.flatMap { block -> block.lines.map { it.text.trim() } }.filter { it.isNotBlank() }
+            val merchant = lines.firstOrNull { line ->
+                line.length in 3..45 && line.any(Char::isLetter) &&
+                    listOf("receipt", "invoice", "date", "time", "total", "tax", "vat").none { line.lowercase().contains(it) }
+            }
+            val amountRegex = Regex("""(?:৳|tk\.?|bdt|\$)?\s*(\d{1,7}(?:[,.]\d{2})?)""", RegexOption.IGNORE_CASE)
+            val preferredAmountLines = lines.filter { it.contains("total", true) || it.contains("grand", true) || it.contains("amount", true) }
+            val amountCandidates = (preferredAmountLines.ifEmpty { lines }).flatMap { line ->
+                amountRegex.findAll(line).mapNotNull { match ->
+                    match.groupValues[1].replace(",", "").toDoubleOrNull()?.toInt()
+                }.toList()
+            }.filter { it in 1..10_000_000 }
+            val amount = amountCandidates.maxOrNull()
+            val datePatterns = listOf("dd/MM/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yy", "dd-MM-yy", "dd MMM yyyy")
+            var parsedDate: LocalDate? = null
+            val dateRegex = Regex("""\b(\d{1,4}[-/]\d{1,2}[-/]\d{1,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})\b""")
+            lines.forEach { line ->
+                if (parsedDate == null) {
+                    dateRegex.findAll(line).forEach { match ->
+                        datePatterns.forEach { pattern ->
+                            if (parsedDate == null) parsedDate = runCatching {
+                                LocalDate.parse(match.value, DateTimeFormatter.ofPattern(pattern, Locale.US))
+                            }.getOrNull()
+                        }
+                    }
+                }
+            }
+            onResult(ReceiptScanResult(merchant, amount, parsedDate))
+        }
+        .addOnFailureListener { onError(it.message ?: "Receipt text could not be read") }
+        .addOnCompleteListener { recognizer.close() }
+}
+
 @Composable
 private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (CategoryEntity) -> Unit, onSave: (Expense, String?) -> Unit) {
     val context = LocalContext.current
@@ -923,6 +975,7 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
     var isIncome by remember { mutableStateOf(false) }
     var date by remember { mutableStateOf(LocalDate.now()) }
     var receiptUri by remember { mutableStateOf<String?>(null) }
+    var receiptScanStatus by remember { mutableStateOf<String?>(null) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var calculatorMode by remember { mutableIntStateOf(0) }
     var calculatorOffset by remember { mutableStateOf(androidx.compose.ui.unit.IntOffset(-24, -190)) }
@@ -930,6 +983,20 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             receiptUri = uri.toString()
+            receiptScanStatus = "Scanning receipt…"
+            scanReceipt(
+                context,
+                uri,
+                onResult = { scan ->
+                    scan.amount?.let { amount = it.toString() }
+                    scan.merchant?.let { title = it }
+                    scan.date?.let { date = it }
+                    receiptScanStatus = if (scan.amount != null || scan.merchant != null || scan.date != null) {
+                        "Receipt scanned — check the detected details"
+                    } else "No clear details found — enter them manually"
+                },
+                onError = { receiptScanStatus = "Scan failed — enter details manually" }
+            )
         }
     }
     if (showCategoryDialog) CategoryDialog({ showCategoryDialog = false }) {
@@ -984,6 +1051,17 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
                 }
             }
             if (receiptUri != null) item { ReceiptThumbnail(receiptUri!!) }
+            receiptScanStatus?.let { message ->
+                item {
+                    Surface(shape = RoundedCornerShape(12.dp), color = Blue.copy(.08f)) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.DocumentScanner, null, tint = Blue, modifier = Modifier.size(19.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(message, color = Blue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
         }
         Button(
             onClick = {
@@ -2149,25 +2227,45 @@ private fun BackupScreen(
     expenses: List<Expense>,
     recurring: List<RecurringEntity>,
     reminders: List<ReminderEntity>,
-    notes: List<NoteEntity>
+    notes: List<NoteEntity>,
+    categories: List<CategoryEntity>
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val database = remember { FinanceDatabase.get(context) }
     var status by remember { mutableStateOf("Ready to create a backup") }
-    val backupJson = remember(expenses, recurring, reminders, notes) {
+    val automaticBackupFile = remember { java.io.File(context.filesDir, "backups/daily-hisab-auto-backup.json") }
+    val backupJson = remember(expenses, recurring, reminders, notes, categories) {
         JSONObject().apply {
-            put("version", 1)
+            put("version", 2)
             put("createdAt", System.currentTimeMillis())
             put("transactions", JSONArray().apply { expenses.forEach { put(JSONObject().put("title", it.title).put("category", it.category).put("amount", it.amount).put("date", it.date).put("time", it.time).put("income", it.income).put("note", it.note)) } })
             put("recurring", JSONArray().apply { recurring.forEach { put(JSONObject().put("title", it.title).put("amount", it.amount).put("frequency", it.frequency).put("nextDueDate", it.nextDueDate)) } })
             put("reminders", JSONArray().apply { reminders.forEach { put(JSONObject().put("title", it.title).put("date", it.date).put("time", it.time).put("completed", it.completed)) } })
             put("notes", JSONArray().apply { notes.forEach { put(JSONObject().put("title", it.title).put("body", it.body).put("createdAt", it.createdAt).put("pinned", it.pinned)) } })
+            put("categories", JSONArray().apply { categories.forEach { put(JSONObject().put("name", it.name).put("iconName", it.iconName)) } })
         }.toString(2)
+    }
+    fun restore(jsonText: String) {
+        scope.launch {
+            status = "Restoring backup…"
+            runCatching { restoreBackup(database, jsonText) }
+                .onSuccess { status = "Restore completed successfully" }
+                .onFailure { status = "Restore failed: ${it.message}" }
+        }
     }
     val createDocument = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) {
             runCatching { context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(backupJson) } }
                 .onSuccess { status = "Backup saved successfully" }
                 .onFailure { status = "Backup failed: ${it.message}" }
+        }
+    }
+    val openDocument = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("Empty backup") }
+                .onSuccess(::restore)
+                .onFailure { status = "Could not open backup: ${it.message}" }
         }
     }
     LazyColumn(Modifier.fillMaxSize()) {
@@ -2181,15 +2279,87 @@ private fun BackupScreen(
                     Text(status, color = Muted)
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { createDocument.launch("daily-hisab-backup.json") }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.CloudUpload, null); Text("Export Backup")
+                        Icon(Icons.Default.CloudUpload, null); Spacer(Modifier.width(8.dp)); Text("Save to Drive / device")
+                    }
+                    Spacer(Modifier.height(9.dp))
+                    OutlinedButton(onClick = { openDocument.launch(arrayOf("application/json", "text/plain")) }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Restore, null); Spacer(Modifier.width(8.dp)); Text("Restore JSON backup")
                     }
                 }
                 AppCard {
                     Text("Backup includes", fontWeight = FontWeight.Bold, color = Ink)
-                    Text("• ${expenses.size} transactions\n• ${recurring.size} recurring expenses\n• ${reminders.size} reminders\n• ${notes.size} notes", color = Muted, lineHeight = 24.sp)
+                    Text("• ${expenses.size} transactions\n• ${categories.size} categories\n• ${recurring.size} recurring expenses\n• ${reminders.size} reminders\n• ${notes.size} notes", color = Muted, lineHeight = 24.sp)
                 }
-                Text("The JSON backup is saved to a location you choose and can be kept in Google Drive.", color = Muted, fontSize = 12.sp)
+                AppCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Backup, null, tint = Green)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Automatic daily backup", fontWeight = FontWeight.ExtraBold, color = Ink)
+                            Text(if (automaticBackupFile.exists()) "Latest local copy is ready" else "Will run automatically every 24 hours", color = Muted, fontSize = 11.sp)
+                        }
+                    }
+                    if (automaticBackupFile.exists()) {
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(
+                            onClick = { runCatching { automaticBackupFile.readText() }.onSuccess(::restore).onFailure { status = "Restore failed: ${it.message}" } },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.History, null); Spacer(Modifier.width(8.dp)); Text("Restore latest automatic backup")
+                        }
+                    }
+                }
+                Text("Choose Google Drive in the Android file picker to keep an online copy. Daily automatic backups are kept securely inside the app.", color = Muted, fontSize = 12.sp)
             }
+        }
+    }
+}
+
+private suspend fun restoreBackup(database: FinanceDatabase, jsonText: String) {
+    val root = JSONObject(jsonText)
+    require(root.has("transactions")) { "Invalid Daily Hisab backup" }
+    val transactions = root.optJSONArray("transactions") ?: JSONArray()
+    val recurring = root.optJSONArray("recurring") ?: JSONArray()
+    val reminders = root.optJSONArray("reminders") ?: JSONArray()
+    val notes = root.optJSONArray("notes") ?: JSONArray()
+    val categories = root.optJSONArray("categories") ?: JSONArray()
+
+    database.withTransaction {
+        database.transactionDao().clearAll()
+        database.recurringDao().clearAll()
+        database.reminderDao().clearAll()
+        database.noteDao().clearAll()
+        if (categories.length() > 0) database.categoryDao().clearAll()
+
+        for (index in 0 until transactions.length()) {
+        val item = transactions.getJSONObject(index)
+        database.transactionDao().insert(
+            TransactionEntity(
+                title = item.optString("title", "Expense"),
+                category = item.optString("category", "Others"),
+                amount = item.optInt("amount"),
+                date = item.optString("date", LocalDate.now().toString()),
+                time = item.optString("time", ""),
+                type = if (item.optBoolean("income")) "income" else "expense",
+                note = item.optString("note", "")
+            )
+        )
+        }
+        for (index in 0 until recurring.length()) {
+        val item = recurring.getJSONObject(index)
+        database.recurringDao().insert(RecurringEntity(title = item.optString("title"), amount = item.optInt("amount"), frequency = item.optString("frequency", "Monthly"), nextDueDate = item.optString("nextDueDate")))
+        }
+        for (index in 0 until reminders.length()) {
+        val item = reminders.getJSONObject(index)
+        database.reminderDao().insert(ReminderEntity(title = item.optString("title"), date = item.optString("date"), time = item.optString("time"), completed = item.optBoolean("completed")))
+        }
+        for (index in 0 until notes.length()) {
+        val item = notes.getJSONObject(index)
+        database.noteDao().insert(NoteEntity(title = item.optString("title"), body = item.optString("body"), createdAt = item.optString("createdAt"), pinned = item.optBoolean("pinned")))
+        }
+        for (index in 0 until categories.length()) {
+        val item = categories.getJSONObject(index)
+        database.categoryDao().insert(CategoryEntity(name = item.optString("name"), iconName = item.optString("iconName", "other")))
         }
     }
 }
