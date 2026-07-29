@@ -92,6 +92,7 @@ private val Soft = Color(0xFFF5F7FF)
 private var useBangla by mutableStateOf(false)
 private var selectedCurrency by mutableStateOf("BDT")
 private const val BDT_PER_USD = 120.0
+private val LocalNotificationClick = staticCompositionLocalOf<() -> Unit> { {} }
 
 private fun money(amount: Int): String = when (selectedCurrency) {
     "USD" -> "$ ${String.format(Locale.US, "%.2f", amount / BDT_PER_USD)}"
@@ -286,12 +287,13 @@ fun DailyHisabApp() {
         colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFF9DB2FF), secondary = Orange) else lightColorScheme(primary = Blue, secondary = Orange, surface = Color.White, background = Soft),
         typography = Typography()
     ) {
-        Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
-            bottomBar = { BottomNavigation(screen) { screen = it } }
-        ) { padding ->
-            Box(Modifier.padding(padding).fillMaxSize()) {
-                when (screen) {
+        CompositionLocalProvider(LocalNotificationClick provides { screen = Screen.Reminders }) {
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                bottomBar = { BottomNavigation(screen) { screen = it } }
+            ) { padding ->
+                Box(Modifier.padding(padding).fillMaxSize()) {
+                    when (screen) {
                     Screen.Home -> HomeScreen(expenses, onNavigate = { screen = it })
                     Screen.Reports -> ReportsScreen(expenses) { screen = Screen.Analytics }
                     Screen.Analytics -> AnalyticsScreen(expenses)
@@ -386,6 +388,7 @@ fun DailyHisabApp() {
                     Screen.Backup -> BackupScreen(expenses, recurringItems, reminders, notes)
                     Screen.Privacy -> PrivacyPolicyScreen()
                     Screen.Help -> HelpSupportScreen()
+                    }
                 }
             }
         }
@@ -430,6 +433,7 @@ private fun BiometricLockScreen(onUnlocked: () -> Unit) {
 
 @Composable
 private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null, onCalculator: (() -> Unit)? = null) {
+    val openNotifications = LocalNotificationClick.current
     Row(
         modifier = Modifier.fillMaxWidth().background(Color.White).statusBarsPadding().padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -446,7 +450,7 @@ private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null, o
             IconButton(onClick = onCalculator) { Icon(Icons.Default.Calculate, "Open calculator", tint = Blue) }
         }
         BadgedBox(badge = { Badge(containerColor = Orange) }) {
-            IconButton(onClick = {}) { Icon(Icons.Default.NotificationsNone, "Notifications", tint = Ink) }
+            IconButton(onClick = openNotifications) { Icon(Icons.Default.NotificationsNone, "Notifications", tint = Ink) }
         }
     }
 }
