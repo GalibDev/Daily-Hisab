@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.graphics.Paint
@@ -74,6 +75,7 @@ import kotlinx.coroutines.delay
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
@@ -142,7 +144,7 @@ private fun Expense.toEntity() = TransactionEntity(
     type = if (income) "income" else "expense",
     note = note
 )
-enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
+enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup, Privacy, Help }
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -382,6 +384,8 @@ fun DailyHisabApp() {
                         }
                     )
                     Screen.Backup -> BackupScreen(expenses, recurringItems, reminders, notes)
+                    Screen.Privacy -> PrivacyPolicyScreen()
+                    Screen.Help -> HelpSupportScreen()
                 }
             }
         }
@@ -1579,11 +1583,84 @@ private fun RemindersScreen(
         }
     }
     if (showAdd) {
-        AddItemDialog(title = "Add Reminder", amountEnabled = false, onDismiss = { showAdd = false }) { name, detail, _ ->
-            onAdd(ReminderEntity(title = name, date = detail.ifBlank { "2026-07-29" }, time = "09:00 AM"))
-            showAdd = false
-        }
+        AddReminderDialog(
+            onDismiss = { showAdd = false },
+            onSave = {
+                onAdd(it)
+                showAdd = false
+            }
+        )
     }
+}
+
+@Composable
+private fun AddReminderDialog(onDismiss: () -> Unit, onSave: (ReminderEntity) -> Unit) {
+    val context = LocalContext.current
+    var title by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf(LocalDate.now()) }
+    var time by remember { mutableStateOf(LocalTime.of(20, 30)) }
+    val displayDate = date.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
+    val displayTime = time.format(DateTimeFormatter.ofPattern("hh:mm a", Locale.US))
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Reminder", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                )
+                OutlinedButton(
+                    onClick = {
+                        DatePickerDialog(
+                            context,
+                            { _, year, month, day -> date = LocalDate.of(year, month + 1, day) },
+                            date.year,
+                            date.monthValue - 1,
+                            date.dayOfMonth
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.CalendarMonth, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(displayDate)
+                }
+                OutlinedButton(
+                    onClick = {
+                        TimePickerDialog(
+                            context,
+                            { _, hour, minute -> time = LocalTime.of(hour, minute) },
+                            time.hour,
+                            time.minute,
+                            false
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.Schedule, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(displayTime)
+                }
+                Text("Notification will appear at the selected date and time.", color = Muted, fontSize = 11.sp)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(ReminderEntity(title = title.trim(), date = date.toString(), time = displayTime))
+                },
+                enabled = title.isNotBlank()
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable
@@ -1930,17 +2007,17 @@ private fun ProfileScreen(name: String, photo: String, onNameChange: (String) ->
                     ToolShortcut("Settings", Icons.Default.Settings, Blue, Modifier.weight(1f)) { onNavigate(Screen.Settings) }
                 }
                 AppCard {
-                    SettingsRow(Icons.Default.CurrencyExchange, "Currency", "Bangladeshi Taka (BDT)")
-                    SettingsRow(Icons.Default.Language, if (useBangla) "ভাষা" else "Language", if (useBangla) "বাংলা" else "English")
-                    SettingsRow(Icons.Default.Notifications, "Notifications", "Manage alerts and reminders")
-                    SettingsRow(Icons.Default.Fingerprint, "Biometric Lock", "Use fingerprint to unlock")
-                    SettingsRow(Icons.Default.DarkMode, "Appearance", "Light mode")
+                    SettingsRow(Icons.Default.CurrencyExchange, "Currency", selectedCurrency) { onNavigate(Screen.Settings) }
+                    SettingsRow(Icons.Default.Language, if (useBangla) "ভাষা" else "Language", if (useBangla) "বাংলা" else "English") { onNavigate(Screen.Settings) }
+                    SettingsRow(Icons.Default.Notifications, "Notifications", "Manage alerts and reminders") { onNavigate(Screen.Settings) }
+                    SettingsRow(Icons.Default.Fingerprint, "Biometric Lock", "Use fingerprint to unlock") { onNavigate(Screen.Settings) }
+                    SettingsRow(Icons.Default.DarkMode, "Appearance", "Light and dark mode") { onNavigate(Screen.Settings) }
                 }
                 Text("Data & Privacy", fontWeight = FontWeight.Bold, color = Ink)
                 AppCard {
-                    SettingsRow(Icons.Default.Storage, "Data Management", "Export, clear or manage data")
-                    SettingsRow(Icons.Default.PrivacyTip, "Privacy Policy", "Read our privacy policy")
-                    SettingsRow(Icons.Default.Help, "Help & Support", "Get help and contact support")
+                    SettingsRow(Icons.Default.Storage, "Data Management", "Export or back up your data") { onNavigate(Screen.Backup) }
+                    SettingsRow(Icons.Default.PrivacyTip, "Privacy Policy", "Read our privacy policy") { onNavigate(Screen.Privacy) }
+                    SettingsRow(Icons.Default.Help, "Help & Support", "Get help and contact support") { onNavigate(Screen.Help) }
                 }
                 OutlinedButton(
                     onClick = onSignOut,
@@ -1950,6 +2027,112 @@ private fun ProfileScreen(name: String, photo: String, onNameChange: (String) ->
                     Icon(Icons.Default.Logout, null)
                     Spacer(Modifier.width(8.dp))
                     Text("Log out")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PrivacyPolicyScreen() {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+        item { AppHeader("Privacy Policy") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .background(Brush.linearGradient(listOf(Navy, Blue, Color(0xFF315BD7))))
+                            .padding(22.dp)
+                    ) {
+                        Icon(Icons.Default.PrivacyTip, null, tint = Color.White, modifier = Modifier.size(36.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text("Your data. Your control.", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Daily Hisab is designed to keep your financial information private and protected.", color = Color.White.copy(.8f), fontSize = 12.sp)
+                    }
+                }
+                PrivacySection("Information we use", "Your account name, email address, profile photo, expense records, categories, budgets, reminders, notes and receipt references are used only to provide app features.")
+                PrivacySection("Storage and security", "Finance records are stored in the app database on your device. Firebase Authentication is used for secure account sign-in. Biometric lock data is verified by Android and is never collected by Daily Hisab.")
+                PrivacySection("Notifications", "If enabled, Daily Hisab schedules reminder and budget notifications on your device. You can disable them at any time from Settings.")
+                PrivacySection("Photos and receipts", "The app accesses only the images you explicitly select. Receipt images remain under your device storage permissions.")
+                PrivacySection("Sharing and selling", "We do not sell your personal or financial information. Data is not shared with advertisers.")
+                PrivacySection("Your choices", "You can edit or delete entries, export a backup, disable notifications and biometric lock, or remove the app and its local data.")
+                PrivacySection("Contact", "Questions about privacy can be sent to mirza.galib.palash@gmail.com.")
+                Text("Effective date: 30 July 2026", color = Muted, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PrivacySection(title: String, body: String) {
+    AppCard {
+        Text(title, fontWeight = FontWeight.ExtraBold, color = Ink)
+        Spacer(Modifier.height(6.dp))
+        Text(body, color = Muted, fontSize = 13.sp, lineHeight = 20.sp)
+    }
+}
+
+@Composable
+private fun HelpSupportScreen() {
+    val context = LocalContext.current
+    fun openUri(uri: String) {
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri))) }
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+        item { AppHeader("Help & Support") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .background(Brush.linearGradient(listOf(Color(0xFF4C1D95), Blue, Color(0xFF0EA5E9))))
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(Modifier.size(76.dp), CircleShape, color = Color.White.copy(.16f)) {
+                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Code, null, tint = Color.White, modifier = Modifier.size(38.dp)) }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text("Mirza Galib Palash", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Developer of Daily Hisab", color = Color.White.copy(.8f), fontSize = 13.sp)
+                        Text("Building simple tools for smarter financial habits.", color = Color.White.copy(.72f), fontSize = 11.sp)
+                    }
+                }
+                AppCard {
+                    Text("Need help?", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Report a problem, suggest a feature, or ask anything about Daily Hisab.", color = Muted, fontSize = 13.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = { openUri("mailto:mirza.galib.palash@gmail.com?subject=Daily%20Hisab%20Support") },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(Icons.Default.Email, null)
+                        Spacer(Modifier.width(9.dp))
+                        Text("mirza.galib.palash@gmail.com")
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { openUri("https://mirzagalib.xyz") },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(Icons.Default.Language, null)
+                        Spacer(Modifier.width(9.dp))
+                        Text("Visit Developer Portfolio")
+                    }
+                }
+                AppCard {
+                    Text("Quick help", fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text("• Enable notifications from Settings and allow Android permission.\n• Reminder notifications use the date and time you select.\n• The automatic daily check runs around 8:30 PM.\n• Use Backup to export a copy of your records.", color = Muted, fontSize = 12.sp, lineHeight = 21.sp)
                 }
             }
         }
@@ -2299,8 +2482,11 @@ private fun ToolShortcut(label: String, icon: ImageVector, color: Color, modifie
 }
 
 @Composable
-private fun SettingsRow(icon: ImageVector, title: String, subtitle: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun SettingsRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Surface(Modifier.size(38.dp), RoundedCornerShape(11.dp), color = Blue.copy(.1f)) { Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = Blue, modifier = Modifier.size(20.dp)) } }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Bold, color = Ink); Text(subtitle, fontSize = 11.sp, color = Muted) }
