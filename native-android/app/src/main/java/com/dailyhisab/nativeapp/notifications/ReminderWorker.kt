@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.app.PendingIntent
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -19,9 +21,14 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import java.util.Locale
 
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
+        val enabled = applicationContext.getSharedPreferences("daily_hisab_settings", 0)
+            .getBoolean("notifications", true)
+        if (!enabled) return Result.success()
+
         val title = inputData.getString("title") ?: "Daily Hisab Reminder"
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
@@ -35,6 +42,14 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     .setContentTitle("Daily Hisab")
                     .setContentText(title)
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setContentIntent(
+                        PendingIntent.getActivity(
+                            applicationContext,
+                            title.hashCode(),
+                            Intent(applicationContext, com.dailyhisab.nativeapp.MainActivity::class.java),
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                    )
                     .setAutoCancel(true)
                     .build()
             )
@@ -49,15 +64,22 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val target = runCatching {
                 LocalDateTime.of(
                     LocalDate.parse(date),
-                    LocalTime.parse(time, DateTimeFormatter.ofPattern("hh:mm a"))
+                    LocalTime.parse(time, DateTimeFormatter.ofPattern("hh:mm a", Locale.US))
                 )
             }.getOrElse { LocalDateTime.now().plusSeconds(5) }
             val delay = Duration.between(LocalDateTime.now(), target).toMillis().coerceAtLeast(5_000)
             val work = OneTimeWorkRequestBuilder<ReminderWorker>()
+                .addTag(WORK_TAG)
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                 .setInputData(Data.Builder().putString("title", title).build())
                 .build()
             WorkManager.getInstance(context).enqueue(work)
         }
+
+        fun cancelAll(context: Context) {
+            WorkManager.getInstance(context).cancelAllWorkByTag(WORK_TAG)
+        }
+
+        private const val WORK_TAG = "daily_hisab_reminder_work"
     }
 }

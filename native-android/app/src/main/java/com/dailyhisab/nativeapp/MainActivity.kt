@@ -2,7 +2,10 @@ package com.dailyhisab.nativeapp
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.app.DatePickerDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import android.graphics.BitmapFactory
@@ -10,9 +13,12 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -29,6 +35,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -39,6 +46,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -125,15 +135,51 @@ private fun Expense.toEntity() = TransactionEntity(
 )
 enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, Notes, Receipts, Settings, Backup }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel("daily_hisab_reminders", "Expense reminders", NotificationManager.IMPORTANCE_HIGH)
+        )
         setContent { DailyHisabApp() }
     }
+}
+
+private const val BIOMETRIC_AUTHENTICATORS =
+    BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+
+private fun showBiometricPrompt(
+    activity: FragmentActivity,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit
+) {
+    val available = BiometricManager.from(activity).canAuthenticate(BIOMETRIC_AUTHENTICATORS)
+    if (available != BiometricManager.BIOMETRIC_SUCCESS) {
+        onError("Fingerprint or device screen lock is not available.")
+        return
+    }
+
+    val prompt = BiometricPrompt(
+        activity,
+        ContextCompat.getMainExecutor(activity),
+        object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                onSuccess()
+            }
+
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                onError(errString.toString())
+            }
+        }
+    )
+    prompt.authenticate(
+        BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock Daily Hisab")
+            .setSubtitle("Use fingerprint or your device screen lock")
+            .setAllowedAuthenticators(BIOMETRIC_AUTHENTICATORS)
+            .build()
+    )
 }
 
 @Composable
@@ -158,6 +204,9 @@ fun DailyHisabApp() {
         useBangla = prefs.getString("language", "English") == "Bangla"
     }
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
+    var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
+    var biometricUnlocked by rememberSaveable { mutableStateOf(!biometricEnabled) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     var profileName by remember { mutableStateOf(prefs.getString("profile_name", "Mirza Galib Palash") ?: "Mirza Galib Palash") }
     var profilePhoto by remember { mutableStateOf(prefs.getString("profile_photo", "") ?: "") }
     var selectedCategory by remember { mutableStateOf("") }
@@ -192,6 +241,13 @@ fun DailyHisabApp() {
         auth.addAuthStateListener(listener)
         onDispose { auth.removeAuthStateListener(listener) }
     }
+    DisposableEffect(lifecycleOwner, biometricEnabled) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && biometricEnabled) biometricUnlocked = false
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     if (authUser == null) {
         MaterialTheme(
@@ -213,6 +269,20 @@ fun DailyHisabApp() {
                 onSignOut = { auth.signOut() }
             )
         }
+        return
+    }
+
+    if (biometricEnabled && !biometricUnlocked) {
+        BiometricLockScreen(
+            onUnlock = {
+                showBiometricPrompt(
+                    context as FragmentActivity,
+                    onSuccess = { biometricUnlocked = true },
+                    onError = {}
+                )
+            },
+            onSignOut = { auth.signOut() }
+        )
         return
     }
 
@@ -293,10 +363,59 @@ fun DailyHisabApp() {
                         onAdd = { scope.launch { receiptDao.insert(it) } },
                         onDelete = { scope.launch { receiptDao.delete(it) } }
                     )
-                    Screen.Settings -> SettingsScreen(darkMode) {
-                        darkMode = it; prefs.edit().putBoolean("dark_mode", it).apply()
-                    }
+                    Screen.Settings -> SettingsScreen(
+                        darkMode = darkMode,
+                        biometricEnabled = biometricEnabled,
+                        onDarkModeChange = {
+                            darkMode = it; prefs.edit().putBoolean("dark_mode", it).apply()
+                        },
+                        onBiometricChange = { enabled ->
+                            if (!enabled) {
+                                biometricEnabled = false
+                                biometricUnlocked = true
+                                prefs.edit().putBoolean("biometric_enabled", false).apply()
+                            } else {
+                                showBiometricPrompt(
+                                    context as FragmentActivity,
+                                    onSuccess = {
+                                        biometricEnabled = true
+                                        biometricUnlocked = true
+                                        prefs.edit().putBoolean("biometric_enabled", true).apply()
+                                    },
+                                    onError = {}
+                                )
+                            }
+                        }
+                    )
                     Screen.Backup -> BackupScreen(expenses, recurringItems, reminders, notes)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BiometricLockScreen(onUnlock: () -> Unit, onSignOut: () -> Unit) {
+    LaunchedEffect(Unit) { onUnlock() }
+    MaterialTheme {
+        Box(Modifier.fillMaxSize().background(Soft).padding(28.dp), contentAlignment = Alignment.Center) {
+            AppCard {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(Modifier.size(76.dp), CircleShape, color = Blue.copy(alpha = .12f)) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Fingerprint, null, tint = Blue, modifier = Modifier.size(40.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Text("Daily Hisab is locked", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text("Authenticate to view your financial data.", color = Muted, fontSize = 13.sp)
+                    Spacer(Modifier.height(20.dp))
+                    Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Fingerprint, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Unlock")
+                    }
+                    TextButton(onClick = onSignOut) { Text("Sign out") }
                 }
             }
         }
@@ -1602,11 +1721,24 @@ private fun ReceiptThumbnail(uriString: String) {
 }
 
 @Composable
-private fun SettingsScreen(darkMode: Boolean, onDarkModeChange: (Boolean) -> Unit) {
+private fun SettingsScreen(
+    darkMode: Boolean,
+    biometricEnabled: Boolean,
+    onDarkModeChange: (Boolean) -> Unit,
+    onBiometricChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
     var currency by remember { mutableStateOf(prefs.getString("currency", "BDT") ?: "BDT") }
     var notifications by remember { mutableStateOf(prefs.getBoolean("notifications", true)) }
+    var notificationMessage by remember { mutableStateOf("") }
+    val notificationPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notifications = granted
+        prefs.edit().putBoolean("notifications", granted).apply()
+        notificationMessage = if (granted) "Notifications enabled" else "Notification permission was denied"
+    }
     val bangla = useBangla
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader("Settings") }
@@ -1639,7 +1771,33 @@ private fun SettingsScreen(darkMode: Boolean, onDarkModeChange: (Boolean) -> Uni
                             Text(if (bangla) "নোটিফিকেশন" else "Notifications", fontWeight = FontWeight.Bold, color = Ink)
                             Text(if (bangla) "খরচ ও পেমেন্টের রিমাইন্ডার" else "Expense and payment reminders", fontSize = 11.sp, color = Muted)
                         }
-                        Switch(checked = notifications, onCheckedChange = { notifications = it; prefs.edit().putBoolean("notifications", it).apply() })
+                        Switch(
+                            checked = notifications,
+                            onCheckedChange = { enabled ->
+                                if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    notifications = enabled
+                                    prefs.edit().putBoolean("notifications", enabled).apply()
+                                    notificationMessage = if (enabled) "Notifications enabled" else "Notifications disabled"
+                                    if (!enabled) ReminderWorker.cancelAll(context)
+                                }
+                            }
+                        )
+                    }
+                    if (notificationMessage.isNotBlank()) Text(notificationMessage, fontSize = 11.sp, color = Muted)
+                }
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Fingerprint, null, tint = Blue)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(if (bangla) "বায়োমেট্রিক লক" else "Biometric lock", fontWeight = FontWeight.Bold, color = Ink)
+                            Text(if (bangla) "ফিঙ্গারপ্রিন্ট দিয়ে অ্যাপ আনলক করুন" else "Use fingerprint or screen lock to unlock", fontSize = 11.sp, color = Muted)
+                        }
+                        Switch(checked = biometricEnabled, onCheckedChange = onBiometricChange)
                     }
                 }
                 AppCard {
