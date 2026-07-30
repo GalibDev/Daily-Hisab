@@ -231,11 +231,11 @@ fun DailyHisabApp() {
     var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
     var biometricUnlocked by rememberSaveable { mutableStateOf(!biometricEnabled) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    var profileName by remember { mutableStateOf(prefs.getString("profile_name", "Mirza Galib Palash") ?: "Mirza Galib Palash") }
-    var profilePhoto by remember { mutableStateOf(prefs.getString("profile_photo", "") ?: "") }
-    var selectedCategory by remember { mutableStateOf("") }
     val auth = remember { FirebaseAuth.getInstance() }
     var authUser by remember { mutableStateOf(auth.currentUser) }
+    var profileName by remember { mutableStateOf("") }
+    var profilePhoto by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("") }
     var authRefresh by remember { mutableIntStateOf(0) }
     val expenses = storedTransactions.map {
         Expense(it.id, it.title, it.category, it.amount, it.date, it.time, it.type == "income", it.note)
@@ -245,6 +245,18 @@ fun DailyHisabApp() {
         if (categories.isEmpty()) {
             listOf("Food" to "food", "Transport" to "transport", "Shopping" to "shopping", "Utilities" to "bills", "Health" to "health", "Education" to "education", "Home" to "home", "Others" to "other")
                 .forEach { (name, icon) -> categoryDao.insert(CategoryEntity(name = name, iconName = icon)) }
+        }
+    }
+    LaunchedEffect(authUser?.uid) {
+        authUser?.let { user ->
+            val nameKey = "profile_name_${user.uid}"
+            val photoKey = "profile_photo_${user.uid}"
+            val accountName = user.displayName?.trim().takeUnless { it.isNullOrBlank() }
+                ?: user.email?.substringBefore("@")?.replace(".", " ")?.split(" ")
+                    ?.joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
+                ?: "Daily Hisab User"
+            profileName = prefs.getString(nameKey, null)?.takeIf { it.isNotBlank() } ?: accountName
+            profilePhoto = prefs.getString(photoKey, "") ?: ""
         }
     }
     DisposableEffect(auth) {
@@ -345,9 +357,11 @@ fun DailyHisabApp() {
                     Screen.Budget -> FunctionalBudgetScreen(categories, expenses)
                     Screen.Calendar -> CalendarV2(expenses)
                     Screen.Profile -> ProfileScreen(profileName, profilePhoto, onNameChange = {
-                        profileName = it; prefs.edit().putString("profile_name", it).apply()
+                        profileName = it
+                        authUser?.uid?.let { uid -> prefs.edit().putString("profile_name_$uid", it).apply() }
                     }, onPhotoChange = {
-                        profilePhoto = it; prefs.edit().putString("profile_photo", it).apply()
+                        profilePhoto = it
+                        authUser?.uid?.let { uid -> prefs.edit().putString("profile_photo_$uid", it).apply() }
                     }, onNavigate = { screen = it }, onSignOut = { auth.signOut() })
                     Screen.Recurring -> RecurringScreen(
                         recurringItems,
@@ -813,7 +827,7 @@ private fun ReportsScreen(expenses: List<Expense>, onAnalytics: () -> Unit) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         SummaryMetric("Income", visible.filter { it.income }.sumOf { it.amount }, Green)
                         SummaryMetric("Expense", visible.filterNot { it.income }.sumOf { it.amount }, Red)
-                        SummaryMetric("Entries", visible.size, Blue)
+                        SummaryMetric("Entries", visible.size, Blue, showCurrency = false)
                     }
                 }
                 Button(onClick = { createPdf.launch("daily-hisab-${period.lowercase()}.pdf") }, Modifier.fillMaxWidth()) {
@@ -1424,10 +1438,10 @@ private fun EntriesScreen(expenses: List<Expense>, onDelete: (Expense) -> Unit) 
 }
 
 @Composable
-private fun SummaryMetric(label: String, amount: Int, color: Color) {
+private fun SummaryMetric(label: String, amount: Int, color: Color, showCurrency: Boolean = true) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, fontSize = 11.sp, color = Muted)
-        Text(money(amount), fontWeight = FontWeight.ExtraBold, color = color)
+        Text(if (showCurrency) money(amount) else amount.toString(), fontWeight = FontWeight.ExtraBold, color = color)
     }
 }
 
