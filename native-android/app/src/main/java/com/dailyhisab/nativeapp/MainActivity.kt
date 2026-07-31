@@ -25,6 +25,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -1989,37 +1992,117 @@ private fun NotesScreen(
     onDelete: (NoteEntity) -> Unit
 ) {
     var showAdd by remember { mutableStateOf(false) }
-    LazyColumn(Modifier.fillMaxSize()) {
-        item { AppHeader("Notes") }
-        item {
-            Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField("", {}, readOnly = true, leadingIcon = { Icon(Icons.Default.Search, null) }, placeholder = { Text("Search notes") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp))
-                Spacer(Modifier.width(10.dp))
-                FloatingActionButton(onClick = { showAdd = true }, containerColor = Blue, contentColor = Color.White, modifier = Modifier.size(50.dp)) { Icon(Icons.Default.Add, null) }
+    var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf("All") }
+    val visibleNotes = remember(notes, query, filter) {
+        notes.filter { item ->
+            val matchesSearch = query.isBlank() || item.title.contains(query, true) || item.body.contains(query, true)
+            val matchesFilter = when (filter) {
+                "Pinned" -> item.pinned
+                "Recent" -> !item.pinned
+                else -> true
             }
+            matchesSearch && matchesFilter
         }
-        items(notes, key = { it.id }) { item ->
-            Card(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = if (item.pinned) Color(0xFFFFF8E8) else Color.White)
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.title, Modifier.weight(1f), fontWeight = FontWeight.ExtraBold, color = Ink)
-                        IconButton(onClick = { onPin(item) }) { Icon(Icons.Default.PushPin, "Pin", tint = if (item.pinned) Orange else Muted) }
-                        IconButton(onClick = { onDelete(item) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+    }
+    val noteColors = listOf(
+        Color(0xFFFFF3B8), Color(0xFFDDF4D0), Color(0xFFFFDCE5),
+        Color(0xFFD8F3F0), Color(0xFFE5DEFF), Color(0xFFFFE6C9)
+    )
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        AppHeader("Notes")
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            leadingIcon = { Icon(Icons.Default.Search, null, tint = Blue) },
+            trailingIcon = {
+                if (query.isNotBlank()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Clear search") }
+            },
+            placeholder = { Text("Search your notes") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White)
+        )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("All", "Pinned", "Recent").forEach { option ->
+                FilterChip(
+                    selected = filter == option,
+                    onClick = { filter = option },
+                    label = { Text(option) },
+                    leadingIcon = if (option == "Pinned") {{ Icon(Icons.Default.PushPin, null, Modifier.size(15.dp)) }} else null
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Text("${visibleNotes.size} notes", color = Muted, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterVertically))
+        }
+        Spacer(Modifier.height(10.dp))
+        Box(Modifier.weight(1f)) {
+            if (visibleNotes.isEmpty()) {
+                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Surface(Modifier.size(76.dp), CircleShape, color = Blue.copy(.09f)) {
+                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.NoteAlt, null, tint = Blue, modifier = Modifier.size(36.dp)) }
                     }
-                    Text(item.body, color = Muted)
-                    Spacer(Modifier.height(8.dp))
-                    Text(item.createdAt, fontSize = 10.sp, color = Muted)
+                    Spacer(Modifier.height(14.dp))
+                    Text(if (query.isBlank()) "No notes yet" else "No matching notes", fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text("Tap + to capture an idea or important detail.", color = Muted, fontSize = 12.sp)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 92.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    gridItems(visibleNotes, key = { it.id }) { item ->
+                        val color = noteColors[((item.id.takeIf { it > 0 } ?: item.title.hashCode().toLong()).let { kotlin.math.abs(it).toInt() }) % noteColors.size]
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = color),
+                            elevation = CardDefaults.cardElevation(1.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 190.dp)
+                        ) {
+                            Column(Modifier.fillMaxSize().padding(15.dp)) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(shape = RoundedCornerShape(9.dp), color = Color.White.copy(.55f)) {
+                                        Text(if (item.pinned) "PINNED" else "NOTE", Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+                                    }
+                                    Spacer(Modifier.weight(1f))
+                                    IconButton(onClick = { onPin(item) }, modifier = Modifier.size(30.dp)) {
+                                        Icon(Icons.Default.PushPin, "Pin note", tint = if (item.pinned) Blue else Muted, modifier = Modifier.size(19.dp))
+                                    }
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Text(item.title, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Ink, maxLines = 2)
+                                Spacer(Modifier.height(7.dp))
+                                Text(item.body.ifBlank { "No additional details" }, color = Ink.copy(.7f), fontSize = 12.sp, lineHeight = 18.sp, maxLines = 6, modifier = Modifier.weight(1f, fill = false))
+                                Spacer(Modifier.height(16.dp))
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(item.createdAt, Modifier.weight(1f), fontSize = 10.sp, color = Ink.copy(.55f))
+                                    IconButton(onClick = { onDelete(item) }, modifier = Modifier.size(30.dp)) {
+                                        Icon(Icons.Default.DeleteOutline, "Delete note", tint = Red.copy(.8f), modifier = Modifier.size(19.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
+            FloatingActionButton(
+                onClick = { showAdd = true },
+                containerColor = Blue,
+                contentColor = Color.White,
+                shape = CircleShape,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).size(64.dp)
+            ) { Icon(Icons.Default.Add, "Add note", modifier = Modifier.size(30.dp)) }
         }
     }
     if (showAdd) {
         AddItemDialog(title = "Add Note", amountEnabled = false, onDismiss = { showAdd = false }) { name, detail, _ ->
-            onAdd(NoteEntity(title = name, body = detail, createdAt = "Jul 28, 2026"))
+            onAdd(NoteEntity(title = name, body = detail, createdAt = LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy"))))
             showAdd = false
         }
     }
