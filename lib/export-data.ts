@@ -33,6 +33,32 @@ async function downloadFromServer(filename: string, blob: Blob) {
   downloadBlob(filename, downloadedBlob);
 }
 
+async function savePdfBlob(filename: string, blob: Blob) {
+  const file = new File([blob], filename, { type: "application/pdf" });
+  const mobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  const shareNavigator = navigator as Navigator & {
+    canShare?: (data: ShareData) => boolean;
+    share?: (data: ShareData) => Promise<void>;
+  };
+
+  // iOS browsers do not reliably honor <a download> for Blob URLs. Their
+  // native share sheet provides a dependable Save to Files / browser download.
+  if (mobile && shareNavigator.share && shareNavigator.canShare?.({ files: [file] })) {
+    await shareNavigator.share({ files: [file], title: filename });
+    return;
+  }
+
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank");
+    if (!opened) window.location.assign(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
+
+  downloadBlob(filename, blob);
+}
+
 function downloadFile(filename: string, content: string, type: string) {
   downloadBlob(filename, new Blob([content], { type }));
 }
@@ -280,9 +306,7 @@ export function exportReportPdf(entries: Entry[], summaryRows: SummaryRow[]) {
 export async function exportExpenseSheetPdf(entries: Entry[], title: string) {
   try {
     const filename = `daily-hisab-${title.toLowerCase().replaceAll(" ", "-")}.pdf`;
-    // Keep the download inside the original tap/click event. Mobile Safari and
-    // in-app browsers can block a download after an awaited server round-trip.
-    downloadBlob(filename, createExpensePdf(entries, title));
+    await savePdfBlob(filename, createExpensePdf(entries, title));
     return true;
   } catch {
     return false;
