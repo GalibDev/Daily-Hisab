@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Activity, ArrowLeft, CircleDollarSign, LogOut, RefreshCw, Search, ShieldCheck, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isAdminEmail, loadAdminUsers, type AdminUserRow } from "@/lib/firebase/admin-data";
+import { loadAdminUsers, type AdminUserRow } from "@/lib/firebase/admin-data";
+import { firebaseAuth } from "@/lib/firebase/client";
 
 function money(value: number) {
   return `৳ ${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -22,14 +23,20 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [openedAt] = useState(() => Date.now());
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setUsers(await loadAdminUsers());
+      const token = await firebaseAuth?.currentUser?.getIdToken();
+      if (!token) throw new Error("Admin login required");
+      setUsers(await loadAdminUsers(token));
+      setAuthorized(true);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "User data could not be loaded");
+      const message = caught instanceof Error ? caught.message : "User data could not be loaded";
+      setError(message);
+      if (message.includes("admin access")) setAuthorized(false);
     } finally {
       setLoading(false);
     }
@@ -37,7 +44,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     queueMicrotask(() => {
-      if (!authLoading && isAdminEmail(user?.email)) void refresh();
+      if (!authLoading && user) void refresh();
       else if (!authLoading) setLoading(false);
     });
   }, [authLoading, refresh, user?.email]);
@@ -64,7 +71,7 @@ export default function AdminPage() {
     </main>
   );
 
-  if (!isAdminEmail(user.email)) return (
+  if (authorized === false) return (
     <main className="grid min-h-screen place-items-center bg-[#f5f7fc] p-6">
       <section className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl"><ShieldCheck size={52} className="mx-auto text-[#ef4444]" /><h1 className="mt-4 text-2xl font-extrabold text-[#111936]">Access denied</h1><p className="mt-2 text-sm text-[#69718a]">This dashboard is available only to an authorized Daily Hisab administrator.</p><Link href="/" className="mt-6 block rounded-xl bg-[#11298f] px-5 py-3 font-bold text-white">Back to Daily Hisab</Link></section>
     </main>

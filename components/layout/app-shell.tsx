@@ -46,7 +46,6 @@ import { useFinance } from "@/components/state/finance-store";
 import { useTheme } from "@/components/state/theme-store";
 import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
 import { WebCalculator } from "@/components/calculator/web-calculator";
-import { isAdminEmail } from "@/lib/firebase/admin-data";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -200,7 +199,6 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               </Link>
             );
           })}
-          {isAdminEmail(user?.email) && <Link href="/admin" className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-bold text-[#11298f]"><Shield size={18} /> Admin Dashboard</Link>}
         </nav>
 
         <div className="mt-6 space-y-5">
@@ -387,7 +385,6 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </nav>
 
             <div className="mt-auto pt-6">
-              {isAdminEmail(user?.email) && <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="mb-2 flex items-center gap-4 px-4 py-3 text-[17px] font-extrabold text-[#11298f]"><Shield size={24} /> Admin Dashboard</Link>}
               {user ? (
                 <button type="button" onClick={() => { setMobileMenuOpen(false); void signOut(); }} className="flex items-center gap-4 px-4 py-3 text-[17px] font-extrabold text-[#dc2626]">
                   <LogOut size={24} />
