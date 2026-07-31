@@ -88,11 +88,20 @@ function buildSummaryRows(entries: Entry[], hiddenSummaryDates: string[]) {
 }
 
 export function ExpensePage() {
-  return <AppShell><PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" /><Card className="max-w-5xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="expense" /></Card></AppShell>;
+  return <AppShell><PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" /><EntryTypeSwitch active="expense" /><Card className="max-w-5xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="expense" /></Card></AppShell>;
 }
 
 export function IncomePage() {
-  return <AppShell><PageTitle title="Add Income" subtitle="আজকের আয় যোগ করুন" /><Card className="max-w-4xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="income" /></Card></AppShell>;
+  return <AppShell><PageTitle title="Add Income" subtitle="আজকের আয় যোগ করুন" /><EntryTypeSwitch active="income" /><Card className="max-w-4xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="income" /></Card></AppShell>;
+}
+
+function EntryTypeSwitch({ active }: Readonly<{ active: EntryFormMode }>) {
+  return (
+    <div className="mb-5 grid grid-cols-2 rounded-2xl border border-[#dfe3ed] bg-white p-1 md:hidden">
+      <Link href="/add-expense" className={active === "expense" ? "grid h-12 place-items-center rounded-xl bg-[#11298f] text-sm font-extrabold text-white" : "grid h-12 place-items-center rounded-xl text-sm font-extrabold text-[#59627a]"}>Expense</Link>
+      <Link href="/add-income" className={active === "income" ? "grid h-12 place-items-center rounded-xl bg-[#16a34a] text-sm font-extrabold text-white" : "grid h-12 place-items-center rounded-xl text-sm font-extrabold text-[#59627a]"}>Income</Link>
+    </div>
+  );
 }
 
 export function EntriesPage() {

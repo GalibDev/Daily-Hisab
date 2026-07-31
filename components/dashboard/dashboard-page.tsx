@@ -852,6 +852,13 @@ function MobileDashboard({
       </div>
 
       <Card className="rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-[#eef0f8] pb-4">
+          <h2 className="text-sm font-extrabold text-[#111936]">Quick Add</h2>
+          <div className="flex gap-2">
+            <Link href="/add-expense" className="rounded-xl bg-[#eef2ff] px-3 py-2 text-xs font-extrabold text-[#11298f]">+ Expense</Link>
+            <Link href="/add-income" className="rounded-xl bg-[#eafbf0] px-3 py-2 text-xs font-extrabold text-[#15803d]">+ Income</Link>
+          </div>
+        </div>
         <div className="grid grid-cols-5 gap-2">
           {visibleShortcuts.map((shortcut) => {
             const option = getShortcutIcon(shortcut.iconName);
