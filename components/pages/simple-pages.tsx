@@ -1443,7 +1443,6 @@ export function SettingsPage() {
             <input ref={mobileProfileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void handleMobileProfileImage(event.target.files?.[0])} />
             <button type="button" disabled={mobileProfileUploading} onClick={() => mobileProfileInputRef.current?.click()} className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb] disabled:opacity-70" aria-label="Upload profile image">
               {profilePhoto ? <Image src={profilePhoto} alt="Profile" width={96} height={96} className="size-full object-cover" unoptimized /> : <User size={56} fill="currentColor" strokeWidth={1.5} />}
-              <span className="absolute bottom-0 right-0 grid size-10 place-items-center rounded-full bg-[#3153c9] text-white ring-4 ring-[#11298f]">{mobileProfileUploading ? <Upload size={17} /> : <Camera size={18} />}</span>
             </button>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-[22px] font-extrabold leading-7">{profileName}</h2>

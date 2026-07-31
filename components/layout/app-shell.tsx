@@ -37,6 +37,7 @@ import {
   UsersRound,
   Wallet,
   ArrowLeft,
+  Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiFloatingHelper } from "@/components/ai/ai-floating-helper";
@@ -44,6 +45,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
 import { useTheme } from "@/components/state/theme-store";
 import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
+import { WebCalculator } from "@/components/calculator/web-calculator";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -71,6 +73,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [pwaInstall, setPwaInstall] = useState({ available: false, ios: false });
   const [localProfileName, setLocalProfileName] = useState(() => typeof window === "undefined" ? "Guest User" : window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
@@ -269,6 +272,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 <h1 className={cn("truncate font-extrabold", pathname === "/settings" ? "text-[26px] leading-9 text-[#111936] sm:text-[28px]" : pathname === "/backup-restore" || pathname === "/categories" || pathname === "/reports" ? "text-lg leading-7 text-[#111936] sm:text-2xl sm:leading-8" : "text-sm")}>{mobileTitle}</h1>
               </div>
             )}
+            {pathname === "/add-expense" && (
+              <button type="button" aria-label="Open calculator" onClick={() => setCalculatorOpen((open) => !open)} className="grid size-11 place-items-center rounded-lg text-[#11298f]">
+                <Calculator size={21} />
+              </button>
+            )}
             {isHome ? (
               <button type="button" aria-label="Notifications" onClick={() => setNotificationOpen((open) => !open)} className="relative grid size-11 place-items-center rounded-lg text-[#111936]">
                 <Bell size={19} />
@@ -327,6 +335,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             )}
           </div>
         )}
+        <WebCalculator open={calculatorOpen && pathname === "/add-expense"} onClose={() => setCalculatorOpen(false)} />
         <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">{children}</div>
       </main>
 

@@ -280,7 +280,9 @@ export function exportReportPdf(entries: Entry[], summaryRows: SummaryRow[]) {
 export async function exportExpenseSheetPdf(entries: Entry[], title: string) {
   try {
     const filename = `daily-hisab-${title.toLowerCase().replaceAll(" ", "-")}.pdf`;
-    await downloadFromServer(filename, createExpensePdf(entries, title));
+    // Keep the download inside the original tap/click event. Mobile Safari and
+    // in-app browsers can block a download after an awaited server round-trip.
+    downloadBlob(filename, createExpensePdf(entries, title));
     return true;
   } catch {
     return false;
