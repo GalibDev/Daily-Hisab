@@ -580,9 +580,12 @@ function MobileDashboard({
     }
   });
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const incomeEntries = entries.filter((entry) => entry.type === "income");
   const todayExpenseEntries = expenseEntries.filter((entry) => entry.date === today);
   const monthPrefix = today.slice(0, 7);
   const monthlyExpenseEntries = expenseEntries.filter((entry) => entry.date.startsWith(monthPrefix));
+  const monthlyIncome = incomeEntries.filter((entry) => entry.date.startsWith(monthPrefix)).reduce((sum, entry) => sum + entry.amount, 0);
+  const allIncome = incomeEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const daysWithExpense = new Set(monthlyExpenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
@@ -811,13 +814,13 @@ function MobileDashboard({
           <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-white/10" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">PERSONAL WALLET</span>
-              <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><Wallet size={23} /></span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">INCOME OVERVIEW</span>
+              <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><Banknote size={23} /></span>
             </div>
-            <p className="mt-5 text-xs font-semibold text-white/72">Remaining balance</p>
-            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(wallet.personalBalance)}</strong>
+            <p className="mt-5 text-xs font-semibold text-white/72">This month income</p>
+            <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(monthlyIncome)}</strong>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ADDED THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(wallet.personalAddedThisMonth)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ALL INCOME</span><b className="mt-1 block text-sm">{takaShort(allIncome)}</b></div>
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">DEDUCTED</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
             </div>
           </div>
