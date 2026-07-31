@@ -92,11 +92,12 @@ export function exportEntriesCsv(entries: Entry[], summaryRows: SummaryRow[]) {
   downloadFile("daily-hisab-report.csv", csv, "text/csv;charset=utf-8");
 }
 
-export async function exportExpenseSheetCsv(entries: Entry[], title: string) {
-  const expenseEntries = entries.filter((entry) => entry.type === "expense");
-  const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
-  const header = ["Date", "Expense Amount", "Category", "Description", "Note"];
-  const rows = expenseEntries.map((entry) => [
+export async function exportExpenseSheetCsv(entries: Entry[], title: string, entryType: Entry["type"] = "expense") {
+  const selectedEntries = entries.filter((entry) => entry.type === entryType);
+  const total = selectedEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const typeLabel = entryType === "income" ? "Income" : "Expense";
+  const header = ["Date", `${typeLabel} Amount`, "Category", "Description", "Note"];
+  const rows = selectedEntries.map((entry) => [
     entry.date,
     entry.amount,
     entry.category,
@@ -105,7 +106,7 @@ export async function exportExpenseSheetCsv(entries: Entry[], title: string) {
   ]);
   const csv = [
     [title],
-    ["Total Expense", totalExpense],
+    [`Total ${typeLabel}`, total],
     [],
     header,
     ...rows,
@@ -171,16 +172,17 @@ function fitText(context: CanvasRenderingContext2D, value: string, maxWidth: num
   return `${text}...`;
 }
 
-function createExpensePdf(entries: Entry[], title: string) {
-  const expenses = entries.filter((entry) => entry.type === "expense");
-  const total = expenses.reduce((sum, entry) => sum + entry.amount, 0);
+function createExpensePdf(entries: Entry[], title: string, entryType: Entry["type"] = "expense") {
+  const selectedEntries = entries.filter((entry) => entry.type === entryType);
+  const typeLabel = entryType === "income" ? "Income" : "Expense";
+  const total = selectedEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const pageWidth = 1240;
   const pageHeight = 1754;
   const margin = 70;
   const rowHeight = 72;
   const columns = [190, 180, 240, 320, 170];
   const rowsPerPage = 17;
-  const pages = Math.max(1, Math.ceil(expenses.length / rowsPerPage));
+  const pages = Math.max(1, Math.ceil(selectedEntries.length / rowsPerPage));
   const images: Array<{ bytes: Uint8Array; width: number; height: number }> = [];
 
   for (let page = 0; page < pages; page += 1) {
@@ -197,7 +199,7 @@ function createExpensePdf(entries: Entry[], title: string) {
     context.fillText(title, margin, 100);
     context.fillStyle = "#59627a";
     context.font = "600 24px 'Noto Sans Bengali', 'Segoe UI', Arial, sans-serif";
-    context.fillText(`Total Expense: ${total.toFixed(2)} | Page ${page + 1} of ${pages}`, margin, 148);
+    context.fillText(`Total ${typeLabel}: ${total.toFixed(2)} | Page ${page + 1} of ${pages}`, margin, 148);
 
     const startY = 205;
     const headers = ["Date", "Amount", "Category", "Description", "Note"];
@@ -211,7 +213,7 @@ function createExpensePdf(entries: Entry[], title: string) {
       x += columns[index];
     });
 
-    const pageEntries = expenses.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+    const pageEntries = selectedEntries.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
     pageEntries.forEach((entry, rowIndex) => {
       const y = startY + rowHeight * (rowIndex + 1);
       context.fillStyle = rowIndex % 2 === 0 ? "#ffffff" : "#fbfcff";
@@ -303,10 +305,10 @@ export function exportReportPdf(entries: Entry[], summaryRows: SummaryRow[]) {
   return true;
 }
 
-export async function exportExpenseSheetPdf(entries: Entry[], title: string) {
+export async function exportExpenseSheetPdf(entries: Entry[], title: string, entryType: Entry["type"] = "expense") {
   try {
     const filename = `daily-hisab-${title.toLowerCase().replaceAll(" ", "-")}.pdf`;
-    await savePdfBlob(filename, createExpensePdf(entries, title));
+    await savePdfBlob(filename, createExpensePdf(entries, title, entryType));
     return true;
   } catch {
     return false;

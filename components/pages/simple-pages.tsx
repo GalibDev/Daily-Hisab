@@ -901,15 +901,17 @@ export function ReportsPage() {
   const { notify } = useToast();
   const today = getTodayIso();
   const [period, setPeriod] = useState<ReportPeriod>("daily");
+  const [entryType, setEntryType] = useState<EntryType>("expense");
   const [reportMode, setReportMode] = useState<"reports" | "analytics">("reports");
   const reportEntries = useMemo(() => filterEntriesByReportPeriod(entries, period, today), [entries, period, today]);
-  const reportExpenseEntries = useMemo(() => reportEntries.filter((entry) => entry.type === "expense"), [reportEntries]);
-  const reportTotalExpense = reportExpenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const reportTypedEntries = useMemo(() => reportEntries.filter((entry) => entry.type === entryType), [entryType, reportEntries]);
+  const reportTotal = reportTypedEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const labels: Record<ReportPeriod, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
-  const reportTitle = `${labels[period]} Expense Report`;
+  const typeLabel = entryType === "income" ? "Income" : "Expense";
+  const reportTitle = `${labels[period]} ${typeLabel} Report`;
 
   async function handlePdfExport() {
-    const exported = await exportExpenseSheetPdf(reportEntries, reportTitle);
+    const exported = await exportExpenseSheetPdf(reportEntries, reportTitle, entryType);
     notify(exported ? "PDF downloaded" : "PDF export failed. Please try again.", exported ? "success" : "danger");
   }
 
@@ -924,6 +926,10 @@ export function ReportsPage() {
       {reportMode === "analytics" && <MobileReportsAnalytics categories={categories} entries={entries} today={today} />}
 
       <div className={reportMode === "analytics" ? "hidden md:block" : ""}>
+        <div className="mb-4 grid grid-cols-2 rounded-2xl border border-[#e4e8f2] bg-white p-1 md:max-w-sm">
+          <button type="button" onClick={() => setEntryType("expense")} className={entryType === "expense" ? "h-11 rounded-xl bg-[#ef4444] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Expense</button>
+          <button type="button" onClick={() => setEntryType("income")} className={entryType === "income" ? "h-11 rounded-xl bg-[#16a34a] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Income</button>
+        </div>
         <div className="mb-5 grid grid-cols-4 gap-1 border-b border-[#ece8ff] md:flex md:flex-wrap md:border-0">
           {(Object.keys(labels) as ReportPeriod[]).map((item) => (
             <button
@@ -939,57 +945,57 @@ export function ReportsPage() {
           <div className="grid gap-4 bg-[#11298f] p-5 text-white md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <p className="text-sm font-semibold text-white/78">{reportTitle}</p>
-              <strong className="mt-2 block text-3xl">{taka(reportTotalExpense)}</strong>
-              <span className="mt-2 block text-xs font-semibold text-white/78">{reportExpenseEntries.length} expense rows selected</span>
+              <strong className="mt-2 block text-3xl">{taka(reportTotal)}</strong>
+              <span className="mt-2 block text-xs font-semibold text-white/78">{reportTypedEntries.length} {entryType} rows selected</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Button onClick={handlePdfExport} className="bg-white text-[#11298f] shadow-none hover:bg-[#f3f6ff]"><Download size={16} /> PDF</Button>
-              <Button variant="outline" className="border-white/70 bg-white/10 text-white hover:bg-white/20" onClick={async () => { await exportExpenseSheetCsv(reportEntries, reportTitle); notify("Excel file downloaded", "success"); }}><FileSpreadsheet size={16} /> Excel</Button>
+              <Button variant="outline" className="border-white/70 bg-white/10 text-white hover:bg-white/20" onClick={async () => { await exportExpenseSheetCsv(reportEntries, reportTitle, entryType); notify("Excel file downloaded", "success"); }}><FileSpreadsheet size={16} /> Excel</Button>
             </div>
           </div>
           <div className="grid gap-3 p-4 md:hidden">
-            {reportExpenseEntries.map((entry) => (
+            {reportTypedEntries.map((entry) => (
               <article key={entry.id} className="rounded-xl border border-[#e4e8f2] bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <strong className="block truncate text-sm text-[#111936]">{entry.category}</strong>
                     <span className="mt-1 block text-xs font-semibold text-[#59627a]">{displayDate(entry.date)}</span>
                   </div>
-                  <strong className="shrink-0 text-sm text-[#ef4444]">{takaShort(entry.amount)}</strong>
+                  <strong className={entryType === "income" ? "shrink-0 text-sm text-[#16a34a]" : "shrink-0 text-sm text-[#ef4444]"}>{takaShort(entry.amount)}</strong>
                 </div>
                 <p className="mt-3 text-sm text-[#59627a]">{entry.description || "No description"}</p>
                 {entry.note && <p className="mt-2 rounded-lg bg-[#f7f8fc] px-3 py-2 text-xs text-[#69718a]">{entry.note}</p>}
               </article>
             ))}
-            {reportExpenseEntries.length === 0 && <div className="rounded-xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-semibold text-[#59627a]">No expenses found for this period.</div>}
+            {reportTypedEntries.length === 0 && <div className="rounded-xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-semibold text-[#59627a]">No {entryType} found for this period.</div>}
           </div>
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <thead className="bg-[#f3f6ff] text-xs text-[#59627a]">
                 <tr>
-                  {["Date", "Expense Taka", "Category", "Description", "Note"].map((head) => <th key={head} className="border border-[#d8ddea] px-4 py-3 font-extrabold">{head}</th>)}
+                  {["Date", `${typeLabel} Taka`, "Category", "Description", "Note"].map((head) => <th key={head} className="border border-[#d8ddea] px-4 py-3 font-extrabold">{head}</th>)}
                 </tr>
               </thead>
               <tbody>
-                {reportExpenseEntries.map((entry) => (
+                {reportTypedEntries.map((entry) => (
                   <tr key={entry.id} className="bg-white">
                     <td className="border border-[#d8ddea] px-4 py-3">{displayDate(entry.date)}</td>
-                    <td className="border border-[#d8ddea] px-4 py-3 font-extrabold text-[#ef4444]">{takaShort(entry.amount)}</td>
+                    <td className={entryType === "income" ? "border border-[#d8ddea] px-4 py-3 font-extrabold text-[#16a34a]" : "border border-[#d8ddea] px-4 py-3 font-extrabold text-[#ef4444]"}>{takaShort(entry.amount)}</td>
                     <td className="border border-[#d8ddea] px-4 py-3">{entry.category}</td>
                     <td className="border border-[#d8ddea] px-4 py-3">{entry.description || ""}</td>
                     <td className="border border-[#d8ddea] px-4 py-3">{entry.note || ""}</td>
                   </tr>
                 ))}
-                {reportExpenseEntries.length === 0 && (
+                {reportTypedEntries.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="border border-[#d8ddea] px-4 py-8 text-center font-semibold text-[#59627a]">No expense data found for this report.</td>
+                    <td colSpan={5} className="border border-[#d8ddea] px-4 py-8 text-center font-semibold text-[#59627a]">No {entryType} data found for this report.</td>
                   </tr>
                 )}
               </tbody>
               <tfoot className="bg-[#fbfcff]">
                 <tr>
                   <td className="border border-[#d8ddea] px-4 py-3 font-extrabold" colSpan={1}>Total</td>
-                  <td className="border border-[#d8ddea] px-4 py-3 font-extrabold text-[#ef4444]">{takaShort(reportTotalExpense)}</td>
+                  <td className={entryType === "income" ? "border border-[#d8ddea] px-4 py-3 font-extrabold text-[#16a34a]" : "border border-[#d8ddea] px-4 py-3 font-extrabold text-[#ef4444]"}>{takaShort(reportTotal)}</td>
                   <td className="border border-[#d8ddea] px-4 py-3" colSpan={3}></td>
                 </tr>
               </tfoot>
