@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Activity, ArrowLeft, CircleDollarSign, LogOut, RefreshCw, Search, ShieldCheck, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { ADMIN_EMAIL, isAdminEmail, loadAdminUsers, type AdminUserRow } from "@/lib/firebase/admin-data";
+import { isAdminEmail, loadAdminUsers, type AdminUserRow } from "@/lib/firebase/admin-data";
 
 function money(value: number) {
   return `৳ ${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -66,7 +66,7 @@ export default function AdminPage() {
 
   if (!isAdminEmail(user.email)) return (
     <main className="grid min-h-screen place-items-center bg-[#f5f7fc] p-6">
-      <section className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl"><ShieldCheck size={52} className="mx-auto text-[#ef4444]" /><h1 className="mt-4 text-2xl font-extrabold text-[#111936]">Access denied</h1><p className="mt-2 text-sm text-[#69718a]">This dashboard is available only to {ADMIN_EMAIL}.</p><Link href="/" className="mt-6 block rounded-xl bg-[#11298f] px-5 py-3 font-bold text-white">Back to Daily Hisab</Link></section>
+      <section className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl"><ShieldCheck size={52} className="mx-auto text-[#ef4444]" /><h1 className="mt-4 text-2xl font-extrabold text-[#111936]">Access denied</h1><p className="mt-2 text-sm text-[#69718a]">This dashboard is available only to an authorized Daily Hisab administrator.</p><Link href="/" className="mt-6 block rounded-xl bg-[#11298f] px-5 py-3 font-bold text-white">Back to Daily Hisab</Link></section>
     </main>
   );
 
