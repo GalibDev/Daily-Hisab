@@ -1,9 +1,9 @@
 {
   "rules": {
     "users": {
-      ".read": "auth != null && (auth.token.email === 'mirza.galib.palash@gmail.com' || auth.token.email === 'mirza.galib.polock@gmail.com')",
+      ".read": "auth != null && (auth.token.email === 'mirza.galib.palash@gmail.com' || auth.token.email === 'mirza.galib.polock@gmail.com' || auth.token.email === 'polockevan@gmail.com')",
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'mirza.galib.palash@gmail.com' || auth.token.email === 'mirza.galib.polock@gmail.com')",
+        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'mirza.galib.palash@gmail.com' || auth.token.email === 'mirza.galib.polock@gmail.com' || auth.token.email === 'polockevan@gmail.com')",
         ".write": "auth != null && auth.uid === $uid"
       }
     },

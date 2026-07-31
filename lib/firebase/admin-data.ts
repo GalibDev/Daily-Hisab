@@ -4,7 +4,7 @@ import { firebaseDatabase } from "@/lib/firebase/client";
 import type { Entry } from "@/types";
 
 export const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "mirza.galib.palash@gmail.com";
-const ADMIN_EMAILS = new Set([ADMIN_EMAIL, "mirza.galib.polock@gmail.com"].map((email) => email.toLowerCase()));
+const ADMIN_EMAILS = new Set([ADMIN_EMAIL, "mirza.galib.polock@gmail.com", "polockevan@gmail.com"].map((email) => email.toLowerCase()));
 
 export type AdminUserRow = {
   id: string;
