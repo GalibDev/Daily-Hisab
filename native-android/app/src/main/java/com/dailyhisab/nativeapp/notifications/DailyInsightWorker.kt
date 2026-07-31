@@ -76,6 +76,9 @@ class DailyInsightWorker(context: Context, params: WorkerParameters) : Coroutine
         )
         if (ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val intent = Intent(applicationContext, MainActivity::class.java)
+        val soundEnabled = applicationContext.getSharedPreferences("daily_hisab_settings", 0)
+            .getBoolean("notification_sound", true)
+        val channelId = if (soundEnabled) SOUND_CHANNEL_ID else SILENT_CHANNEL_ID
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,
             id,
@@ -84,7 +87,7 @@ class DailyInsightWorker(context: Context, params: WorkerParameters) : Coroutine
         )
         NotificationManagerCompat.from(applicationContext).notify(
             id,
-            NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            NotificationCompat.Builder(applicationContext, channelId)
                 .setSmallIcon(R.drawable.ic_daily_hisab)
                 .setContentTitle(title)
                 .setContentText(message)
@@ -97,7 +100,8 @@ class DailyInsightWorker(context: Context, params: WorkerParameters) : Coroutine
     }
 
     companion object {
-        private const val CHANNEL_ID = "daily_hisab_reminders"
+        private const val SOUND_CHANNEL_ID = "daily_hisab_reminders_sound"
+        private const val SILENT_CHANNEL_ID = "daily_hisab_reminders_silent"
         private const val UNIQUE_WORK = "daily_hisab_daily_insights"
 
         fun schedule(context: Context) {

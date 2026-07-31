@@ -53,7 +53,9 @@ data class NoteEntity(
     val title: String,
     val body: String,
     val createdAt: String,
-    val pinned: Boolean = false
+    val pinned: Boolean = false,
+    val colorIndex: Int = 0,
+    val template: String = "Blank"
 )
 
 @Entity(tableName = "receipts")
@@ -183,7 +185,7 @@ interface AppNotificationDao {
 
 @Database(
     entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class, CategoryEntity::class, AppNotificationEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -204,7 +206,7 @@ abstract class FinanceDatabase : RoomDatabase() {
                     context.applicationContext,
                     FinanceDatabase::class.java,
                     "daily_hisab.db"
-                ).addMigrations(MIGRATION_4_5).fallbackToDestructiveMigration().build().also { instance = it }
+                ).addMigrations(MIGRATION_4_5, MIGRATION_5_6).fallbackToDestructiveMigration().build().also { instance = it }
             }
 
         private val MIGRATION_4_5 = object : Migration(4, 5) {
@@ -219,6 +221,13 @@ abstract class FinanceDatabase : RoomDatabase() {
                         isRead INTEGER NOT NULL DEFAULT 0
                     )""".trimIndent()
                 )
+            }
+        }
+
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notes ADD COLUMN colorIndex INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE notes ADD COLUMN template TEXT NOT NULL DEFAULT 'Blank'")
             }
         }
     }

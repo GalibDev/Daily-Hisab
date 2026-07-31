@@ -40,7 +40,7 @@ class AutomaticBackupWorker(context: Context, params: WorkerParameters) : Corout
                 reminders.forEach { put(JSONObject().put("title", it.title).put("date", it.date).put("time", it.time).put("completed", it.completed)) }
             })
             put("notes", JSONArray().apply {
-                notes.forEach { put(JSONObject().put("title", it.title).put("body", it.body).put("createdAt", it.createdAt).put("pinned", it.pinned)) }
+                notes.forEach { put(JSONObject().put("title", it.title).put("body", it.body).put("createdAt", it.createdAt).put("pinned", it.pinned).put("colorIndex", it.colorIndex).put("template", it.template)) }
             })
             put("categories", JSONArray().apply {
                 categories.forEach { put(JSONObject().put("name", it.name).put("iconName", it.iconName)) }

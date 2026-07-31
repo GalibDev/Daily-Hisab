@@ -41,13 +41,18 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             )
         )
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
+        val soundEnabled = applicationContext.getSharedPreferences("daily_hisab_settings", 0)
+            .getBoolean("notification_sound", true)
+        val channelId = if (soundEnabled) SOUND_CHANNEL_ID else SILENT_CHANNEL_ID
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Expense reminders", NotificationManager.IMPORTANCE_HIGH)
+            NotificationChannel(channelId, if (soundEnabled) "Reminders with sound" else "Silent reminders", if (soundEnabled) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT).apply {
+                if (!soundEnabled) { setSound(null, null); enableVibration(false) }
+            }
         )
         if (ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
             NotificationManagerCompat.from(applicationContext).notify(
                 title.hashCode(),
-                NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+                NotificationCompat.Builder(applicationContext, channelId)
                     .setSmallIcon(com.dailyhisab.nativeapp.R.drawable.ic_daily_hisab)
                     .setContentTitle("Daily Hisab")
                     .setContentText(title)
@@ -68,7 +73,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     companion object {
-        private const val CHANNEL_ID = "daily_hisab_reminders"
+        private const val SOUND_CHANNEL_ID = "daily_hisab_reminders_sound"
+        private const val SILENT_CHANNEL_ID = "daily_hisab_reminders_silent"
 
         fun schedule(context: Context, title: String, date: String, time: String) {
             val target = runCatching {

@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -50,14 +51,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.room.withTransaction
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -98,9 +103,14 @@ private val Red = Color(0xFFEF4444)
 private val Ink = Color(0xFF111936)
 private val Muted = Color(0xFF69718A)
 private val Soft = Color(0xFFF5F7FF)
+private val NotePalette = listOf(
+    Color(0xFFFFF3B8), Color(0xFFDDF4D0), Color(0xFFFFDCE5),
+    Color(0xFFD8F3F0), Color(0xFFE5DEFF), Color(0xFFFFE6C9)
+)
 private var useBangla by mutableStateOf(false)
 private var selectedCurrency by mutableStateOf("BDT")
 private const val BDT_PER_USD = 120.0
+private var biometricExternalActivityActive = false
 private val LocalNotificationClick = staticCompositionLocalOf<() -> Unit> { {} }
 private val LocalUnreadNotificationCount = staticCompositionLocalOf { 0 }
 
@@ -161,9 +171,15 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel("daily_hisab_reminders", "Expense reminders", NotificationManager.IMPORTANCE_HIGH)
-        )
+        getSystemService(NotificationManager::class.java).apply {
+            createNotificationChannel(NotificationChannel("daily_hisab_reminders_sound", "Reminders with sound", NotificationManager.IMPORTANCE_HIGH))
+            createNotificationChannel(
+                NotificationChannel("daily_hisab_reminders_silent", "Silent reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    setSound(null, null)
+                    enableVibration(false)
+                }
+            )
+        }
         DailyInsightWorker.schedule(this)
         setContent { DailyHisabApp() }
     }
@@ -272,7 +288,9 @@ fun DailyHisabApp() {
     }
     DisposableEffect(lifecycleOwner, biometricEnabled) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && biometricEnabled) biometricUnlocked = false
+            if (event == Lifecycle.Event.ON_STOP && biometricEnabled && !biometricExternalActivityActive) {
+                biometricUnlocked = false
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -462,6 +480,14 @@ private fun BiometricLockScreen(onUnlocked: () -> Unit) {
                     Text("Authenticate to view your financial data.", color = Muted, fontSize = 13.sp)
                     Spacer(Modifier.height(16.dp))
                     Text(status, color = Blue, fontWeight = FontWeight.Bold)
+                    if (retryKey > 0) {
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = { retryKey++ }) {
+                            Icon(Icons.Default.Refresh, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("Try fingerprint again")
+                        }
+                    }
                 }
             }
         }
@@ -806,9 +832,11 @@ private fun ReportsScreen(expenses: List<Expense>, onAnalytics: () -> Unit) {
     var period by remember { mutableStateOf("Monthly") }
     val visible = remember(expenses, period) { expensesForPeriod(expenses, period, LocalDate.now()) }
     val createPdf = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        biometricExternalActivityActive = false
         if (uri != null) exportPdf(context, uri, visible, period)
     }
     val createCsv = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        biometricExternalActivityActive = false
         if (uri != null) context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
             writer.write("Date,Time,Title,Category,Type,Amount,Note\n")
             visible.forEach { writer.write(listOf(it.date, it.time, it.title, it.category, if (it.income) "Income" else "Expense", it.amount, it.note).joinToString(",") { value -> "\"${value.toString().replace("\"", "\"\"")}\"" } + "\n") }
@@ -833,10 +861,10 @@ private fun ReportsScreen(expenses: List<Expense>, onAnalytics: () -> Unit) {
                         SummaryMetric("Entries", visible.size, Blue, showCurrency = false)
                     }
                 }
-                Button(onClick = { createPdf.launch("daily-hisab-${period.lowercase()}.pdf") }, Modifier.fillMaxWidth()) {
+                Button(onClick = { biometricExternalActivityActive = true; createPdf.launch("daily-hisab-${period.lowercase()}.pdf") }, Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(8.dp)); Text("Export PDF")
                 }
-                OutlinedButton(onClick = { createCsv.launch("daily-hisab-${period.lowercase()}.csv") }, Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { biometricExternalActivityActive = true; createCsv.launch("daily-hisab-${period.lowercase()}.csv") }, Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.TableView, null); Spacer(Modifier.width(8.dp)); Text("Export Excel (CSV)")
                 }
                 OutlinedButton(onClick = onAnalytics, Modifier.fillMaxWidth()) {
@@ -985,6 +1013,8 @@ private fun scanReceipt(
 @Composable
 private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (CategoryEntity) -> Unit, onSave: (Expense, String?) -> Unit) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(categories.firstOrNull()?.name ?: "Food") }
     var title by remember { mutableStateOf("") }
@@ -1019,7 +1049,16 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
     if (showCategoryDialog) CategoryDialog({ showCategoryDialog = false }) {
         onAddCategory(it); category = it.name; showCategoryDialog = false
     }
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Column(
+        Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                })
+            }
+    ) {
         AppHeader("Add Expense", onCalculator = { calculatorMode = if (calculatorMode == 0) 1 else 0 })
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
@@ -1030,13 +1069,27 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
             }
             item {
                 OutlinedTextField(
-                    value = amount, onValueChange = { amount = it.filter(Char::isDigit) },
-                    label = { Text("Amount") }, leadingIcon = { Text(when (selectedCurrency) { "USD" -> "$"; "USDT" -> "₮"; else -> "৳" }, fontSize = 24.sp, fontWeight = FontWeight.Bold) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
             }
             item {
-                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it.filter(Char::isDigit) },
+                    label = { Text("Amount") },
+                    leadingIcon = { Text(when (selectedCurrency) { "USD" -> "$"; "USDT" -> "₮"; else -> "৳" }, fontSize = 24.sp, fontWeight = FontWeight.Bold) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(); keyboardController?.hide() })
+                )
             }
             item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -2005,10 +2058,6 @@ private fun NotesScreen(
             matchesSearch && matchesFilter
         }
     }
-    val noteColors = listOf(
-        Color(0xFFFFF3B8), Color(0xFFDDF4D0), Color(0xFFFFDCE5),
-        Color(0xFFD8F3F0), Color(0xFFE5DEFF), Color(0xFFFFE6C9)
-    )
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         AppHeader("Notes")
         OutlinedTextField(
@@ -2058,7 +2107,7 @@ private fun NotesScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     gridItems(visibleNotes, key = { it.id }) { item ->
-                        val color = noteColors[((item.id.takeIf { it > 0 } ?: item.title.hashCode().toLong()).let { kotlin.math.abs(it).toInt() }) % noteColors.size]
+                        val color = NotePalette[item.colorIndex.coerceIn(NotePalette.indices)]
                         Card(
                             shape = RoundedCornerShape(20.dp),
                             colors = CardDefaults.cardColors(containerColor = color),
@@ -2068,7 +2117,7 @@ private fun NotesScreen(
                             Column(Modifier.fillMaxSize().padding(15.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Surface(shape = RoundedCornerShape(9.dp), color = Color.White.copy(.55f)) {
-                                        Text(if (item.pinned) "PINNED" else "NOTE", Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+                                        Text(if (item.pinned) "PINNED" else item.template.uppercase(), Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
                                     }
                                     Spacer(Modifier.weight(1f))
                                     IconButton(onClick = { onPin(item) }, modifier = Modifier.size(30.dp)) {
@@ -2101,11 +2150,60 @@ private fun NotesScreen(
         }
     }
     if (showAdd) {
-        AddItemDialog(title = "Add Note", amountEnabled = false, onDismiss = { showAdd = false }) { name, detail, _ ->
-            onAdd(NoteEntity(title = name, body = detail, createdAt = LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy"))))
+        AddNoteDialog(onDismiss = { showAdd = false }) { name, detail, colorIndex, template ->
+            onAdd(NoteEntity(title = name, body = detail, createdAt = LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy")), colorIndex = colorIndex, template = template))
             showAdd = false
         }
     }
+}
+
+@Composable
+private fun AddNoteDialog(onDismiss: () -> Unit, onSave: (String, String, Int, String) -> Unit) {
+    var title by remember { mutableStateOf("") }
+    var body by remember { mutableStateOf("") }
+    var colorIndex by remember { mutableIntStateOf(0) }
+    var template by remember { mutableStateOf("Blank") }
+    val templates = linkedMapOf(
+        "Blank" to "",
+        "To-do" to "☐ Task 1\n☐ Task 2\n☐ Task 3",
+        "Shopping" to "• Item 1\n• Item 2\n• Item 3",
+        "Budget" to "Budget:\nSpent:\nRemaining:",
+        "Ideas" to "Idea:\nWhy it matters:\nNext step:"
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create a note", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Template", fontWeight = FontWeight.Bold, color = Ink, fontSize = 12.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    templates.keys.take(3).forEach { option ->
+                        FilterChip(selected = template == option, onClick = { template = option; body = templates[option].orEmpty() }, label = { Text(option, fontSize = 10.sp) })
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    templates.keys.drop(3).forEach { option ->
+                        FilterChip(selected = template == option, onClick = { template = option; body = templates[option].orEmpty() }, label = { Text(option, fontSize = 10.sp) })
+                    }
+                }
+                Text("Card colour", fontWeight = FontWeight.Bold, color = Ink, fontSize = 12.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    NotePalette.forEachIndexed { index, color ->
+                        Surface(
+                            modifier = Modifier.size(if (colorIndex == index) 38.dp else 32.dp).clickable { colorIndex = index },
+                            shape = CircleShape,
+                            color = color,
+                            border = if (colorIndex == index) androidx.compose.foundation.BorderStroke(3.dp, Blue) else null
+                        ) {}
+                    }
+                }
+                OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(body, { body = it }, label = { Text("Note") }, minLines = 5, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = { Button(onClick = { onSave(title.trim(), body.trim(), colorIndex, template) }, enabled = title.isNotBlank()) { Text("Save note") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable
@@ -2219,6 +2317,7 @@ private fun SettingsScreen(
     val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
     var currency by remember { mutableStateOf(prefs.getString("currency", "BDT") ?: "BDT") }
     var notifications by remember { mutableStateOf(prefs.getBoolean("notifications", true)) }
+    var notificationSound by remember { mutableStateOf(prefs.getBoolean("notification_sound", true)) }
     var notificationMessage by remember { mutableStateOf("") }
     val notificationPermission = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -2290,6 +2389,24 @@ private fun SettingsScreen(
                         )
                     }
                     if (notificationMessage.isNotBlank()) Text(notificationMessage, fontSize = 11.sp, color = Muted)
+                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (notificationSound) Icons.Default.VolumeUp else Icons.Default.VolumeOff, null, tint = Blue)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(if (bangla) "নোটিফিকেশন সাউন্ড" else "Notification sound", fontWeight = FontWeight.Bold, color = Ink)
+                            Text(if (notificationSound) "Sound and vibration enabled" else "Notifications will be silent", fontSize = 11.sp, color = Muted)
+                        }
+                        Switch(
+                            checked = notificationSound,
+                            enabled = notifications,
+                            onCheckedChange = {
+                                notificationSound = it
+                                prefs.edit().putBoolean("notification_sound", it).apply()
+                                notificationMessage = if (it) "Notification sound enabled" else "Notifications set to silent"
+                            }
+                        )
+                    }
                 }
                 AppCard {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -2343,7 +2460,7 @@ private fun BackupScreen(
             put("transactions", JSONArray().apply { expenses.forEach { put(JSONObject().put("title", it.title).put("category", it.category).put("amount", it.amount).put("date", it.date).put("time", it.time).put("income", it.income).put("note", it.note)) } })
             put("recurring", JSONArray().apply { recurring.forEach { put(JSONObject().put("title", it.title).put("amount", it.amount).put("frequency", it.frequency).put("nextDueDate", it.nextDueDate)) } })
             put("reminders", JSONArray().apply { reminders.forEach { put(JSONObject().put("title", it.title).put("date", it.date).put("time", it.time).put("completed", it.completed)) } })
-            put("notes", JSONArray().apply { notes.forEach { put(JSONObject().put("title", it.title).put("body", it.body).put("createdAt", it.createdAt).put("pinned", it.pinned)) } })
+            put("notes", JSONArray().apply { notes.forEach { put(JSONObject().put("title", it.title).put("body", it.body).put("createdAt", it.createdAt).put("pinned", it.pinned).put("colorIndex", it.colorIndex).put("template", it.template)) } })
             put("categories", JSONArray().apply { categories.forEach { put(JSONObject().put("name", it.name).put("iconName", it.iconName)) } })
         }.toString(2)
     }
@@ -2552,7 +2669,7 @@ private suspend fun restoreBackup(database: FinanceDatabase, jsonText: String) {
         }
         for (index in 0 until notes.length()) {
         val item = notes.getJSONObject(index)
-        database.noteDao().insert(NoteEntity(title = item.optString("title"), body = item.optString("body"), createdAt = item.optString("createdAt"), pinned = item.optBoolean("pinned")))
+        database.noteDao().insert(NoteEntity(title = item.optString("title"), body = item.optString("body"), createdAt = item.optString("createdAt"), pinned = item.optBoolean("pinned"), colorIndex = item.optInt("colorIndex", 0), template = item.optString("template", "Blank")))
         }
         for (index in 0 until categories.length()) {
         val item = categories.getJSONObject(index)
