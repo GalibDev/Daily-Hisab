@@ -9,6 +9,7 @@ import {
   Banknote,
   Bus,
   CalendarCheck,
+  Check,
   ChevronRight,
   CircleDollarSign,
   Coffee,
@@ -1015,19 +1016,18 @@ function MobileDashboard({
                     <p className="truncate text-sm font-extrabold text-[#18203a]">{slot.category}</p>
                     <p className="truncate text-[11px] text-[#69718a]">{entry ? `${displayDate(entry.date)} - ${entry.time}` : emptyDailyExpenseText}</p>
                   </div>
-                  {entry ? (
+                  {activeDailySlot === slot.category ? (
+                    <form action={(formData) => saveDailyExpense(slot.category, entry, formData)} className="flex w-[172px] shrink-0 items-center gap-1.5">
+                      <input name="amount" autoFocus className="h-10 min-w-0 flex-1 rounded-lg border border-[#b9c3df] bg-white px-2 text-sm font-bold text-[#111936] outline-none focus:border-[#11298f]" defaultValue={entry?.amount ?? ""} inputMode="decimal" placeholder="0" />
+                      <button type="submit" aria-label="Save amount" className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#11298f] text-white"><Check size={17} /></button>
+                      <button type="button" aria-label="Cancel" onClick={() => setActiveDailySlot(null)} className="grid size-10 shrink-0 place-items-center rounded-lg border border-[#d9deeb] bg-white text-[#59627a]"><X size={17} /></button>
+                    </form>
+                  ) : entry ? (
                     <button type="button" className="text-sm font-extrabold text-[#111936]" onClick={() => setActiveDailySlot(slot.category)}>{takaShort(entry.amount)}</button>
                   ) : (
                     <button type="button" className="rounded-lg bg-[#f3f1ff] px-3 py-2 text-xs font-extrabold text-[#0d2c88]" onClick={() => setActiveDailySlot(slot.category)}>{addAmountText}</button>
                   )}
                 </div>
-                {activeDailySlot === slot.category && (
-                  <form action={(formData) => saveDailyExpense(slot.category, entry, formData)} className="mt-3 grid grid-cols-2 gap-2">
-                    <input name="amount" className={`${inputClass} col-span-2`} defaultValue={entry?.amount ?? ""} inputMode="decimal" placeholder="0" />
-                    <Button type="submit" className="h-11 px-3">Save</Button>
-                    <Button type="button" variant="outline" className="h-11 px-3" onClick={() => setActiveDailySlot(null)}>Cancel</Button>
-                  </form>
-                )}
               </div>
             );
           })}
