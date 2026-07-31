@@ -14,6 +14,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { createContext, useContext, useEffect, useState } from "react";
 import { firebaseAuth, firebaseStorage, googleProvider, isFirebaseConfigured } from "@/lib/firebase/client";
+import { syncUserDirectoryProfile } from "@/lib/firebase/admin-data";
 
 export type AppUser = {
   id: string;
@@ -66,6 +67,10 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     return onAuthStateChanged(firebaseAuth, (nextUser) => {
       setFirebaseUser(nextUser);
       setLoading(false);
+      const appUser = mapUser(nextUser);
+      if (appUser) void syncUserDirectoryProfile(appUser).catch(() => {
+        // Authentication remains usable if profile presence sync is unavailable.
+      });
     });
   }, []);
 
@@ -105,6 +110,8 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       await updateProfile(firebaseAuth.currentUser, { displayName: trimmedName });
       await reload(firebaseAuth.currentUser);
       setFirebaseUser(firebaseAuth.currentUser);
+      const appUser = mapUser(firebaseAuth.currentUser);
+      if (appUser) await syncUserDirectoryProfile(appUser);
       setProfileVersion((version) => version + 1);
     },
     uploadProfileImage: async (file) => {
@@ -118,6 +125,8 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       await updateProfile(firebaseAuth.currentUser, { photoURL });
       await reload(firebaseAuth.currentUser);
       setFirebaseUser(firebaseAuth.currentUser);
+      const appUser = mapUser(firebaseAuth.currentUser);
+      if (appUser) await syncUserDirectoryProfile(appUser);
       setProfileVersion((version) => version + 1);
       return photoURL;
     },
