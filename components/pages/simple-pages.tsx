@@ -1366,6 +1366,7 @@ export function SettingsPage() {
   const [mobileProfileUploading, setMobileProfileUploading] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [securityBusy, setSecurityBusy] = useState(false);
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
@@ -1387,11 +1388,13 @@ export function SettingsPage() {
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/hero-management", icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/ai-helper", icon: <MessageCircle size={20} />, label: "AI Helper", tone: "bg-[#eafbf0] text-[#16a34a]" },
-    { onClick: () => setShowSecurity((open) => !open), icon: <ShieldCheck size={20} />, label: "Security & Password", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
+    { onClick: () => setShowSettingsMenu((open) => !open), icon: <Wrench size={20} />, label: "Settings", meta: showSettingsMenu ? "Open" : undefined, tone: "bg-[#eef4ff] text-[#11298f]" },
+  ];
+  const nestedSettingsItems = [
+    { onClick: () => setShowSecurity((open) => !open), icon: <ShieldCheck size={20} />, label: "Security & Password", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/family-access", icon: <UsersRound size={20} />, label: "Family Access", tone: "bg-[#eef4ff] text-[#11298f]" },
-    { onClick: () => undefined, icon: <Wrench size={20} />, label: "Settings", tone: "bg-[#eef4ff] text-[#11298f]" },
   ];
   const preferenceItems = [
     { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },
@@ -1579,6 +1582,7 @@ export function SettingsPage() {
         )}
         {showSecurity && user && <Card className="rounded-[18px] border-[#dce8df] p-4"><form onSubmit={handlePasswordChange} className="grid gap-3"><div><h2 className="font-extrabold text-[#111936]">Security & Password</h2><p className="text-xs text-[#69718a]">Use at least 6 characters. A recent login may be required.</p></div><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm new password" minLength={6} required /><Button type="submit" disabled={securityBusy}>{securityBusy ? "Updating…" : "Change password"}</Button><Button type="button" variant="outline" disabled={!user.email || securityBusy} onClick={async () => { if (!user.email) return; try { setSecurityBusy(true); await sendPasswordReset(user.email); notify("Password reset link sent", "success"); } catch (error) { notify(error instanceof Error ? error.message : "Reset email failed", "danger"); } finally { setSecurityBusy(false); } }}>Email me a reset link</Button></form></Card>}
         <ProfileMenuSection title="Account" items={accountItems} />
+        {showSettingsMenu && <ProfileMenuSection title="Settings" items={nestedSettingsItems} />}
         <ProfileMenuSection title="Preferences" items={preferenceItems} />
         <ProfileMenuSection title="Support" items={supportItems} />
         {user ? (
