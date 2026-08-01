@@ -45,6 +45,7 @@ import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useFamilyAccess } from "@/components/state/family-access-store";
 import { useFinance } from "@/components/state/finance-store";
+import { FloatingPet } from "@/components/pet/floating-pet";
 import { useWallet } from "@/components/state/wallet-store";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, summarizeEntries } from "@/lib/finance";
@@ -1140,6 +1141,7 @@ export function DashboardPage() {
       <MobileDashboard categoryData={categoryData} entries={entries} monthExpense={monthExpense} />
 
       <DesktopDashboard categoryData={categoryData} entries={entries} monthExpense={monthExpense} summaryRows={summaryRows} today={today} todaySummary={todaySummary} trendData={trendData} />
+      <FloatingPet />
     </AppShell>
   );
 }

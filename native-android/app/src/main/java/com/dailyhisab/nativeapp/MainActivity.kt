@@ -22,6 +22,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,11 +47,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -91,6 +96,7 @@ import org.json.JSONObject
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
+import kotlin.math.roundToInt
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -273,6 +279,8 @@ fun DailyHisabApp() {
         AutomaticBackupWorker.schedule(context)
     }
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
+    var petEnabled by remember { mutableStateOf(prefs.getBoolean("home_pet_enabled", false)) }
+    var petColor by remember { mutableStateOf(prefs.getString("home_pet_color", "Black") ?: "Black") }
     var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
     var biometricUnlocked by rememberSaveable { mutableStateOf(!biometricEnabled) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -373,7 +381,7 @@ fun DailyHisabApp() {
             ) { padding ->
                 Box(Modifier.padding(padding).fillMaxSize()) {
                     when (screen) {
-                    Screen.Home -> HomeScreen(expenses, onNavigate = { screen = it })
+                    Screen.Home -> HomeScreen(expenses, petEnabled, petColor, onNavigate = { screen = it })
                     Screen.Reports -> ReportsScreen(expenses) { screen = Screen.Analytics }
                     Screen.Analytics -> AnalyticsScreen(expenses)
                     Screen.Add -> AddExpenseScreen(categories, { scope.launch { categoryDao.insert(it) } }) { expense, receiptUri ->
@@ -471,8 +479,16 @@ fun DailyHisabApp() {
                     Screen.Settings -> SettingsScreen(
                         darkMode = darkMode,
                         biometricEnabled = biometricEnabled,
+                        petEnabled = petEnabled,
+                        petColor = petColor,
                         onDarkModeChange = {
                             darkMode = it; prefs.edit().putBoolean("dark_mode", it).apply()
+                        },
+                        onPetEnabledChange = {
+                            petEnabled = it; prefs.edit().putBoolean("home_pet_enabled", it).apply()
+                        },
+                        onPetColorChange = {
+                            petColor = it; prefs.edit().putString("home_pet_color", it).apply()
                         },
                         onBiometricChange = { enabled ->
                             if (!enabled) {
@@ -576,7 +592,12 @@ private fun AppHeader(title: String = "Daily Hisab", subtitle: String? = null, o
 }
 
 @Composable
-private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
+private fun HomeScreen(
+    expenses: List<Expense>,
+    petEnabled: Boolean,
+    petColor: String,
+    onNavigate: (Screen) -> Unit
+) {
     val today = LocalDate.now()
     val currentMonth = YearMonth.from(today)
     val monthEntries = expenses.filter { item ->
@@ -604,10 +625,11 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
     val allSpent = expenses.filterNot { it.income }.sumOf { it.amount }
     val activeExpenseDays = monthEntries.filterNot { it.income }.map { it.date }.distinct().size.coerceAtLeast(1)
     val dailyAverage = (monthSpent.toDouble() / activeExpenseDays).toInt()
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-        item { AppHeader(subtitle = "Your Daily Expense Tracker") }
-        item {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            item { AppHeader(subtitle = "Your Daily Expense Tracker") }
+            item {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 HomeHeroPager(todaySpent, monthSpent, allSpent, dailyAverage, monthIncome)
                 DashboardInsights(monthEntries, monthSpent, previousMonthSpent, last7Spent, previous7Spent)
                 Text("Quick Add", fontWeight = FontWeight.Bold, color = Ink)
@@ -637,9 +659,84 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
                     Text("Recent Transactions", fontWeight = FontWeight.ExtraBold, color = Ink)
                     Text("See all", color = Blue, fontWeight = FontWeight.Bold)
                 }
+                }
             }
+            items(expenses.take(5)) { TransactionRow(it) }
         }
-        items(expenses.take(5)) { TransactionRow(it) }
+        if (petEnabled) FloatingPetCat(petColor == "Black")
+    }
+}
+
+@Composable
+private fun BoxScope.FloatingPetCat(isBlack: Boolean) {
+    var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
+    var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
+    var activity by remember { mutableIntStateOf(0) }
+    var loved by remember { mutableStateOf(false) }
+    val fur = if (isBlack) Color(0xFF171923) else Color(0xFFF8F7F2)
+    val outline = if (isBlack) Color(0xFFE8ECFF) else Color(0xFF17213F)
+    val accent = if (isBlack) Color(0xFFF97316) else Color(0xFF11298F)
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(2400)
+            activity = (activity + 1) % 3
+        }
+    }
+    LaunchedEffect(loved) {
+        if (loved) {
+            delay(1300)
+            loved = false
+        }
+    }
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(18.dp)
+            .offset {
+                val idleX = if (activity == 0) 18 else if (activity == 2) -10 else 0
+                val idleY = if (activity == 2) -8 else 0
+                IntOffset(offsetX.roundToInt() + idleX, offsetY.roundToInt() + idleY)
+            }
+            .pointerInput(isBlack) {
+                detectDragGestures { change, amount ->
+                    change.consume()
+                    offsetX += amount.x
+                    offsetY += amount.y
+                }
+            }
+    ) {
+        Surface(
+            modifier = Modifier.size(68.dp).clickable { loved = true; activity = 2 },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 8.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, outline.copy(alpha = .18f))
+        ) {
+        Canvas(Modifier.fillMaxSize().padding(8.dp)) {
+            val w = size.width
+            val h = size.height
+            drawOval(fur, topLeft = androidx.compose.ui.geometry.Offset(w * .18f, h * .48f), size = androidx.compose.ui.geometry.Size(w * .58f, h * .36f))
+            drawCircle(fur, radius = w * .22f, center = androidx.compose.ui.geometry.Offset(w * .63f, h * .38f))
+            val leftEar = Path().apply {
+                moveTo(w * .46f, h * .27f); lineTo(w * .50f, h * .06f); lineTo(w * .62f, h * .22f); close()
+            }
+            val rightEar = Path().apply {
+                moveTo(w * .66f, h * .20f); lineTo(w * .78f, h * .07f); lineTo(w * .80f, h * .30f); close()
+            }
+            drawPath(leftEar, fur); drawPath(rightEar, fur)
+            drawArc(fur, startAngle = 195f, sweepAngle = 190f, useCenter = false,
+                topLeft = androidx.compose.ui.geometry.Offset(w * .03f, h * .38f),
+                size = androidx.compose.ui.geometry.Size(w * .35f, h * .45f), style = Stroke(w * .10f))
+            drawCircle(accent, radius = w * .026f, center = androidx.compose.ui.geometry.Offset(w * .58f, h * .37f))
+            drawCircle(accent, radius = w * .026f, center = androidx.compose.ui.geometry.Offset(w * .70f, h * .37f))
+            drawArc(outline, startAngle = 15f, sweepAngle = 150f, useCenter = false,
+                topLeft = androidx.compose.ui.geometry.Offset(w * .60f, h * .41f),
+                size = androidx.compose.ui.geometry.Size(w * .10f, h * .07f), style = Stroke(w * .018f))
+        }
+        }
+        if (loved) Text("♥", color = Color(0xFFEF476F), fontSize = 24.sp, modifier = Modifier.align(Alignment.TopEnd).offset(x = 5.dp, y = (-12).dp))
+        if (activity == 1) Text("z", color = Muted, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopStart).offset(x = (-2).dp, y = (-8).dp))
     }
 }
 
@@ -2481,7 +2578,11 @@ private fun ReceiptThumbnail(uriString: String) {
 private fun SettingsScreen(
     darkMode: Boolean,
     biometricEnabled: Boolean,
+    petEnabled: Boolean,
+    petColor: String,
     onDarkModeChange: (Boolean) -> Unit,
+    onPetEnabledChange: (Boolean) -> Unit,
+    onPetColorChange: (String) -> Unit,
     onBiometricChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -2599,6 +2700,33 @@ private fun SettingsScreen(
                             Text(if (bangla) "লাইট ও ডার্ক থিম পরিবর্তন করুন" else "Switch between light and dark appearance", fontSize = 11.sp, color = Muted)
                         }
                         Switch(darkMode, onDarkModeChange)
+                    }
+                }
+                AppCard {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Pets, null, tint = Orange)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(if (bangla) "হোম পেজ পেট" else "Home page pet", fontWeight = FontWeight.Bold, color = Ink)
+                            Text(if (bangla) "হোম পেজে draggable cat দেখান" else "Show a draggable cat on the Home page", fontSize = 11.sp, color = Muted)
+                        }
+                        Switch(checked = petEnabled, onCheckedChange = onPetEnabledChange)
+                    }
+                    AnimatedVisibility(visible = petEnabled) {
+                        Column {
+                            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                            Text(if (bangla) "বিড়ালের রং" else "Cat color", fontWeight = FontWeight.SemiBold, color = Ink)
+                            Spacer(Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                listOf("Black", "White").forEachIndexed { index, value ->
+                                    SegmentedButton(
+                                        selected = petColor == value,
+                                        onClick = { onPetColorChange(value) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, 2)
+                                    ) { Text(if (bangla) if (value == "Black") "কালো" else "সাদা" else value) }
+                                }
+                            }
+                        }
                     }
                 }
                 Text(if (bangla) "সেটিংস এই ডিভাইসে স্বয়ংক্রিয়ভাবে সংরক্ষিত হয়।" else "Settings are saved automatically on this device.", color = Muted, fontSize = 12.sp)

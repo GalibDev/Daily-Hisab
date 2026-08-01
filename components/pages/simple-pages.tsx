@@ -16,6 +16,7 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart } from "@/components/dashboard/charts";
+import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_SETTINGS_EVENT } from "@/components/pet/floating-pet";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { exportDataJson, exportEntriesCsv, exportExpenseSheetCsv, exportExpenseSheetPdf } from "@/lib/export-data";
 import {
@@ -1368,6 +1369,8 @@ export function SettingsPage() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
+  const [petEnabled, setPetEnabled] = useState(false);
+  const [petColor, setPetColor] = useState<"black" | "white">("black");
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -1402,8 +1405,22 @@ export function SettingsPage() {
     queueMicrotask(() => {
       setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
       setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
+      setPetEnabled(window.localStorage.getItem(PET_ENABLED_KEY) === "1");
+      setPetColor(window.localStorage.getItem(PET_COLOR_KEY) === "white" ? "white" : "black");
     });
   }, []);
+
+  function updatePetEnabled(enabled: boolean) {
+    setPetEnabled(enabled);
+    window.localStorage.setItem(PET_ENABLED_KEY, enabled ? "1" : "0");
+    window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
+  }
+
+  function updatePetColor(color: "black" | "white") {
+    setPetColor(color);
+    window.localStorage.setItem(PET_COLOR_KEY, color);
+    window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
+  }
 
   async function handleMobileProfileImage(file?: File) {
     if (!file) return;
@@ -1470,6 +1487,14 @@ export function SettingsPage() {
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
+      <Card className="mb-5 rounded-[18px] border-[#e6eafa] p-4 shadow-[0_10px_28px_rgba(20,35,90,0.05)]">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={22} /></span>
+          <div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pet</h2><p className="text-xs font-semibold text-[#69718a]">A draggable cat that walks, sits, plays and reacts to your touch</p></div>
+          <button type="button" role="switch" aria-checked={petEnabled} onClick={() => updatePetEnabled(!petEnabled)} className={`relative h-7 w-12 rounded-full transition ${petEnabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${petEnabled ? "left-6" : "left-1"}`} /></button>
+        </div>
+        {petEnabled && <div className="mt-4 flex items-center justify-between border-t border-[#edf0f7] pt-4"><span className="text-sm font-bold text-[#27304b]">Cat color</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["black", "white"] as const).map((color) => <button key={color} type="button" onClick={() => updatePetColor(color)} className={`rounded-lg px-4 py-2 text-xs font-extrabold capitalize ${petColor === color ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{color}</button>)}</div></div>}
+      </Card>
       <div className="grid gap-5 md:hidden">
         <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
           <div className="flex items-center gap-4">
