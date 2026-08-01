@@ -1,27 +1,36 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Lottie from "lottie-react";
+import Lottie, { type LottieRefCurrentProps } from "lottie-react";
 
 export const PET_ENABLED_KEY = "daily-hisab.home-pet-enabled";
 export const PET_COLOR_KEY = "daily-hisab.home-pet-color";
 export const PET_SIZE_KEY = "daily-hisab.home-pet-size";
+export const PET_MODE_KEY = "daily-hisab.home-pet-mode";
+export const PET_SPEED_KEY = "daily-hisab.home-pet-speed";
 const PET_POSITION_KEY = "daily-hisab.home-pet-position.v2";
 export const PET_SETTINGS_EVENT = "daily-hisab-pet-settings";
 
 export type PetColor = "brown" | "default" | "black" | "white";
 export type PetSize = "small" | "medium" | "large";
+export type PetMode = "automatic" | "default" | "sit";
+export type PetSpeed = "slow" | "normal" | "fast";
 
 export function FloatingPet() {
   const [enabled, setEnabled] = useState(false);
   const [color, setColor] = useState<PetColor>("default");
   const [petSize, setPetSize] = useState<PetSize>("medium");
+  const [petMode, setPetMode] = useState<PetMode>("default");
+  const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
   const [animationData, setAnimationData] = useState<object | null>(null);
   const [reaction, setReaction] = useState(false);
   const [position, setPosition] = useState({ x: 24, y: 150 });
   const positionRef = useRef(position);
   const dragging = useRef<{ pointerId: number; dx: number; dy: number } | null>(null);
   const moved = useRef(false);
+  const lottieRef = useRef<LottieRefCurrentProps>(null);
+  const autoDirection = useRef(-1);
+  const sizePx = petSize === "small" ? 72 : petSize === "large" ? 124 : 92;
 
   useEffect(() => {
     const load = () => {
@@ -30,6 +39,10 @@ export function FloatingPet() {
       setColor((["brown", "default", "black", "white"].includes(savedColor || "") ? savedColor : "default") as PetColor);
       const savedSize = localStorage.getItem(PET_SIZE_KEY);
       setPetSize((["small", "medium", "large"].includes(savedSize || "") ? savedSize : "medium") as PetSize);
+      const savedMode = localStorage.getItem(PET_MODE_KEY);
+      setPetMode((["automatic", "default", "sit"].includes(savedMode || "") ? savedMode : "default") as PetMode);
+      const savedSpeed = localStorage.getItem(PET_SPEED_KEY);
+      setPetSpeed((["slow", "normal", "fast"].includes(savedSpeed || "") ? savedSpeed : "normal") as PetSpeed);
       try {
         const saved = JSON.parse(localStorage.getItem(PET_POSITION_KEY) || "null") as { x?: number; y?: number } | null;
         if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
@@ -53,8 +66,34 @@ export function FloatingPet() {
     fetch(`/pet/walking-cat${suffix}.json`).then((response) => response.json()).then((data: object) => setAnimationData(data)).catch(() => setAnimationData(null));
   }, [color]);
 
+  useEffect(() => {
+    const speed = petMode === "sit" ? .22 : petSpeed === "slow" ? .65 : petSpeed === "fast" ? 1.55 : 1;
+    lottieRef.current?.setSpeed(speed);
+  }, [animationData, petMode, petSpeed]);
+
+  useEffect(() => {
+    if (!enabled || petMode !== "automatic") return;
+    const step = petSpeed === "slow" ? .8 : petSpeed === "fast" ? 2.2 : 1.35;
+    let tick = 0;
+    const timer = window.setInterval(() => {
+      tick += 1;
+      if (tick % 95 === 0) {
+        setReaction(true);
+        window.setTimeout(() => setReaction(false), 900);
+      }
+      setPosition((current) => {
+        let x = current.x + autoDirection.current * step;
+        if (x <= 8) { x = 8; autoDirection.current = 1; }
+        if (x >= window.innerWidth - sizePx) { x = window.innerWidth - sizePx; autoDirection.current = -1; }
+        const next = { ...current, x };
+        positionRef.current = next;
+        return next;
+      });
+    }, 60);
+    return () => window.clearInterval(timer);
+  }, [enabled, petMode, petSpeed, sizePx]);
+
   if (!enabled) return null;
-  const sizePx = petSize === "small" ? 72 : petSize === "large" ? 124 : 92;
 
   return (
     <div
@@ -88,11 +127,13 @@ export function FloatingPet() {
       aria-label="Interactive Daily Hisab pet cat"
     >
       {reaction && <span className="pet-heart absolute -right-1 -top-5 text-2xl text-[#ef476f]">♥</span>}
-      <div className={`pet-body ${reaction ? "pet-loved" : ""} grid place-items-center`} style={{ width: sizePx, height: sizePx }}>
-        {animationData && <Lottie animationData={animationData} loop autoplay style={{ width: sizePx, height: sizePx }} />}
+      <div className={`pet-body pet-mode-${petMode} ${reaction ? "pet-loved" : ""} grid place-items-center`} style={{ width: sizePx, height: sizePx }}>
+        {animationData && <Lottie lottieRef={lottieRef} animationData={animationData} loop autoplay style={{ width: sizePx, height: sizePx, transform: autoDirection.current > 0 ? "scaleX(-1)" : "none" }} />}
       </div>
       <style jsx>{`
-        .pet-body { transform-origin: 50% 100%; animation: petTravel 3.4s ease-in-out infinite alternate; }
+        .pet-body { transform-origin: 50% 100%; }
+        .pet-mode-default { animation: petTravel 3.4s ease-in-out infinite alternate; }
+        .pet-mode-sit { transform: scaleY(.8) translateY(12%); }
         .pet-loved { animation: petPlay .38s ease-in-out 4 alternate; }
         .pet-heart { animation: petHeart 1.3s ease-out forwards; }
         @keyframes petTravel { from { transform: translateX(-14px); } to { transform: translateX(14px); } }

@@ -16,7 +16,7 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart } from "@/components/dashboard/charts";
-import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_SETTINGS_EVENT, PET_SIZE_KEY, type PetColor, type PetSize } from "@/components/pet/floating-pet";
+import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_MODE_KEY, PET_SETTINGS_EVENT, PET_SIZE_KEY, PET_SPEED_KEY, type PetColor, type PetMode, type PetSize, type PetSpeed } from "@/components/pet/floating-pet";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { exportDataJson, exportEntriesCsv, exportExpenseSheetCsv, exportExpenseSheetPdf } from "@/lib/export-data";
 import {
@@ -1372,6 +1372,8 @@ export function SettingsPage() {
   const [petEnabled, setPetEnabled] = useState(false);
   const [petColor, setPetColor] = useState<PetColor>("default");
   const [petSize, setPetSize] = useState<PetSize>("medium");
+  const [petMode, setPetMode] = useState<PetMode>("default");
+  const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -1411,6 +1413,10 @@ export function SettingsPage() {
       setPetColor((["brown", "default", "black", "white"].includes(savedPetColor || "") ? savedPetColor : "default") as PetColor);
       const savedPetSize = window.localStorage.getItem(PET_SIZE_KEY);
       setPetSize((["small", "medium", "large"].includes(savedPetSize || "") ? savedPetSize : "medium") as PetSize);
+      const savedPetMode = window.localStorage.getItem(PET_MODE_KEY);
+      setPetMode((["automatic", "default", "sit"].includes(savedPetMode || "") ? savedPetMode : "default") as PetMode);
+      const savedPetSpeed = window.localStorage.getItem(PET_SPEED_KEY);
+      setPetSpeed((["slow", "normal", "fast"].includes(savedPetSpeed || "") ? savedPetSpeed : "normal") as PetSpeed);
     });
   }, []);
 
@@ -1429,6 +1435,18 @@ export function SettingsPage() {
   function updatePetSize(size: PetSize) {
     setPetSize(size);
     window.localStorage.setItem(PET_SIZE_KEY, size);
+    window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
+  }
+
+  function updatePetMode(mode: PetMode) {
+    setPetMode(mode);
+    window.localStorage.setItem(PET_MODE_KEY, mode);
+    window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
+  }
+
+  function updatePetSpeed(speed: PetSpeed) {
+    setPetSpeed(speed);
+    window.localStorage.setItem(PET_SPEED_KEY, speed);
     window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
   }
 
@@ -1503,7 +1521,7 @@ export function SettingsPage() {
           <div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pet</h2><p className="text-xs font-semibold text-[#69718a]">A draggable cat that walks, sits, plays and reacts to your touch</p></div>
           <button type="button" role="switch" aria-checked={petEnabled} onClick={() => updatePetEnabled(!petEnabled)} className={`relative h-7 w-12 rounded-full transition ${petEnabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${petEnabled ? "left-6" : "left-1"}`} /></button>
         </div>
-        {petEnabled && <div className="mt-4 grid gap-4 border-t border-[#edf0f7] pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat color</span><div className="flex flex-wrap rounded-xl bg-[#f1f3f8] p-1">{(["brown", "default", "black", "white"] as const).map((color) => <button key={color} type="button" onClick={() => updatePetColor(color)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petColor === color ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{color}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat size</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["small", "medium", "large"] as const).map((size) => <button key={size} type="button" onClick={() => updatePetSize(size)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petSize === size ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{size}</button>)}</div></div></div>}
+        {petEnabled && <div className="mt-4 grid gap-4 border-t border-[#edf0f7] pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat color</span><div className="flex flex-wrap rounded-xl bg-[#f1f3f8] p-1">{(["brown", "default", "black", "white"] as const).map((color) => <button key={color} type="button" onClick={() => updatePetColor(color)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petColor === color ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{color}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat size</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["small", "medium", "large"] as const).map((size) => <button key={size} type="button" onClick={() => updatePetSize(size)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petSize === size ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{size}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Behaviour</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["automatic", "default", "sit"] as const).map((mode) => <button key={mode} type="button" onClick={() => updatePetMode(mode)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petMode === mode ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{mode}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Walk speed</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["slow", "normal", "fast"] as const).map((speed) => <button key={speed} type="button" onClick={() => updatePetSpeed(speed)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petSpeed === speed ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{speed}</button>)}</div></div></div>}
       </Card>
       <div className="grid gap-5 md:hidden">
         <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">

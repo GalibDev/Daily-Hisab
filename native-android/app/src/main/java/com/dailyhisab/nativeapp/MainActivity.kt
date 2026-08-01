@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -285,6 +286,8 @@ fun DailyHisabApp() {
     var petEnabled by remember { mutableStateOf(prefs.getBoolean("home_pet_enabled", false)) }
     var petColor by remember { mutableStateOf(prefs.getString("home_pet_color", "Default") ?: "Default") }
     var petSize by remember { mutableStateOf(prefs.getString("home_pet_size", "Medium") ?: "Medium") }
+    var petMode by remember { mutableStateOf(prefs.getString("home_pet_mode", "Default") ?: "Default") }
+    var petSpeed by remember { mutableStateOf(prefs.getString("home_pet_speed", "Normal") ?: "Normal") }
     var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
     var biometricUnlocked by rememberSaveable { mutableStateOf(!biometricEnabled) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -385,7 +388,7 @@ fun DailyHisabApp() {
             ) { padding ->
                 Box(Modifier.padding(padding).fillMaxSize()) {
                     when (screen) {
-                    Screen.Home -> HomeScreen(expenses, petEnabled, petColor, petSize, onNavigate = { screen = it })
+                    Screen.Home -> HomeScreen(expenses, petEnabled, petColor, petSize, petMode, petSpeed, onNavigate = { screen = it })
                     Screen.Reports -> ReportsScreen(expenses) { screen = Screen.Analytics }
                     Screen.Analytics -> AnalyticsScreen(expenses)
                     Screen.Add -> AddExpenseScreen(categories, { scope.launch { categoryDao.insert(it) } }) { expense, receiptUri ->
@@ -486,6 +489,8 @@ fun DailyHisabApp() {
                         petEnabled = petEnabled,
                         petColor = petColor,
                         petSize = petSize,
+                        petMode = petMode,
+                        petSpeed = petSpeed,
                         onDarkModeChange = {
                             darkMode = it; prefs.edit().putBoolean("dark_mode", it).apply()
                         },
@@ -497,6 +502,12 @@ fun DailyHisabApp() {
                         },
                         onPetSizeChange = {
                             petSize = it; prefs.edit().putString("home_pet_size", it).apply()
+                        },
+                        onPetModeChange = {
+                            petMode = it; prefs.edit().putString("home_pet_mode", it).apply()
+                        },
+                        onPetSpeedChange = {
+                            petSpeed = it; prefs.edit().putString("home_pet_speed", it).apply()
                         },
                         onBiometricChange = { enabled ->
                             if (!enabled) {
@@ -605,6 +616,8 @@ private fun HomeScreen(
     petEnabled: Boolean,
     petColor: String,
     petSize: String,
+    petMode: String,
+    petSpeed: String,
     onNavigate: (Screen) -> Unit
 ) {
     val today = LocalDate.now()
@@ -672,21 +685,36 @@ private fun HomeScreen(
             }
             items(expenses.take(5)) { TransactionRow(it) }
         }
-        if (petEnabled) FloatingPetCat(petColor, petSize)
+        if (petEnabled) FloatingPetCat(petColor, petSize, petMode, petSpeed)
     }
 }
 
 @Composable
-private fun BoxScope.FloatingPetCat(petColor: String, petSize: String) {
+private fun BoxScope.FloatingPetCat(petColor: String, petSize: String, petMode: String, petSpeed: String) {
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
     var activity by remember { mutableIntStateOf(0) }
     var loved by remember { mutableStateOf(false) }
+    var autoOffsetX by remember { mutableFloatStateOf(0f) }
+    var autoDirection by remember { mutableFloatStateOf(-1f) }
     val size = when (petSize) { "Small" -> 72.dp; "Large" -> 124.dp; else -> 96.dp }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(petMode) {
         while (true) {
             delay(2400)
-            activity = (activity + 1) % 3
+            activity = when (petMode) { "Automatic" -> (activity + 1) % 3; "Sit" -> 1; else -> 0 }
+        }
+    }
+    LaunchedEffect(petMode, petSpeed) {
+        if (petMode != "Automatic") { autoOffsetX = 0f; return@LaunchedEffect }
+        var tick = 0
+        val step = when (petSpeed) { "Slow" -> .75f; "Fast" -> 2.1f; else -> 1.3f }
+        while (true) {
+            delay(55)
+            tick++
+            autoOffsetX += autoDirection * step
+            if (autoOffsetX < -620f) autoDirection = 1f
+            if (autoOffsetX > 0f) autoDirection = -1f
+            if (tick % 130 == 0) loved = true
         }
     }
     LaunchedEffect(loved) {
@@ -702,7 +730,7 @@ private fun BoxScope.FloatingPetCat(petColor: String, petSize: String) {
             .offset {
                 val idleX = if (activity == 0) 18 else if (activity == 2) -10 else 0
                 val idleY = if (activity == 2) -8 else 0
-                IntOffset(offsetX.roundToInt() + idleX, offsetY.roundToInt() + idleY)
+                IntOffset((offsetX + autoOffsetX).roundToInt() + idleX, offsetY.roundToInt() + idleY)
             }
             .pointerInput(petColor) {
                 detectDragGestures { change, amount ->
@@ -713,7 +741,11 @@ private fun BoxScope.FloatingPetCat(petColor: String, petSize: String) {
             }
     ) {
         AndroidView(
-            modifier = Modifier.size(size).clickable { loved = true; activity = 2 },
+            modifier = Modifier.size(size).graphicsLayer {
+                scaleX = if (petMode == "Automatic" && autoDirection > 0f) -1f else 1f
+                if (petMode == "Sit") { scaleY = .80f; translationY = size.toPx() * .12f }
+                if (loved) { scaleX *= 1.08f; scaleY *= 1.08f; translationY -= size.toPx() * .12f }
+            }.clickable { loved = true; activity = 2 },
             factory = { context ->
                 LottieAnimationView(context).apply {
                     repeatCount = LottieDrawable.INFINITE
@@ -732,6 +764,7 @@ private fun BoxScope.FloatingPetCat(petColor: String, petSize: String) {
                     view.repeatCount = LottieDrawable.INFINITE
                     view.playAnimation()
                 }
+                view.speed = when { petMode == "Sit" -> .22f; petSpeed == "Slow" -> .65f; petSpeed == "Fast" -> 1.55f; else -> 1f }
                 if (!view.isAnimating) view.playAnimation()
             }
         )
@@ -2580,10 +2613,14 @@ private fun SettingsScreen(
     petEnabled: Boolean,
     petColor: String,
     petSize: String,
+    petMode: String,
+    petSpeed: String,
     onDarkModeChange: (Boolean) -> Unit,
     onPetEnabledChange: (Boolean) -> Unit,
     onPetColorChange: (String) -> Unit,
     onPetSizeChange: (String) -> Unit,
+    onPetModeChange: (String) -> Unit,
+    onPetSpeedChange: (String) -> Unit,
     onBiometricChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -2737,6 +2774,30 @@ private fun SettingsScreen(
                                         onClick = { onPetSizeChange(value) },
                                         shape = SegmentedButtonDefaults.itemShape(index, 3)
                                     ) { Text(if (bangla) when (value) { "Small" -> "ছোট"; "Medium" -> "মাঝারি"; else -> "বড়" } else value, fontSize = 11.sp) }
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(if (bangla) "আচরণ" else "Behaviour", fontWeight = FontWeight.SemiBold, color = Ink)
+                            Spacer(Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                listOf("Automatic", "Default", "Sit").forEachIndexed { index, value ->
+                                    SegmentedButton(
+                                        selected = petMode == value,
+                                        onClick = { onPetModeChange(value) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, 3)
+                                    ) { Text(if (bangla) when (value) { "Automatic" -> "স্বয়ংক্রিয়"; "Default" -> "ডিফল্ট"; else -> "বসা" } else value, fontSize = 10.sp) }
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(if (bangla) "হাঁটার গতি" else "Walk speed", fontWeight = FontWeight.SemiBold, color = Ink)
+                            Spacer(Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                listOf("Slow", "Normal", "Fast").forEachIndexed { index, value ->
+                                    SegmentedButton(
+                                        selected = petSpeed == value,
+                                        onClick = { onPetSpeedChange(value) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, 3)
+                                    ) { Text(if (bangla) when (value) { "Slow" -> "ধীর"; "Normal" -> "স্বাভাবিক"; else -> "দ্রুত" } else value, fontSize = 10.sp) }
                                 }
                             }
                         }
