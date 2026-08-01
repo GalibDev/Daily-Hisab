@@ -1536,18 +1536,28 @@ private fun CategoryDialog(onDismiss: () -> Unit, onAdd: (CategoryEntity) -> Uni
 @Composable
 private fun CategoriesScreenV2(categories: List<CategoryEntity>, expenses: List<Expense>, onAdd: (CategoryEntity) -> Unit, onDelete: (CategoryEntity) -> Unit, onOpen: (CategoryEntity) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
+    var deleteCandidate by remember { mutableStateOf<CategoryEntity?>(null) }
     if (showDialog) CategoryDialog({ showDialog = false }) { onAdd(it); showDialog = false }
     LazyColumn(Modifier.fillMaxSize()) {
         item { AppHeader("Categories") }
         items(categories.chunked(2)) { row ->
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { item ->
-                    Card(Modifier.weight(1f).clickable { onOpen(item) }, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Card(
+                        Modifier.weight(1f).pointerInput(item.id) {
+                            detectTapGestures(
+                                onTap = { onOpen(item) },
+                                onLongPress = { deleteCandidate = item }
+                            )
+                        },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(categoryIcon(item.iconName), null, tint = Blue, modifier = Modifier.size(34.dp))
                             Text(item.name, fontWeight = FontWeight.Bold)
                             Text(money(expenses.filter { !it.income && it.category == item.name }.sumOf { it.amount }), color = Muted, fontSize = 11.sp)
-                            IconButton(onClick = { onDelete(item) }) { Icon(Icons.Default.DeleteOutline, "Delete category", tint = Red) }
+                            Text("Hold to manage", color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
                 }
@@ -1555,6 +1565,21 @@ private fun CategoriesScreenV2(categories: List<CategoryEntity>, expenses: List<
             }
         }
         item { Button(onClick = { showDialog = true }, Modifier.padding(16.dp).fillMaxWidth()) { Icon(Icons.Default.Add, null); Text("Add Category") } }
+    }
+    deleteCandidate?.let { item ->
+        AlertDialog(
+            onDismissRequest = { deleteCandidate = null },
+            icon = { Icon(Icons.Default.DeleteOutline, null, tint = Red) },
+            title = { Text("Delete ${item.name} category?") },
+            text = { Text("The category will be removed from your category list. Existing expense records will remain unchanged.") },
+            confirmButton = {
+                Button(
+                    onClick = { onDelete(item); deleteCandidate = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Red)
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { deleteCandidate = null }) { Text("Cancel") } }
+        )
     }
 }
 
