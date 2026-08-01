@@ -41,6 +41,7 @@ export type Reminder = {
   date: string;
   time: string;
   completed?: boolean;
+  loanId?: number;
 };
 
 export type RecurringExpense = {

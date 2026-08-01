@@ -142,7 +142,7 @@ export async function createCategory(userId: string, name: string) {
 
 export async function createReminder(userId: string, reminder: Omit<Reminder, "id">) {
   const client = requireClient();
-  const { data, error } = await client.from("reminders").insert({ ...reminder, user_id: userId }).select("*").single();
+  const { data, error } = await client.from("reminders").insert({ title: reminder.title, date: reminder.date, time: reminder.time, completed: reminder.completed, user_id: userId }).select("*").single();
 
   if (error) throw error;
   return mapReminder(data);
@@ -150,7 +150,7 @@ export async function createReminder(userId: string, reminder: Omit<Reminder, "i
 
 export async function saveReminder(id: number, reminder: Omit<Reminder, "id">) {
   const client = requireClient();
-  const { data, error } = await client.from("reminders").update({ ...reminder, updated_at: new Date().toISOString() }).eq("id", id).select("*").single();
+  const { data, error } = await client.from("reminders").update({ title: reminder.title, date: reminder.date, time: reminder.time, completed: reminder.completed, updated_at: new Date().toISOString() }).eq("id", id).select("*").single();
 
   if (error) throw error;
   return mapReminder(data);
