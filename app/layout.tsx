@@ -32,11 +32,13 @@ export const metadata: Metadata = {
     title: "Daily Hisab – দৈনিক আয়-ব্যয় ও খরচের হিসাব",
     description: "দৈনিক আয়-ব্যয়, বাজেট, রিপোর্ট ও খরচের হিসাব রাখার সহজ বাংলা অ্যাপ।",
     url: "https://dailyhisab.xyz",
+    images: [{ url: "/opengraph-image?rev=20260802", width: 1200, height: 630, alt: "Daily Hisab money management dashboard" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Daily Hisab – দৈনিক আয়-ব্যয় ও খরচের হিসাব",
     description: "দৈনিক আয়-ব্যয়, বাজেট, রিপোর্ট ও খরচের হিসাব রাখার সহজ বাংলা অ্যাপ।",
+    images: ["/opengraph-image?rev=20260802"],
   },
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Daily Hisab" },
   other: { "theme-color": "#11298f" },
