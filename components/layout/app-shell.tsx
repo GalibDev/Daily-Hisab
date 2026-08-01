@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Bell,
@@ -74,6 +74,7 @@ const nav = [
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
+  const router = useRouter();
   const { signOut, user } = useAuth();
   const { entries, syncError, syncStatus } = useFinance();
   const { setTheme, theme } = useTheme();
@@ -108,6 +109,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/profile-settings": "Settings",
     "/pet-management": "Pet Management",
     "/payment-methods": "Payment Methods",
+    "/premium": "Premium Plan",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
@@ -235,7 +237,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <div className="rounded-xl border border-[#ece8ff] bg-white p-4">
             <div className="mb-2 text-sm font-bold">Premium Plan</div>
             <p className="mb-3 text-xs text-[#7c758d]">Unlock all premium features</p>
-            <Link href="/settings" className="block">
+            <Link href="/premium" className="block">
               <Button variant="outline" className="w-full text-xs">Upgrade Now</Button>
             </Link>
           </div>
@@ -282,9 +284,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                   <Menu size={21} />
                 </button>
               ) : (
-                <Link href="/" aria-label="Go back home" className="grid size-11 place-items-center rounded-lg text-[#111936]">
+                <button type="button" onClick={() => router.back()} aria-label="Go to previous page" className="grid size-11 place-items-center rounded-lg text-[#111936]">
                   <ArrowLeft size={21} />
-                </Link>
+                </button>
               )
             )}
             {isHome ? (
@@ -445,11 +447,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           { href: "/settings", label: "Profile", icon: User },
         ].map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href;
+          const profileRoutes = ["/settings", "/profile-settings", "/pet-management", "/payment-methods", "/premium"];
+          const active = pathname === item.href || (item.href === "/settings" && profileRoutes.includes(pathname));
 
           return (
-            <Link key={item.href} href={item.href} className={cn("grid min-h-11 justify-items-center gap-1 text-[10px] font-semibold", item.primary ? "-mt-9 text-[#11298f]" : active ? "text-[#11298f]" : "text-[#111936]")}>
-              <span className={cn("grid place-items-center", item.primary ? "size-16 rounded-full bg-[#11298f] text-white shadow-[0_12px_22px_rgba(17,41,143,0.25)]" : "size-6")}>
+            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("grid min-h-11 justify-items-center gap-1 text-[10px] font-semibold transition", item.primary ? "-mt-9 text-[#11298f]" : active ? "font-extrabold text-[#061b78]" : "text-[#111936]")}>
+              <span className={cn("grid place-items-center transition", item.primary ? "size-16 rounded-full bg-[#11298f] text-white shadow-[0_12px_22px_rgba(17,41,143,0.25)]" : active ? "size-9 rounded-xl bg-[#dce5ff] text-[#061b78] shadow-[0_6px_16px_rgba(17,41,143,0.30)] ring-2 ring-[#9fb3ff]" : "size-7")}>
                 <Icon size={item.primary ? 31 : 22} />
               </span>
               <span>{item.label}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertTriangle, Baby, Banknote, Beef, Bell, BookOpen, BriefcaseBusiness, Bus, CakeSlice, CalendarDays, Camera, Candy, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, Cookie, CookingPot, CreditCard, Crown, CupSoda, Download, Drumstick, Dumbbell, Edit2, EggFried, FileSpreadsheet, Fish, Folder, Fuel, Gamepad2, Gift, GlassWater, Globe2, GraduationCap, Grid2X2, HeartPulse, HelpCircle, Home, IceCreamBowl, Info, Lightbulb, LogOut, MessageCircle, Milk, Moon, Palette, PawPrint, Pencil, Pizza, Plane, Plus, Popcorn, Receipt, RotateCcw, Salad, Sandwich, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Soup, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
+import { AlertTriangle, Baby, Banknote, Beef, Bell, BookOpen, Bot, BriefcaseBusiness, Bus, CakeSlice, CalendarDays, Camera, Candy, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, Cookie, CookingPot, CreditCard, Crown, CupSoda, Download, Drumstick, Dumbbell, Edit2, EggFried, FileSpreadsheet, Fish, Folder, Fuel, Gamepad2, Gift, GlassWater, Globe2, GraduationCap, Grid2X2, HeartPulse, HelpCircle, Home, IceCreamBowl, Info, Lightbulb, LogOut, MessageCircle, Milk, Moon, Palette, PawPrint, Pencil, Pizza, Plane, Plus, Popcorn, Receipt, RotateCcw, Salad, Sandwich, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Soup, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -1458,6 +1458,39 @@ export function PaymentMethodsPage() {
   );
 }
 
+export function PremiumPlanPage() {
+  const features = [
+    { icon: <Bot size={22} />, title: "All AI models", text: "Use every available AI assistant model without feature restrictions." },
+    { icon: <Palette size={22} />, title: "AI image generation", text: "Create helpful images and visual ideas directly from Daily Hisab." },
+    { icon: <ShieldCheck size={22} />, title: "Completely ad-free", text: "A clean experience without banner or popup advertisements." },
+    { icon: <CloudUpload size={22} />, title: "Advanced backup", text: "More convenient backup, restore and multi-device data access." },
+    { icon: <TrendingUp size={22} />, title: "Premium insights", text: "Deeper spending analysis, forecasts and smart budget guidance." },
+    { icon: <Gift size={22} />, title: "Early feature access", text: "Try selected new Daily Hisab features before general release." },
+  ];
+
+  return (
+    <AppShell>
+      <PageTitle title="Daily Hisab Premium" subtitle="More intelligence, convenience and control" />
+      <div className="mx-auto grid max-w-3xl gap-5">
+        <section className="overflow-hidden rounded-[26px] bg-gradient-to-br from-[#071b75] via-[#11298f] to-[#6c4cf1] p-6 text-white shadow-[0_22px_55px_rgba(17,41,143,0.28)] sm:p-8">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/14 px-4 py-2 text-xs font-extrabold ring-1 ring-white/20"><Crown size={17} fill="#ffb347" className="text-[#ffb347]" /> PREMIUM MEMBERSHIP</span>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-5">
+            <div><p className="text-sm font-bold text-white/72">Only</p><div className="mt-1 flex items-end gap-2"><strong className="text-5xl font-black">৳100</strong><span className="pb-1 text-sm font-bold text-white/75">/ month</span></div></div>
+            <button type="button" className="rounded-2xl bg-white px-6 py-3 text-sm font-extrabold text-[#11298f] shadow-lg">Choose Premium</button>
+          </div>
+        </section>
+        <Card className="rounded-[22px] border-[#e7eaf4] p-5 sm:p-6">
+          <h2 className="text-lg font-extrabold text-[#111936]">Everything included</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {features.map((feature) => <div key={feature.title} className="flex gap-3 rounded-2xl border border-[#edf0f7] bg-[#fafbff] p-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#e8edff] text-[#11298f]">{feature.icon}</span><div><h3 className="text-sm font-extrabold text-[#111936]">{feature.title}</h3><p className="mt-1 text-xs font-semibold leading-5 text-[#69718a]">{feature.text}</p></div></div>)}
+          </div>
+          <p className="mt-5 text-center text-[11px] font-semibold text-[#7a8298]">Subscription activation and payment checkout will be available when billing is enabled.</p>
+        </Card>
+      </div>
+    </AppShell>
+  );
+}
+
 export function SettingsPage() {
   const { changePassword, sendPasswordReset, signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -1661,7 +1694,7 @@ export function SettingsPage() {
             <h3 className="whitespace-nowrap text-sm font-extrabold text-[#111936]">You&apos;re Premium!</h3>
             <p className="text-sm font-medium text-[#59627a]">Enjoy all premium features</p>
           </div>
-          <Link href="/settings" className="shrink-0 rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Plan</Link>
+          <Link href="/premium" className="shrink-0 rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Plan</Link>
         </Card>
 
         {syncError && <div className="rounded-xl bg-[#fff4e2] p-3 text-xs font-medium text-[#8a5a00]">{syncError}</div>}
