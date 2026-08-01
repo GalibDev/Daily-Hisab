@@ -1357,6 +1357,47 @@ function ProfileMenuSection({
   );
 }
 
+export function ProfileSettingsPage() {
+  const { changePassword, sendPasswordReset, user } = useAuth();
+  const { notify } = useToast();
+  const [showSecurity, setShowSecurity] = useState(false);
+  const [busy, setBusy] = useState(false);
+  async function submitPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const password = String(data.get("password") || "");
+    if (password !== String(data.get("confirmPassword") || "")) { notify("Passwords do not match", "danger"); return; }
+    try { setBusy(true); await changePassword(password); event.currentTarget.reset(); notify("Password changed", "success"); }
+    catch (error) { notify(error instanceof Error ? error.message : "Password change failed", "danger"); }
+    finally { setBusy(false); }
+  }
+  const items = [
+    { onClick: () => setShowSecurity((open) => !open), icon: <ShieldCheck size={20} />, label: "Security & Password", tone: "bg-[#eafbf0] text-[#16a34a]" },
+    { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { href: "/family-access", icon: <UsersRound size={20} />, label: "Family Access", tone: "bg-[#eef4ff] text-[#11298f]" },
+    { href: "/pet-management", icon: <PawPrint size={20} />, label: "Pet Management", tone: "bg-[#fff2e8] text-[#f97316]" },
+  ];
+  return <AppShell><PageTitle title="Settings" subtitle="Security, backup, family and pet management" /><div className="mx-auto grid max-w-2xl gap-5"><ProfileMenuSection title="Settings" items={items} />{showSecurity && (user ? <Card className="rounded-[18px] p-5"><form onSubmit={submitPassword} className="grid gap-3"><h2 className="font-extrabold text-[#111936]">Security & Password</h2><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><Button type="submit" disabled={busy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || busy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></form></Card> : <Card className="rounded-[18px] p-5"><p className="mb-3 text-sm text-[#69718a]">Login to manage account security.</p><Link href="/login"><Button>Login</Button></Link></Card>)}</div></AppShell>;
+}
+
+export function PetManagementPage() {
+  const [enabled, setEnabled] = useState(false);
+  const [color, setColor] = useState<PetColor>("default");
+  const [size, setSize] = useState<PetSize>("medium");
+  const [mode, setMode] = useState<PetMode>("default");
+  const [speed, setSpeed] = useState<PetSpeed>("normal");
+  useEffect(() => {
+    setEnabled(localStorage.getItem(PET_ENABLED_KEY) === "1");
+    setColor((localStorage.getItem(PET_COLOR_KEY) as PetColor) || "default");
+    setSize((localStorage.getItem(PET_SIZE_KEY) as PetSize) || "medium");
+    setMode((localStorage.getItem(PET_MODE_KEY) as PetMode) || "default");
+    setSpeed((localStorage.getItem(PET_SPEED_KEY) as PetSpeed) || "normal");
+  }, []);
+  function save(key: string, value: string) { localStorage.setItem(key, value); window.dispatchEvent(new Event(PET_SETTINGS_EVENT)); }
+  const group = <T extends string>(label: string, values: readonly T[], selected: T, update: (value: T) => void) => <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf0f7] py-4 first:border-0"><span className="text-sm font-extrabold text-[#27304b]">{label}</span><div className="flex flex-wrap rounded-xl bg-[#f1f3f8] p-1">{values.map((value) => <button key={value} type="button" onClick={() => update(value)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${selected === value ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{value}</button>)}</div></div>;
+  return <AppShell><PageTitle title="Pet Management" subtitle="Control your Home page companion" /><Card className="mx-auto max-w-2xl rounded-[20px] p-5"><div className="flex items-center gap-3 pb-4"><span className="grid size-12 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={24} /></span><div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pet</h2><p className="text-xs text-[#69718a]">Show or hide your interactive cat</p></div><button type="button" role="switch" aria-checked={enabled} onClick={() => { const next = !enabled; setEnabled(next); save(PET_ENABLED_KEY, next ? "1" : "0"); }} className={`relative h-7 w-12 rounded-full ${enabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${enabled ? "left-6" : "left-1"}`} /></button></div>{enabled && <>{group("Color", ["brown", "default", "black", "white"] as const, color, (value) => { setColor(value); save(PET_COLOR_KEY, value); })}{group("Size", ["small", "medium", "large"] as const, size, (value) => { setSize(value); save(PET_SIZE_KEY, value); })}{group("Behaviour", ["automatic", "default", "sit"] as const, mode, (value) => { setMode(value); save(PET_MODE_KEY, value); })}{group("Walk speed", ["slow", "normal", "fast"] as const, speed, (value) => { setSpeed(value); save(PET_SPEED_KEY, value); })}</>}</Card></AppShell>;
+}
+
 export function SettingsPage() {
   const { changePassword, sendPasswordReset, signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -1366,7 +1407,6 @@ export function SettingsPage() {
   const [mobileProfileUploading, setMobileProfileUploading] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [securityBusy, setSecurityBusy] = useState(false);
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
@@ -1389,12 +1429,7 @@ export function SettingsPage() {
     { href: "/hero-management", icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/ai-helper", icon: <MessageCircle size={20} />, label: "AI Helper", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
-    { onClick: () => setShowSettingsMenu((open) => !open), icon: <Wrench size={20} />, label: "Settings", meta: showSettingsMenu ? "Open" : undefined, tone: "bg-[#eef4ff] text-[#11298f]" },
-  ];
-  const nestedSettingsItems = [
-    { onClick: () => setShowSecurity((open) => !open), icon: <ShieldCheck size={20} />, label: "Security & Password", tone: "bg-[#eafbf0] text-[#16a34a]" },
-    { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
-    { href: "/family-access", icon: <UsersRound size={20} />, label: "Family Access", tone: "bg-[#eef4ff] text-[#11298f]" },
+    { href: "/profile-settings", icon: <Wrench size={20} />, label: "Settings", tone: "bg-[#eef4ff] text-[#11298f]" },
   ];
   const preferenceItems = [
     { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },
@@ -1582,7 +1617,6 @@ export function SettingsPage() {
         )}
         {showSecurity && user && <Card className="rounded-[18px] border-[#dce8df] p-4"><form onSubmit={handlePasswordChange} className="grid gap-3"><div><h2 className="font-extrabold text-[#111936]">Security & Password</h2><p className="text-xs text-[#69718a]">Use at least 6 characters. A recent login may be required.</p></div><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm new password" minLength={6} required /><Button type="submit" disabled={securityBusy}>{securityBusy ? "Updating…" : "Change password"}</Button><Button type="button" variant="outline" disabled={!user.email || securityBusy} onClick={async () => { if (!user.email) return; try { setSecurityBusy(true); await sendPasswordReset(user.email); notify("Password reset link sent", "success"); } catch (error) { notify(error instanceof Error ? error.message : "Reset email failed", "danger"); } finally { setSecurityBusy(false); } }}>Email me a reset link</Button></form></Card>}
         <ProfileMenuSection title="Account" items={accountItems} />
-        {showSettingsMenu && <ProfileMenuSection title="Settings" items={nestedSettingsItems} />}
         <ProfileMenuSection title="Preferences" items={preferenceItems} />
         <ProfileMenuSection title="Support" items={supportItems} />
         {user ? (
