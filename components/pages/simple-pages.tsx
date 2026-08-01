@@ -16,7 +16,7 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart } from "@/components/dashboard/charts";
-import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_SETTINGS_EVENT } from "@/components/pet/floating-pet";
+import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_SETTINGS_EVENT, type PetColor } from "@/components/pet/floating-pet";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { exportDataJson, exportEntriesCsv, exportExpenseSheetCsv, exportExpenseSheetPdf } from "@/lib/export-data";
 import {
@@ -1370,7 +1370,7 @@ export function SettingsPage() {
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
   const [petEnabled, setPetEnabled] = useState(false);
-  const [petColor, setPetColor] = useState<"black" | "white">("black");
+  const [petColor, setPetColor] = useState<PetColor>("default");
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -1406,7 +1406,8 @@ export function SettingsPage() {
       setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
       setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
       setPetEnabled(window.localStorage.getItem(PET_ENABLED_KEY) === "1");
-      setPetColor(window.localStorage.getItem(PET_COLOR_KEY) === "white" ? "white" : "black");
+      const savedPetColor = window.localStorage.getItem(PET_COLOR_KEY);
+      setPetColor((["brown", "default", "black", "white"].includes(savedPetColor || "") ? savedPetColor : "default") as PetColor);
     });
   }, []);
 
@@ -1416,7 +1417,7 @@ export function SettingsPage() {
     window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
   }
 
-  function updatePetColor(color: "black" | "white") {
+  function updatePetColor(color: PetColor) {
     setPetColor(color);
     window.localStorage.setItem(PET_COLOR_KEY, color);
     window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
@@ -1493,7 +1494,7 @@ export function SettingsPage() {
           <div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pet</h2><p className="text-xs font-semibold text-[#69718a]">A draggable cat that walks, sits, plays and reacts to your touch</p></div>
           <button type="button" role="switch" aria-checked={petEnabled} onClick={() => updatePetEnabled(!petEnabled)} className={`relative h-7 w-12 rounded-full transition ${petEnabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${petEnabled ? "left-6" : "left-1"}`} /></button>
         </div>
-        {petEnabled && <div className="mt-4 flex items-center justify-between border-t border-[#edf0f7] pt-4"><span className="text-sm font-bold text-[#27304b]">Cat color</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["black", "white"] as const).map((color) => <button key={color} type="button" onClick={() => updatePetColor(color)} className={`rounded-lg px-4 py-2 text-xs font-extrabold capitalize ${petColor === color ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{color}</button>)}</div></div>}
+        {petEnabled && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf0f7] pt-4"><span className="text-sm font-bold text-[#27304b]">Cat color</span><div className="flex flex-wrap rounded-xl bg-[#f1f3f8] p-1">{(["brown", "default", "black", "white"] as const).map((color) => <button key={color} type="button" onClick={() => updatePetColor(color)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petColor === color ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{color}</button>)}</div></div>}
       </Card>
       <div className="grid gap-5 md:hidden">
         <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">

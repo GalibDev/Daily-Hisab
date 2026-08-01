@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -76,6 +77,8 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.airbnb.lottie.LottieAnimationView
+import com.airbnb.lottie.LottieDrawable
 import com.dailyhisab.nativeapp.data.FinanceDatabase
 import com.dailyhisab.nativeapp.data.CategoryEntity
 import com.dailyhisab.nativeapp.data.AppNotificationEntity
@@ -280,7 +283,7 @@ fun DailyHisabApp() {
     }
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     var petEnabled by remember { mutableStateOf(prefs.getBoolean("home_pet_enabled", false)) }
-    var petColor by remember { mutableStateOf(prefs.getString("home_pet_color", "Black") ?: "Black") }
+    var petColor by remember { mutableStateOf(prefs.getString("home_pet_color", "Default") ?: "Default") }
     var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
     var biometricUnlocked by rememberSaveable { mutableStateOf(!biometricEnabled) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -663,20 +666,16 @@ private fun HomeScreen(
             }
             items(expenses.take(5)) { TransactionRow(it) }
         }
-        if (petEnabled) FloatingPetCat(petColor == "Black")
+        if (petEnabled) FloatingPetCat(petColor)
     }
 }
 
 @Composable
-private fun BoxScope.FloatingPetCat(isBlack: Boolean) {
+private fun BoxScope.FloatingPetCat(petColor: String) {
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
     var activity by remember { mutableIntStateOf(0) }
     var loved by remember { mutableStateOf(false) }
-    val fur = if (isBlack) Color(0xFF171923) else Color(0xFFF8F7F2)
-    val outline = if (isBlack) Color(0xFFE8ECFF) else Color(0xFF17213F)
-    val accent = if (isBlack) Color(0xFFF97316) else Color(0xFF11298F)
-
     LaunchedEffect(Unit) {
         while (true) {
             delay(2400)
@@ -698,7 +697,7 @@ private fun BoxScope.FloatingPetCat(isBlack: Boolean) {
                 val idleY = if (activity == 2) -8 else 0
                 IntOffset(offsetX.roundToInt() + idleX, offsetY.roundToInt() + idleY)
             }
-            .pointerInput(isBlack) {
+            .pointerInput(petColor) {
                 detectDragGestures { change, amount ->
                     change.consume()
                     offsetX += amount.x
@@ -706,37 +705,26 @@ private fun BoxScope.FloatingPetCat(isBlack: Boolean) {
                 }
             }
     ) {
-        Surface(
-            modifier = Modifier.size(68.dp).clickable { loved = true; activity = 2 },
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 8.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, outline.copy(alpha = .18f))
-        ) {
-        Canvas(Modifier.fillMaxSize().padding(8.dp)) {
-            val w = size.width
-            val h = size.height
-            drawOval(fur, topLeft = androidx.compose.ui.geometry.Offset(w * .18f, h * .48f), size = androidx.compose.ui.geometry.Size(w * .58f, h * .36f))
-            drawCircle(fur, radius = w * .22f, center = androidx.compose.ui.geometry.Offset(w * .63f, h * .38f))
-            val leftEar = Path().apply {
-                moveTo(w * .46f, h * .27f); lineTo(w * .50f, h * .06f); lineTo(w * .62f, h * .22f); close()
+        AndroidView(
+            modifier = Modifier.size(96.dp).clickable { loved = true; activity = 2 },
+            factory = { context ->
+                LottieAnimationView(context).apply {
+                    setAnimation(R.raw.walking_cat)
+                    repeatCount = LottieDrawable.INFINITE
+                    playAnimation()
+                }
+            },
+            update = { view ->
+                view.clearColorFilter()
+                when (petColor) {
+                    "Brown" -> view.setColorFilter(android.graphics.Color.rgb(177, 109, 48))
+                    "Black" -> view.setColorFilter(android.graphics.Color.rgb(28, 29, 35))
+                    "White" -> view.setColorFilter(android.graphics.Color.rgb(242, 241, 236))
+                }
+                if (!view.isAnimating) view.playAnimation()
             }
-            val rightEar = Path().apply {
-                moveTo(w * .66f, h * .20f); lineTo(w * .78f, h * .07f); lineTo(w * .80f, h * .30f); close()
-            }
-            drawPath(leftEar, fur); drawPath(rightEar, fur)
-            drawArc(fur, startAngle = 195f, sweepAngle = 190f, useCenter = false,
-                topLeft = androidx.compose.ui.geometry.Offset(w * .03f, h * .38f),
-                size = androidx.compose.ui.geometry.Size(w * .35f, h * .45f), style = Stroke(w * .10f))
-            drawCircle(accent, radius = w * .026f, center = androidx.compose.ui.geometry.Offset(w * .58f, h * .37f))
-            drawCircle(accent, radius = w * .026f, center = androidx.compose.ui.geometry.Offset(w * .70f, h * .37f))
-            drawArc(outline, startAngle = 15f, sweepAngle = 150f, useCenter = false,
-                topLeft = androidx.compose.ui.geometry.Offset(w * .60f, h * .41f),
-                size = androidx.compose.ui.geometry.Size(w * .10f, h * .07f), style = Stroke(w * .018f))
-        }
-        }
+        )
         if (loved) Text("♥", color = Color(0xFFEF476F), fontSize = 24.sp, modifier = Modifier.align(Alignment.TopEnd).offset(x = 5.dp, y = (-12).dp))
-        if (activity == 1) Text("z", color = Muted, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopStart).offset(x = (-2).dp, y = (-8).dp))
     }
 }
 
@@ -2718,12 +2706,12 @@ private fun SettingsScreen(
                             Text(if (bangla) "বিড়ালের রং" else "Cat color", fontWeight = FontWeight.SemiBold, color = Ink)
                             Spacer(Modifier.height(8.dp))
                             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                                listOf("Black", "White").forEachIndexed { index, value ->
+                                listOf("Brown", "Default", "Black", "White").forEachIndexed { index, value ->
                                     SegmentedButton(
                                         selected = petColor == value,
                                         onClick = { onPetColorChange(value) },
-                                        shape = SegmentedButtonDefaults.itemShape(index, 2)
-                                    ) { Text(if (bangla) if (value == "Black") "কালো" else "সাদা" else value) }
+                                        shape = SegmentedButtonDefaults.itemShape(index, 4)
+                                    ) { Text(if (bangla) when (value) { "Brown" -> "বাদামি"; "Default" -> "ডিফল্ট"; "Black" -> "কালো"; else -> "সাদা" } else value, fontSize = 10.sp) }
                                 }
                             }
                         }
