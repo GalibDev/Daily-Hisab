@@ -1374,8 +1374,6 @@ export function SettingsPage() {
   const [petSize, setPetSize] = useState<PetSize>("medium");
   const [petMode, setPetMode] = useState<PetMode>("default");
   const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
-  const [webLanguage, setWebLanguage] = useState<"English" | "Bangla">("English");
-  const [webCurrency, setWebCurrency] = useState<"BDT" | "USD" | "USDT">("BDT");
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -1419,9 +1417,6 @@ export function SettingsPage() {
       setPetMode((["automatic", "default", "sit"].includes(savedPetMode || "") ? savedPetMode : "default") as PetMode);
       const savedPetSpeed = window.localStorage.getItem(PET_SPEED_KEY);
       setPetSpeed((["slow", "normal", "fast"].includes(savedPetSpeed || "") ? savedPetSpeed : "normal") as PetSpeed);
-      setWebLanguage(window.localStorage.getItem("daily-hisab.web-language") === "Bangla" ? "Bangla" : "English");
-      const savedCurrency = window.localStorage.getItem("daily-hisab.web-currency");
-      setWebCurrency((["BDT", "USD", "USDT"].includes(savedCurrency || "") ? savedCurrency : "BDT") as "BDT" | "USD" | "USDT");
     });
   }, []);
 
@@ -1453,18 +1448,6 @@ export function SettingsPage() {
     setPetSpeed(speed);
     window.localStorage.setItem(PET_SPEED_KEY, speed);
     window.dispatchEvent(new Event(PET_SETTINGS_EVENT));
-  }
-
-  function updateWebLanguage(language: "English" | "Bangla") {
-    setWebLanguage(language);
-    window.localStorage.setItem("daily-hisab.web-language", language);
-    notify(`Language set to ${language}`, "success");
-  }
-
-  function updateWebCurrency(currency: "BDT" | "USD" | "USDT") {
-    setWebCurrency(currency);
-    window.localStorage.setItem("daily-hisab.web-currency", currency);
-    notify(`Currency set to ${currency}`, "success");
   }
 
   async function handleMobileProfileImage(file?: File) {
@@ -1532,17 +1515,6 @@ export function SettingsPage() {
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
-      <Card className="mb-5 overflow-hidden rounded-[20px] border-[#e5eafa] p-0 shadow-[0_14px_36px_rgba(20,35,90,0.06)]">
-        <div className="border-b border-[#edf0f7] px-5 py-4"><h2 className="text-lg font-extrabold text-[#111936]">Account Settings</h2><p className="text-xs font-semibold text-[#69718a]">Manage security, family and app preferences</p></div>
-        <div className="divide-y divide-[#edf0f7]">
-          <button type="button" onClick={() => setShowSecurity((open) => !open)} className="flex w-full items-center gap-3 px-5 py-4 text-left"><span className="grid size-10 place-items-center rounded-xl bg-[#eafbf0] text-[#16a34a]"><ShieldCheck size={20} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">Security & Password</strong><small className="text-[#69718a]">Change password or request a reset link</small></span><ChevronRight size={19} className={`text-[#8a92a7] transition ${showSecurity ? "rotate-90" : ""}`} /></button>
-          <Link href="/family-access" className="flex items-center gap-3 px-5 py-4"><span className="grid size-10 place-items-center rounded-xl bg-[#eef4ff] text-[#2563eb]"><UsersRound size={20} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">Family Access</strong><small className="text-[#69718a]">Manage shared family access and permissions</small></span><ChevronRight size={19} className="text-[#8a92a7]" /></Link>
-          <div className="flex flex-wrap items-center gap-3 px-5 py-4"><span className="grid size-10 place-items-center rounded-xl bg-[#f5efff] text-[#7c3aed]"><Palette size={20} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">Theme</strong><small className="text-[#69718a]">Switch between light and dark appearance</small></span><button type="button" onClick={toggleTheme} className="rounded-xl bg-[#f1f3f8] px-4 py-2 text-xs font-extrabold capitalize text-[#11298f]">{theme}</button></div>
-          <div className="flex flex-wrap items-center gap-3 px-5 py-4"><span className="grid size-10 place-items-center rounded-xl bg-[#eafbf0] text-[#16a34a]"><Globe2 size={20} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">Language</strong><small className="text-[#69718a]">Choose your preferred interface language</small></span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["English", "Bangla"] as const).map((language) => <button key={language} type="button" onClick={() => updateWebLanguage(language)} className={`rounded-lg px-3 py-2 text-xs font-extrabold ${webLanguage === language ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{language}</button>)}</div></div>
-          <div className="flex flex-wrap items-center gap-3 px-5 py-4"><span className="grid size-10 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><CreditCard size={20} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">Currency</strong><small className="text-[#69718a]">Select the currency used in your account</small></span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["BDT", "USD", "USDT"] as const).map((currency) => <button key={currency} type="button" onClick={() => updateWebCurrency(currency)} className={`rounded-lg px-3 py-2 text-xs font-extrabold ${webCurrency === currency ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{currency}</button>)}</div></div>
-          <div className="flex items-center gap-3 px-5 py-4"><span className="grid size-10 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={20} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">Home Page Pet</strong><small className="text-[#69718a]">Configure color, size, behaviour and speed below</small></span><button type="button" role="switch" aria-checked={petEnabled} onClick={() => updatePetEnabled(!petEnabled)} className={`relative h-7 w-12 rounded-full transition ${petEnabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${petEnabled ? "left-6" : "left-1"}`} /></button></div>
-        </div>
-      </Card>
       <Card className="mb-5 rounded-[18px] border-[#e6eafa] p-4 shadow-[0_10px_28px_rgba(20,35,90,0.05)]">
         <div className="flex items-center gap-3">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={22} /></span>
@@ -1625,7 +1597,7 @@ export function SettingsPage() {
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Family Access</span><Link href="/family-access"><Button variant="outline">Manage</Button></Link></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT</span><Button variant="outline">Manage</Button></Card>
-        {user && showSecurity && <Card className="p-5"><form onSubmit={handlePasswordChange} className="grid gap-3"><div><h2 className="font-extrabold text-[#111936]">Account security</h2><p className="text-xs text-[#69718a]">Change your password or request a secure reset link.</p></div><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><div className="flex gap-2"><Button type="submit" disabled={securityBusy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || securityBusy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></div></form></Card>}
+        {user && <Card className="p-5"><form onSubmit={handlePasswordChange} className="grid gap-3"><div><h2 className="font-extrabold text-[#111936]">Account security</h2><p className="text-xs text-[#69718a]">Change your password or request a secure reset link.</p></div><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><div className="flex gap-2"><Button type="submit" disabled={securityBusy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || securityBusy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></div></form></Card>}
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Export data</span><div className="flex gap-2"><Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>JSON</Button><Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button></div></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Reset all data</span><ConfirmDeleteButton label="Reset all data" triggerText="Reset" onConfirm={() => { resetAllData(); notify("Data reset successfully", "info"); }} /></Card>
         <Card className="flex items-center justify-between p-5">
