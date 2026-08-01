@@ -1,6 +1,6 @@
 import { get, ref, set } from "firebase/database";
 import { firebaseDatabase } from "@/lib/firebase/client";
-import type { Entry, RecurringExpense, Reminder } from "@/types";
+import type { Entry, Loan, RecurringExpense, Reminder } from "@/types";
 
 export type CloudFinanceData = {
   entries: Entry[];
@@ -15,7 +15,9 @@ export type CloudWalletData = {
   settings: { personal: boolean; family: boolean };
 };
 
-function userDataRef(userId: string, name: "finance" | "wallet") {
+export type CloudLoanData = { loans: Loan[] };
+
+function userDataRef(userId: string, name: "finance" | "wallet" | "loans") {
   if (!firebaseDatabase) throw new Error("Realtime Database is not configured");
   return ref(firebaseDatabase, `users/${userId}/appData/${name}`);
 }
@@ -49,4 +51,15 @@ export async function loadCloudWallet(userId: string): Promise<CloudWalletData |
 
 export async function saveCloudWallet(userId: string, data: CloudWalletData) {
   await set(userDataRef(userId, "wallet"), { ...data, updatedAt: Date.now() });
+}
+
+export async function loadCloudLoans(userId: string): Promise<CloudLoanData | null> {
+  const snapshot = await get(userDataRef(userId, "loans"));
+  if (!snapshot.exists()) return null;
+  const data = snapshot.val() as Partial<CloudLoanData>;
+  return { loans: Array.isArray(data.loans) ? data.loans : [] };
+}
+
+export async function saveCloudLoans(userId: string, data: CloudLoanData) {
+  await set(userDataRef(userId, "loans"), { ...data, updatedAt: Date.now() });
 }

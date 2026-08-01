@@ -4,6 +4,7 @@ import { FamilyAccessProvider } from "@/components/state/family-access-store";
 import { FinanceProvider } from "@/components/state/finance-store";
 import { ThemeProvider } from "@/components/state/theme-store";
 import { WalletProvider } from "@/components/state/wallet-store";
+import { LoanProvider } from "@/components/state/loan-store";
 import { PwaInstall } from "@/components/pwa/pwa-install";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
@@ -97,10 +98,9 @@ export default function RootLayout({
             <AuthProvider>
               <FinanceProvider>
                 <WalletProvider>
-                  <FamilyAccessProvider>
-                    {children}
-                    <PwaInstall />
-                  </FamilyAccessProvider>
+                  <LoanProvider><FamilyAccessProvider>
+                    {children}<PwaInstall />
+                  </FamilyAccessProvider></LoanProvider>
                 </WalletProvider>
               </FinanceProvider>
             </AuthProvider>

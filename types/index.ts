@@ -3,6 +3,18 @@ export type PaymentMethod = "Cash" | "bKash" | "Nagad" | "Card" | "Bank";
 export type EntryType = "income" | "expense";
 export type WalletSource = "personal" | "family";
 
+export type LoanPayment = { id: number; amount: number; date: string; note?: string };
+export type Loan = {
+  id: number;
+  type: "borrowed" | "lent";
+  person: string;
+  amount: number;
+  startDate: string;
+  dueDate: string;
+  note?: string;
+  payments: LoanPayment[];
+};
+
 export type Entry = {
   id: number;
   date: string;

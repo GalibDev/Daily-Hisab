@@ -38,6 +38,7 @@ import {
   Wallet,
   ArrowLeft,
   Calculator,
+  HandCoins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiFloatingHelper } from "@/components/ai/ai-floating-helper";
@@ -54,6 +55,7 @@ const nav = [
   { href: "/entries", label: "All Entries", icon: ClipboardList },
   { href: "/income-expense", label: "Income & Expense", icon: ChartColumn },
   { href: "/budget", label: "Budget", icon: CalendarDays },
+  { href: "/loans", label: "Loans & Dues", icon: HandCoins },
   { href: "/categories", label: "Categories", icon: Grid2X2 },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
@@ -95,6 +97,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/entries": "Today's Entries",
     "/family-access": "ফ্যামিলি অ্যাক্সেস",
     "/hero-management": "Hero Management",
+    "/loans": "Loans & Dues",
     "/reports": "Reports",
     "/settings": "Profile",
   };
@@ -139,6 +142,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         { href: "/entries", icon: ClipboardList, label: "All Expenses", tone: "text-[#59627a]" },
         { href: "/categories", icon: Folder, label: "Categories", tone: "text-[#f97316]" },
         { href: "/budget", icon: Target, label: "Budget Management", tone: "text-[#ec4899]" },
+        { href: "/loans", icon: HandCoins, label: "Loans & Dues", tone: "text-[#0f8b6d]" },
       ],
       title: "MAIN",
     },

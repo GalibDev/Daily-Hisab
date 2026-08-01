@@ -13,6 +13,7 @@ const privateRoutes = [
   "/family-access",
   "/hero-management",
   "/income-expense",
+  "/loans",
   "/notes",
   "/receipts",
   "/recurring",

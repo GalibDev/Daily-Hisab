@@ -861,6 +861,7 @@ function MobileDashboard({
           <div className="flex gap-2">
             <Link href="/add-expense" className="rounded-xl bg-[#eef2ff] px-3 py-2 text-xs font-extrabold text-[#11298f]">+ Expense</Link>
             <Link href="/add-income" className="rounded-xl bg-[#eafbf0] px-3 py-2 text-xs font-extrabold text-[#15803d]">+ Income</Link>
+            <Link href="/loans" className="rounded-xl bg-[#fff3e8] px-3 py-2 text-xs font-extrabold text-[#c65b0a]">Loans</Link>
           </div>
         </div>
         <div className="grid grid-cols-5 gap-2">
