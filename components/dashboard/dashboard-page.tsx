@@ -785,17 +785,18 @@ function MobileDashboard({
 
   return (
     <div className="grid gap-4 bg-white pb-6 lg:hidden">
-      <div
-        ref={summarySliderRef}
-        onScroll={(event) => {
-          const slider = event.currentTarget;
-          const nextIndex = Math.round(slider.scrollLeft / Math.max(slider.clientWidth, 1));
-          setSummarySlideIndex(Math.min(2, Math.max(0, nextIndex)));
-        }}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        aria-label="Summary slider"
-      >
-        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#07194e_0%,#123aa8_54%,#0ea5e9_135%)] p-5 text-white shadow-[0_22px_48px_rgba(17,41,143,0.30)]">
+      <div className="mx-3 overflow-hidden rounded-[24px] bg-[#0b2a82] shadow-[0_18px_42px_rgba(17,41,143,0.24)] ring-1 ring-[#11298f]/10">
+        <div
+          ref={summarySliderRef}
+          onScroll={(event) => {
+            const slider = event.currentTarget;
+            const nextIndex = Math.round(slider.scrollLeft / Math.max(slider.clientWidth, 1));
+            setSummarySlideIndex(Math.min(2, Math.max(0, nextIndex)));
+          }}
+          className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Summary slider"
+        >
+        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden bg-[linear-gradient(135deg,#07194e_0%,#123aa8_54%,#0ea5e9_135%)] p-5 text-white">
           <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-cyan-300/15" />
           <div className="relative">
             <div className="flex items-center justify-between">
@@ -811,7 +812,7 @@ function MobileDashboard({
           </div>
         </section>
 
-        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#081c5c_0%,#1238a6_52%,#315ddd_100%)] p-5 text-white shadow-[0_22px_48px_rgba(17,41,143,0.30)]">
+        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden bg-[linear-gradient(135deg,#081c5c_0%,#1238a6_52%,#315ddd_100%)] p-5 text-white">
           <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-white/10" />
           <div className="relative">
             <div className="flex items-center justify-between">
@@ -827,7 +828,7 @@ function MobileDashboard({
           </div>
         </section>
 
-        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#3b167b_0%,#6d28d9_55%,#f97316_125%)] p-5 text-white shadow-[0_22px_48px_rgba(91,33,182,0.28)]">
+        <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden bg-[linear-gradient(135deg,#3b167b_0%,#6d28d9_55%,#f97316_125%)] p-5 text-white">
           <div className="hero-orb absolute -bottom-16 -right-10 size-44 rounded-full bg-[#fb923c]/25" />
           <div className="relative">
             <div className="flex items-center justify-between">
@@ -842,8 +843,9 @@ function MobileDashboard({
             </div>
           </div>
         </section>
+        </div>
       </div>
-      <div className="-mt-1 flex justify-center gap-2" aria-label="Slider pages">
+      <div className="flex justify-center gap-2" aria-label="Slider pages">
         {[0, 1, 2].map((index) => (
           <button
             key={index}
