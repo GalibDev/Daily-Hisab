@@ -83,9 +83,6 @@ import com.dailyhisab.nativeapp.data.LoanPaymentEntity
 import com.dailyhisab.nativeapp.notifications.ReminderWorker
 import com.dailyhisab.nativeapp.notifications.DailyInsightWorker
 import com.dailyhisab.nativeapp.backup.AutomaticBackupWorker
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import org.json.JSONArray
@@ -170,6 +167,8 @@ private fun Expense.toEntity() = TransactionEntity(
 enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Loans, Calendar, Profile, Recurring, Reminders, NotificationCenter, Notes, Receipts, Settings, Backup, Privacy, Help }
 
 class MainActivity : FragmentActivity() {
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -183,6 +182,9 @@ class MainActivity : FragmentActivity() {
             )
         }
         DailyInsightWorker.schedule(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         setContent { DailyHisabApp() }
     }
 }
@@ -613,6 +615,24 @@ private fun DashboardInsights(
     last7Spent: Int,
     previous7Spent: Int
 ) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
+    var hidden by rememberSaveable { mutableStateOf(prefs.getBoolean("smart_insights_hidden", false)) }
+    if (hidden) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F5FF))
+        ) {
+            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VisibilityOff, null, tint = Blue)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) { Text("Smart Insights hidden", fontWeight = FontWeight.Bold, color = Ink); Text("You can show it whenever you want.", fontSize = 10.sp, color = Muted) }
+                TextButton(onClick = { hidden = false; prefs.edit().putBoolean("smart_insights_hidden", false).apply() }) { Text("Show") }
+            }
+        }
+        return
+    }
     val topCategory = monthEntries.filterNot { it.income }.groupBy { it.category }
         .mapValues { (_, items) -> items.sumOf { it.amount } }
         .maxByOrNull { it.value }
@@ -627,7 +647,10 @@ private fun DashboardInsights(
     AppCard {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Smart Insights", fontWeight = FontWeight.ExtraBold, color = Ink, fontSize = 18.sp)
-            Icon(Icons.Default.AutoGraph, null, tint = Blue)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AutoGraph, null, tint = Blue)
+                TextButton(onClick = { hidden = true; prefs.edit().putBoolean("smart_insights_hidden", true).apply() }) { Text("Hide", fontSize = 11.sp) }
+            }
         }
         Spacer(Modifier.height(13.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -990,52 +1013,6 @@ private fun AnalyticsScreen(expenses: List<Expense>) {
     }
 }
 
-private data class ReceiptScanResult(val merchant: String?, val amount: Int?, val date: LocalDate?)
-
-private fun scanReceipt(
-    context: android.content.Context,
-    uri: Uri,
-    onResult: (ReceiptScanResult) -> Unit,
-    onError: (String) -> Unit
-) {
-    val image = runCatching { InputImage.fromFilePath(context, uri) }
-        .getOrElse { onError(it.message ?: "Could not open receipt"); return }
-    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-    recognizer.process(image)
-        .addOnSuccessListener { result ->
-            val lines = result.textBlocks.flatMap { block -> block.lines.map { it.text.trim() } }.filter { it.isNotBlank() }
-            val merchant = lines.firstOrNull { line ->
-                line.length in 3..45 && line.any(Char::isLetter) &&
-                    listOf("receipt", "invoice", "date", "time", "total", "tax", "vat").none { line.lowercase().contains(it) }
-            }
-            val amountRegex = Regex("""(?:৳|tk\.?|bdt|\$)?\s*(\d{1,7}(?:[,.]\d{2})?)""", RegexOption.IGNORE_CASE)
-            val preferredAmountLines = lines.filter { it.contains("total", true) || it.contains("grand", true) || it.contains("amount", true) }
-            val amountCandidates = (preferredAmountLines.ifEmpty { lines }).flatMap { line ->
-                amountRegex.findAll(line).mapNotNull { match ->
-                    match.groupValues[1].replace(",", "").toDoubleOrNull()?.toInt()
-                }.toList()
-            }.filter { it in 1..10_000_000 }
-            val amount = amountCandidates.maxOrNull()
-            val datePatterns = listOf("dd/MM/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yy", "dd-MM-yy", "dd MMM yyyy")
-            var parsedDate: LocalDate? = null
-            val dateRegex = Regex("""\b(\d{1,4}[-/]\d{1,2}[-/]\d{1,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})\b""")
-            lines.forEach { line ->
-                if (parsedDate == null) {
-                    dateRegex.findAll(line).forEach { match ->
-                        datePatterns.forEach { pattern ->
-                            if (parsedDate == null) parsedDate = runCatching {
-                                LocalDate.parse(match.value, DateTimeFormatter.ofPattern(pattern, Locale.US))
-                            }.getOrNull()
-                        }
-                    }
-                }
-            }
-            onResult(ReceiptScanResult(merchant, amount, parsedDate))
-        }
-        .addOnFailureListener { onError(it.message ?: "Receipt text could not be read") }
-        .addOnCompleteListener { recognizer.close() }
-}
-
 @Composable
 private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (CategoryEntity) -> Unit, onSave: (Expense, String?) -> Unit) {
     val context = LocalContext.current
@@ -1048,7 +1025,6 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
     var isIncome by remember { mutableStateOf(false) }
     var date by remember { mutableStateOf(LocalDate.now()) }
     var receiptUri by remember { mutableStateOf<String?>(null) }
-    var receiptScanStatus by remember { mutableStateOf<String?>(null) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var calculatorMode by remember { mutableIntStateOf(0) }
     var calculatorOffset by remember { mutableStateOf(androidx.compose.ui.unit.IntOffset(-24, -190)) }
@@ -1056,20 +1032,6 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             receiptUri = uri.toString()
-            receiptScanStatus = "Scanning receipt…"
-            scanReceipt(
-                context,
-                uri,
-                onResult = { scan ->
-                    scan.amount?.let { amount = it.toString() }
-                    scan.merchant?.let { title = it }
-                    scan.date?.let { date = it }
-                    receiptScanStatus = if (scan.amount != null || scan.merchant != null || scan.date != null) {
-                        "Receipt scanned — check the detected details"
-                    } else "No clear details found — enter them manually"
-                },
-                onError = { receiptScanStatus = "Scan failed — enter details manually" }
-            )
         }
     }
     if (showCategoryDialog) CategoryDialog({ showCategoryDialog = false }) {
@@ -1147,17 +1109,6 @@ private fun AddExpenseScreen(categories: List<CategoryEntity>, onAddCategory: (C
                 }
             }
             if (receiptUri != null) item { ReceiptThumbnail(receiptUri!!) }
-            receiptScanStatus?.let { message ->
-                item {
-                    Surface(shape = RoundedCornerShape(12.dp), color = Blue.copy(.08f)) {
-                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.DocumentScanner, null, tint = Blue, modifier = Modifier.size(19.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(message, color = Blue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
         }
         Button(
             onClick = {
