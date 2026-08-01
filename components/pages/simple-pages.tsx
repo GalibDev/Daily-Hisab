@@ -1554,7 +1554,7 @@ export function SettingsPage() {
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
-      <Card className="mb-5 rounded-[18px] border-[#e6eafa] p-4 shadow-[0_10px_28px_rgba(20,35,90,0.05)]">
+      <Card className="hidden">
         <div className="flex items-center gap-3">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={22} /></span>
           <div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pet</h2><p className="text-xs font-semibold text-[#69718a]">A draggable cat that walks, sits, plays and reacts to your touch</p></div>
