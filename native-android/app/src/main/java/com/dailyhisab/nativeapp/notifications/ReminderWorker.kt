@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.dailyhisab.nativeapp.data.AppNotificationEntity
@@ -76,7 +77,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         private const val SOUND_CHANNEL_ID = "daily_hisab_reminders_sound"
         private const val SILENT_CHANNEL_ID = "daily_hisab_reminders_silent"
 
-        fun schedule(context: Context, title: String, date: String, time: String) {
+        fun schedule(context: Context, title: String, date: String, time: String, uniqueKey: String? = null) {
             val target = runCatching {
                 LocalDateTime.of(
                     LocalDate.parse(date),
@@ -89,7 +90,12 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                 .setInputData(Data.Builder().putString("title", title).build())
                 .build()
-            WorkManager.getInstance(context).enqueue(work)
+            if (uniqueKey == null) WorkManager.getInstance(context).enqueue(work)
+            else WorkManager.getInstance(context).enqueueUniqueWork(uniqueKey, ExistingWorkPolicy.REPLACE, work)
+        }
+
+        fun cancel(context: Context, uniqueKey: String) {
+            WorkManager.getInstance(context).cancelUniqueWork(uniqueKey)
         }
 
         fun cancelAll(context: Context) {

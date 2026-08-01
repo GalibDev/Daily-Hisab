@@ -165,6 +165,24 @@ private fun Expense.toEntity() = TransactionEntity(
     type = if (income) "income" else "expense",
     note = note
 )
+
+private fun scheduleLoanNotifications(context: android.content.Context, loan: LoanEntity, loanId: Long) {
+    val due = runCatching { LocalDate.parse(loan.dueDate) }.getOrNull() ?: return
+    val action = if (loan.type == "borrowed") "Pay ${money(loan.amount)} to ${loan.person}" else "Collect ${money(loan.amount)} from ${loan.person}"
+    ReminderWorker.cancel(context, "loan_advance_$loanId")
+    ReminderWorker.cancel(context, "loan_due_$loanId")
+    if (due.isBefore(LocalDate.now())) return
+    val advanceDate = due.minusDays(1)
+    if (!advanceDate.isBefore(LocalDate.now())) {
+        ReminderWorker.schedule(context, "Loan due tomorrow · $action", advanceDate.toString(), "08:00 PM", "loan_advance_$loanId")
+    }
+    ReminderWorker.schedule(context, "Loan due today (${loan.dueDate}) · $action", due.toString(), "09:00 AM", "loan_due_$loanId")
+}
+
+private fun cancelLoanNotifications(context: android.content.Context, loanId: Long) {
+    ReminderWorker.cancel(context, "loan_advance_$loanId")
+    ReminderWorker.cancel(context, "loan_due_$loanId")
+}
 enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Loans, Calendar, Profile, Recurring, Reminders, NotificationCenter, Notes, Receipts, Settings, Backup, Privacy, Help }
 
 class MainActivity : FragmentActivity() {
@@ -272,6 +290,13 @@ fun DailyHisabApp() {
         if (categories.isEmpty()) {
             listOf("Food" to "food", "Transport" to "transport", "Shopping" to "shopping", "Utilities" to "bills", "Health" to "health", "Education" to "education", "Home" to "home", "Others" to "other")
                 .forEach { (name, icon) -> categoryDao.insert(CategoryEntity(name = name, iconName = icon)) }
+        }
+    }
+    LaunchedEffect(loans, loanPayments) {
+        loans.forEach { loan ->
+            val paid = loanPayments.filter { it.loanId == loan.id }.sumOf { it.amount }
+            if (paid >= loan.amount) cancelLoanNotifications(context, loan.id)
+            else scheduleLoanNotifications(context, loan, loan.id)
         }
     }
     LaunchedEffect(authUser?.uid) {
@@ -387,11 +412,21 @@ fun DailyHisabApp() {
                     Screen.Loans -> LoansScreen(
                         loans = loans,
                         payments = loanPayments,
-                        onAdd = { scope.launch { loanDao.insert(it) } },
-                        onUpdate = { scope.launch { loanDao.update(it) } },
-                        onDelete = { item -> scope.launch { FinanceDatabase.get(context).withTransaction { loanDao.deletePaymentsForLoan(item.id); loanDao.delete(item) } } },
-                        onAddPayment = { scope.launch { loanDao.insertPayment(it) } },
-                        onDeletePayment = { scope.launch { loanDao.deletePayment(it) } }
+                        onAdd = { item -> scope.launch { val id = loanDao.insert(item); scheduleLoanNotifications(context, item.copy(id = id), id) } },
+                        onUpdate = { item -> scope.launch { loanDao.update(item); scheduleLoanNotifications(context, item, item.id) } },
+                        onDelete = { item -> scope.launch { cancelLoanNotifications(context, item.id); FinanceDatabase.get(context).withTransaction { loanDao.deletePaymentsForLoan(item.id); loanDao.delete(item) } } },
+                        onAddPayment = { payment -> scope.launch {
+                            loanDao.insertPayment(payment)
+                            val loan = loans.firstOrNull { it.id == payment.loanId }
+                            val totalPaid = loanPayments.filter { it.loanId == payment.loanId }.sumOf { it.amount } + payment.amount
+                            if (loan != null && totalPaid >= loan.amount) cancelLoanNotifications(context, loan.id)
+                        } },
+                        onDeletePayment = { payment -> scope.launch {
+                            loanDao.deletePayment(payment)
+                            val loan = loans.firstOrNull { it.id == payment.loanId }
+                            val remainingPaid = loanPayments.filter { it.loanId == payment.loanId }.sumOf { it.amount } - payment.amount
+                            if (loan != null && remainingPaid < loan.amount) scheduleLoanNotifications(context, loan, loan.id)
+                        } }
                     )
                     Screen.Calendar -> CalendarV2(expenses)
                     Screen.Profile -> ProfileScreen(profileName, profilePhoto, onNameChange = {

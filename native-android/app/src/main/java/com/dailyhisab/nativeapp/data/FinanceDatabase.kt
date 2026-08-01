@@ -209,7 +209,7 @@ interface LoanDao {
     fun observeAll(): Flow<List<LoanEntity>>
     @Query("SELECT * FROM loan_payments ORDER BY date DESC, id DESC")
     fun observePayments(): Flow<List<LoanPaymentEntity>>
-    @Insert suspend fun insert(item: LoanEntity)
+    @Insert suspend fun insert(item: LoanEntity): Long
     @Update suspend fun update(item: LoanEntity)
     @Delete suspend fun delete(item: LoanEntity)
     @Insert suspend fun insertPayment(item: LoanPaymentEntity)
