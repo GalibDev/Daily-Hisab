@@ -284,6 +284,7 @@ fun DailyHisabApp() {
     var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     var petEnabled by remember { mutableStateOf(prefs.getBoolean("home_pet_enabled", false)) }
     var petColor by remember { mutableStateOf(prefs.getString("home_pet_color", "Default") ?: "Default") }
+    var petSize by remember { mutableStateOf(prefs.getString("home_pet_size", "Medium") ?: "Medium") }
     var biometricEnabled by remember { mutableStateOf(prefs.getBoolean("biometric_enabled", false)) }
     var biometricUnlocked by rememberSaveable { mutableStateOf(!biometricEnabled) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -384,7 +385,7 @@ fun DailyHisabApp() {
             ) { padding ->
                 Box(Modifier.padding(padding).fillMaxSize()) {
                     when (screen) {
-                    Screen.Home -> HomeScreen(expenses, petEnabled, petColor, onNavigate = { screen = it })
+                    Screen.Home -> HomeScreen(expenses, petEnabled, petColor, petSize, onNavigate = { screen = it })
                     Screen.Reports -> ReportsScreen(expenses) { screen = Screen.Analytics }
                     Screen.Analytics -> AnalyticsScreen(expenses)
                     Screen.Add -> AddExpenseScreen(categories, { scope.launch { categoryDao.insert(it) } }) { expense, receiptUri ->
@@ -484,6 +485,7 @@ fun DailyHisabApp() {
                         biometricEnabled = biometricEnabled,
                         petEnabled = petEnabled,
                         petColor = petColor,
+                        petSize = petSize,
                         onDarkModeChange = {
                             darkMode = it; prefs.edit().putBoolean("dark_mode", it).apply()
                         },
@@ -492,6 +494,9 @@ fun DailyHisabApp() {
                         },
                         onPetColorChange = {
                             petColor = it; prefs.edit().putString("home_pet_color", it).apply()
+                        },
+                        onPetSizeChange = {
+                            petSize = it; prefs.edit().putString("home_pet_size", it).apply()
                         },
                         onBiometricChange = { enabled ->
                             if (!enabled) {
@@ -599,6 +604,7 @@ private fun HomeScreen(
     expenses: List<Expense>,
     petEnabled: Boolean,
     petColor: String,
+    petSize: String,
     onNavigate: (Screen) -> Unit
 ) {
     val today = LocalDate.now()
@@ -666,16 +672,17 @@ private fun HomeScreen(
             }
             items(expenses.take(5)) { TransactionRow(it) }
         }
-        if (petEnabled) FloatingPetCat(petColor)
+        if (petEnabled) FloatingPetCat(petColor, petSize)
     }
 }
 
 @Composable
-private fun BoxScope.FloatingPetCat(petColor: String) {
+private fun BoxScope.FloatingPetCat(petColor: String, petSize: String) {
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
     var activity by remember { mutableIntStateOf(0) }
     var loved by remember { mutableStateOf(false) }
+    val size = when (petSize) { "Small" -> 72.dp; "Large" -> 124.dp; else -> 96.dp }
     LaunchedEffect(Unit) {
         while (true) {
             delay(2400)
@@ -690,8 +697,8 @@ private fun BoxScope.FloatingPetCat(petColor: String) {
     }
     Box(
         modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(18.dp)
+            .align(Alignment.TopEnd)
+            .padding(top = 34.dp, end = 40.dp)
             .offset {
                 val idleX = if (activity == 0) 18 else if (activity == 2) -10 else 0
                 val idleY = if (activity == 2) -8 else 0
@@ -706,20 +713,24 @@ private fun BoxScope.FloatingPetCat(petColor: String) {
             }
     ) {
         AndroidView(
-            modifier = Modifier.size(96.dp).clickable { loved = true; activity = 2 },
+            modifier = Modifier.size(size).clickable { loved = true; activity = 2 },
             factory = { context ->
                 LottieAnimationView(context).apply {
-                    setAnimation(R.raw.walking_cat)
                     repeatCount = LottieDrawable.INFINITE
-                    playAnimation()
                 }
             },
             update = { view ->
-                view.clearColorFilter()
-                when (petColor) {
-                    "Brown" -> view.setColorFilter(android.graphics.Color.rgb(177, 109, 48))
-                    "Black" -> view.setColorFilter(android.graphics.Color.rgb(28, 29, 35))
-                    "White" -> view.setColorFilter(android.graphics.Color.rgb(242, 241, 236))
+                val animationRes = when (petColor) {
+                    "Brown" -> R.raw.walking_cat_brown
+                    "Black" -> R.raw.walking_cat_black
+                    "White" -> R.raw.walking_cat_white
+                    else -> R.raw.walking_cat
+                }
+                if (view.tag != animationRes) {
+                    view.tag = animationRes
+                    view.setAnimation(animationRes)
+                    view.repeatCount = LottieDrawable.INFINITE
+                    view.playAnimation()
                 }
                 if (!view.isAnimating) view.playAnimation()
             }
@@ -2568,9 +2579,11 @@ private fun SettingsScreen(
     biometricEnabled: Boolean,
     petEnabled: Boolean,
     petColor: String,
+    petSize: String,
     onDarkModeChange: (Boolean) -> Unit,
     onPetEnabledChange: (Boolean) -> Unit,
     onPetColorChange: (String) -> Unit,
+    onPetSizeChange: (String) -> Unit,
     onBiometricChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -2712,6 +2725,18 @@ private fun SettingsScreen(
                                         onClick = { onPetColorChange(value) },
                                         shape = SegmentedButtonDefaults.itemShape(index, 4)
                                     ) { Text(if (bangla) when (value) { "Brown" -> "বাদামি"; "Default" -> "ডিফল্ট"; "Black" -> "কালো"; else -> "সাদা" } else value, fontSize = 10.sp) }
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(if (bangla) "বিড়ালের আকার" else "Cat size", fontWeight = FontWeight.SemiBold, color = Ink)
+                            Spacer(Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                listOf("Small", "Medium", "Large").forEachIndexed { index, value ->
+                                    SegmentedButton(
+                                        selected = petSize == value,
+                                        onClick = { onPetSizeChange(value) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, 3)
+                                    ) { Text(if (bangla) when (value) { "Small" -> "ছোট"; "Medium" -> "মাঝারি"; else -> "বড়" } else value, fontSize = 11.sp) }
                                 }
                             }
                         }
