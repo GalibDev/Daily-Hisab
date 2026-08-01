@@ -8,7 +8,9 @@ import {
   reload,
   signInWithEmailAndPassword,
   signInWithPopup,
+  sendPasswordResetEmail,
   signOut as firebaseSignOut,
+  updatePassword,
   updateProfile,
 } from "firebase/auth";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -34,6 +36,8 @@ type AuthStore = {
   signOut: () => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
   uploadProfileImage: (file: File) => Promise<string>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  changePassword: (password: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthStore | null>(null);
@@ -129,6 +133,15 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       if (appUser) await syncUserDirectoryProfile(appUser);
       setProfileVersion((version) => version + 1);
       return photoURL;
+    },
+    sendPasswordReset: async (email) => {
+      if (!firebaseAuth) throw new Error("Firebase is not configured");
+      await sendPasswordResetEmail(firebaseAuth, email.trim(), { url: "https://dailyhisab.xyz/login" });
+    },
+    changePassword: async (password) => {
+      if (!firebaseAuth?.currentUser) throw new Error("Login required");
+      if (password.length < 6) throw new Error("Password must contain at least 6 characters");
+      await updatePassword(firebaseAuth.currentUser, password);
     },
   };
 

@@ -900,13 +900,17 @@ export function ReportsPage() {
   const { categories, entries } = useFinance();
   const { notify } = useToast();
   const today = getTodayIso();
-  const [period, setPeriod] = useState<ReportPeriod>("daily");
+  const [period, setPeriod] = useState<ReportPeriod | "custom">("daily");
+  const [customStart, setCustomStart] = useState(today.slice(0, 8) + "01");
+  const [customEnd, setCustomEnd] = useState(today);
   const [entryType, setEntryType] = useState<EntryType>("expense");
   const [reportMode, setReportMode] = useState<"reports" | "analytics">("reports");
-  const reportEntries = useMemo(() => filterEntriesByReportPeriod(entries, period, today), [entries, period, today]);
+  const reportEntries = useMemo(() => period === "custom"
+    ? entries.filter((entry) => entry.date >= customStart && entry.date <= customEnd)
+    : filterEntriesByReportPeriod(entries, period, today), [customEnd, customStart, entries, period, today]);
   const reportTypedEntries = useMemo(() => reportEntries.filter((entry) => entry.type === entryType), [entryType, reportEntries]);
   const reportTotal = reportTypedEntries.reduce((sum, entry) => sum + entry.amount, 0);
-  const labels: Record<ReportPeriod, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
+  const labels: Record<ReportPeriod | "custom", string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly", custom: "Custom" };
   const typeLabel = entryType === "income" ? "Income" : "Expense";
   const reportTitle = `${labels[period]} ${typeLabel} Report`;
 
@@ -930,8 +934,8 @@ export function ReportsPage() {
           <button type="button" onClick={() => setEntryType("expense")} className={entryType === "expense" ? "h-11 rounded-xl bg-[#ef4444] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Expense</button>
           <button type="button" onClick={() => setEntryType("income")} className={entryType === "income" ? "h-11 rounded-xl bg-[#16a34a] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Income</button>
         </div>
-        <div className="mb-5 grid grid-cols-4 gap-1 border-b border-[#ece8ff] md:flex md:flex-wrap md:border-0">
-          {(Object.keys(labels) as ReportPeriod[]).map((item) => (
+        <div id="reports-filter" className="mb-5 grid grid-cols-5 gap-1 border-b border-[#ece8ff] md:flex md:flex-wrap md:border-0">
+          {(Object.keys(labels) as Array<ReportPeriod | "custom">).map((item) => (
             <button
               key={item}
               onClick={() => setPeriod(item)}
@@ -941,6 +945,7 @@ export function ReportsPage() {
             </button>
           ))}
         </div>
+        {period === "custom" && <Card className="mb-5 grid gap-3 border-[#dfe5f2] p-4 md:grid-cols-[1fr_1fr_auto] md:items-end"><Field label="From date"><input type="date" className={inputClass} value={customStart} max={customEnd} onChange={(event) => setCustomStart(event.target.value)} /></Field><Field label="To date"><input type="date" className={inputClass} value={customEnd} min={customStart} onChange={(event) => setCustomEnd(event.target.value)} /></Field><div className="rounded-xl bg-[#f2f5ff] px-4 py-3 text-center text-xs font-extrabold text-[#11298f]">{reportTypedEntries.length} matching entries</div></Card>}
         <Card className="mb-5 overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
           <div className="grid gap-4 bg-[#11298f] p-5 text-white md:grid-cols-[1fr_auto] md:items-center">
             <div>
@@ -1352,13 +1357,15 @@ function ProfileMenuSection({
 }
 
 export function SettingsPage() {
-  const { signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
+  const { changePassword, sendPasswordReset, signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData, syncEnabled, syncError } = useFinance();
   const { notify } = useToast();
   const mobileProfileInputRef = useRef<HTMLInputElement>(null);
   const [mobileProfileUploading, setMobileProfileUploading] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [showSecurity, setShowSecurity] = useState(false);
+  const [securityBusy, setSecurityBusy] = useState(false);
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
@@ -1374,7 +1381,7 @@ export function SettingsPage() {
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/hero-management", icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/ai-helper", icon: <MessageCircle size={20} />, label: "AI Helper", tone: "bg-[#eafbf0] text-[#16a34a]" },
-    { href: "/settings", icon: <ShieldCheck size={20} />, label: "Security", tone: "bg-[#eafbf0] text-[#16a34a]" },
+    { onClick: () => setShowSecurity((open) => !open), icon: <ShieldCheck size={20} />, label: "Security & Password", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
     { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/family-access", icon: <UsersRound size={20} />, label: "Family Access", tone: "bg-[#eef4ff] text-[#11298f]" },
@@ -1449,6 +1456,17 @@ export function SettingsPage() {
     }
   }
 
+  async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get("password") || "");
+    const confirmPassword = String(form.get("confirmPassword") || "");
+    if (password !== confirmPassword) { notify("Passwords do not match", "danger"); return; }
+    try { setSecurityBusy(true); await changePassword(password); event.currentTarget.reset(); setShowSecurity(false); notify("Password changed successfully", "success"); }
+    catch (error) { notify(error instanceof Error ? error.message : "Password change failed. Sign in again and retry.", "danger"); }
+    finally { setSecurityBusy(false); }
+  }
+
   return (
     <AppShell>
       <PageTitle title="Settings" subtitle="Profile, language, theme and export" />
@@ -1505,6 +1523,7 @@ export function SettingsPage() {
             </form>
           </Card>
         )}
+        {showSecurity && user && <Card className="rounded-[18px] border-[#dce8df] p-4"><form onSubmit={handlePasswordChange} className="grid gap-3"><div><h2 className="font-extrabold text-[#111936]">Security & Password</h2><p className="text-xs text-[#69718a]">Use at least 6 characters. A recent login may be required.</p></div><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm new password" minLength={6} required /><Button type="submit" disabled={securityBusy}>{securityBusy ? "Updating…" : "Change password"}</Button><Button type="button" variant="outline" disabled={!user.email || securityBusy} onClick={async () => { if (!user.email) return; try { setSecurityBusy(true); await sendPasswordReset(user.email); notify("Password reset link sent", "success"); } catch (error) { notify(error instanceof Error ? error.message : "Reset email failed", "danger"); } finally { setSecurityBusy(false); } }}>Email me a reset link</Button></form></Card>}
         <ProfileMenuSection title="Account" items={accountItems} />
         <ProfileMenuSection title="Preferences" items={preferenceItems} />
         <ProfileMenuSection title="Support" items={supportItems} />
@@ -1525,6 +1544,7 @@ export function SettingsPage() {
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Family Access</span><Link href="/family-access"><Button variant="outline">Manage</Button></Link></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Language: Bangla / English</span><Button variant="outline">Manage</Button></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Currency: BDT</span><Button variant="outline">Manage</Button></Card>
+        {user && <Card className="p-5"><form onSubmit={handlePasswordChange} className="grid gap-3"><div><h2 className="font-extrabold text-[#111936]">Account security</h2><p className="text-xs text-[#69718a]">Change your password or request a secure reset link.</p></div><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><div className="flex gap-2"><Button type="submit" disabled={securityBusy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || securityBusy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></div></form></Card>}
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Export data</span><div className="flex gap-2"><Button variant="outline" onClick={() => { exportDataJson({ entries, categories, summaryRows, recurringExpenses, reminders }); notify("Data exported", "success"); }}>JSON</Button><Button variant="outline" onClick={() => { exportEntriesCsv(entries, summaryRows); notify("Excel CSV exported", "success"); }}>Excel</Button></div></Card>
         <Card className="flex items-center justify-between p-5"><span className="font-semibold">Reset all data</span><ConfirmDeleteButton label="Reset all data" triggerText="Reset" onConfirm={() => { resetAllData(); notify("Data reset successfully", "info"); }} /></Card>
         <Card className="flex items-center justify-between p-5">

@@ -474,6 +474,8 @@ function DesktopDashboard({
         </div>
       </div>
 
+      <DesktopQuickActions />
+
       <section className="relative overflow-hidden rounded-[30px] bg-[linear-gradient(120deg,#071743_0%,#102e91_48%,#1656bd_100%)] p-7 text-white shadow-[0_24px_60px_rgba(13,39,125,0.22)] xl:p-9">
         <div className="absolute -right-20 -top-28 size-80 rounded-full border-[28px] border-white/5" />
         <div className="absolute bottom-[-90px] right-[20%] size-56 rounded-full bg-cyan-300/10 blur-2xl" />
@@ -845,6 +847,7 @@ function MobileDashboard({
         </section>
         </div>
       </div>
+
       <div className="flex justify-center gap-2" aria-label="Slider pages">
         {[0, 1, 2].map((index) => (
           <button
@@ -1094,6 +1097,25 @@ function MobileDashboard({
       </Card>
     </div>
   );
+}
+
+const DESKTOP_QUICK_ACTIONS_KEY = "daily-hisab.desktop-quick-actions.v1";
+function DesktopQuickActions() {
+  const actions = [
+    { id: "expense", href: "/add-expense", label: "Add expense", icon: Plus, tone: "bg-[#eef2ff] text-[#11298f]" },
+    { id: "income", href: "/add-income", label: "Add income", icon: Banknote, tone: "bg-[#eafbf0] text-[#16824a]" },
+    { id: "categories", href: "/categories", label: "Categories", icon: Grid2X2, tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { id: "loans", href: "/loans", label: "Loans & dues", icon: HandCoins, tone: "bg-[#fff3e8] text-[#c65b0a]" },
+    { id: "reports", href: "/reports", label: "Reports", icon: FileText, tone: "bg-[#eef6ff] text-[#2563eb]" },
+  ];
+  const [editing, setEditing] = useState(false);
+  const [selected, setSelected] = useState<string[]>(() => {
+    if (typeof window === "undefined") return ["expense", "income", "categories", "loans"];
+    try { return JSON.parse(localStorage.getItem(DESKTOP_QUICK_ACTIONS_KEY) || "[\"expense\",\"income\",\"categories\",\"loans\"]") as string[]; }
+    catch { return ["expense", "income", "categories", "loans"]; }
+  });
+  useEffect(() => { localStorage.setItem(DESKTOP_QUICK_ACTIONS_KEY, JSON.stringify(selected)); }, [selected]);
+  return <Card className="border-[#e8ecf5] p-4 shadow-[0_10px_28px_rgba(20,35,90,0.05)]"><div className="flex items-center gap-3"><div className="mr-auto"><h2 className="text-sm font-black text-[#111936]">Quick actions</h2><p className="text-[11px] font-semibold text-[#81899c]">Keep your most-used tools one click away</p></div>{actions.filter((action) => selected.includes(action.id)).map((action) => { const Icon = action.icon; return <Link key={action.id} href={action.href} className="flex items-center gap-2 rounded-xl border border-[#e8ecf5] bg-white px-3 py-2 text-xs font-extrabold text-[#27304b]"><span className={`grid size-7 place-items-center rounded-lg ${action.tone}`}><Icon size={15} /></span>{action.label}</Link>; })}<button onClick={() => setEditing((value) => !value)} className="rounded-xl bg-[#f2f4fb] px-3 py-3 text-xs font-black text-[#11298f]"><Edit2 size={15} /></button></div>{editing && <div className="mt-4 flex flex-wrap gap-2 border-t border-[#edf0f6] pt-4">{actions.map((action) => <button key={action.id} onClick={() => setSelected((current) => current.includes(action.id) ? current.filter((id) => id !== action.id) : current.length < 5 ? [...current, action.id] : current)} className={selected.includes(action.id) ? "rounded-full bg-[#11298f] px-3 py-2 text-xs font-bold text-white" : "rounded-full bg-[#f1f3f8] px-3 py-2 text-xs font-bold text-[#59627a]"}>{selected.includes(action.id) ? "✓ " : "+ "}{action.label}</button>)}</div>}</Card>;
 }
 
 export function DashboardPage() {

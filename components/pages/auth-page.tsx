@@ -11,10 +11,12 @@ import { useToast } from "@/components/ui/toast";
 
 export function AuthPage() {
   const router = useRouter();
-  const { configured, signIn, signInWithGoogle, signUp } = useAuth();
+  const { configured, sendPasswordReset, signIn, signInWithGoogle, signUp } = useAuth();
   const { notify } = useToast();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   useEffect(() => {
     const restoreLoginControls = () => setLoading(false);
@@ -85,6 +87,8 @@ export function AuthPage() {
           <input name="password" type="password" className={inputClass} placeholder="Password" required minLength={6} />
           <Button type="submit" disabled={loading || !configured}>{loading ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}</Button>
         </form>
+        {mode === "login" && <button type="button" className="mt-3 w-full text-right text-xs font-bold text-[#6C4CF1]" onClick={() => setForgotOpen((open) => !open)}>Forgot password?</button>}
+        {forgotOpen && <form className="mt-3 grid gap-2 rounded-xl bg-[#f3f5ff] p-3" onSubmit={async (event) => { event.preventDefault(); try { setLoading(true); await sendPasswordReset(resetEmail); notify("Password reset link sent to your email", "success"); setForgotOpen(false); } catch (error) { notify(error instanceof Error ? error.message : "Could not send reset email", "danger"); } finally { setLoading(false); } }}><label className="text-xs font-bold text-[#4e5872]">Account email</label><input type="email" className={inputClass} value={resetEmail} onChange={(event) => setResetEmail(event.target.value)} placeholder="you@gmail.com" required /><Button type="submit" disabled={loading}>Send reset link</Button></form>}
         <div className="my-4 flex items-center gap-3 text-xs font-semibold text-[#9a93ac]">
           <span className="h-px flex-1 bg-[#ece8ff]" /> OR <span className="h-px flex-1 bg-[#ece8ff]" />
         </div>

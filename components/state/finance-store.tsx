@@ -59,6 +59,7 @@ type FinanceStore = {
   restoreData: (data: Partial<Pick<FinanceStore, "categories" | "entries" | "hiddenSummaryDates" | "recurringExpenses" | "reminders">>) => void;
   syncEnabled: boolean;
   syncError: string | null;
+  syncStatus: "loading" | "saving" | "synced" | "offline" | "error" | "local";
 };
 
 const FinanceContext = createContext<FinanceStore | null>(null);
@@ -135,9 +136,18 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
   const [hydrated, setHydrated] = useState(false);
   const [activeStorageOwner, setActiveStorageOwner] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<FinanceStore["syncStatus"]>("loading");
   const [cloudReadyOwner, setCloudReadyOwner] = useState<string | null>(null);
   const skipNextCloudSave = useRef(false);
   const storageOwner = user?.id ?? STORAGE_OWNER_GUEST;
+
+  useEffect(() => {
+    const updateConnection = () => setSyncStatus(navigator.onLine ? (user ? (cloudReadyOwner === user.id ? "synced" : "loading") : "local") : "offline");
+    window.addEventListener("online", updateConnection);
+    window.addEventListener("offline", updateConnection);
+    if (!navigator.onLine) setSyncStatus("offline");
+    return () => { window.removeEventListener("online", updateConnection); window.removeEventListener("offline", updateConnection); };
+  }, [cloudReadyOwner, user]);
 
   useEffect(() => {
     if (authLoading) {
@@ -153,6 +163,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       }
 
       setHydrated(false);
+      setSyncStatus(navigator.onLine ? "loading" : "offline");
 
       try {
         const saved = getScopedItem(ownerId, STORAGE_KEY);
@@ -240,8 +251,9 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         }
         setCloudReadyOwner(user!.id);
         setSyncError(null);
+        setSyncStatus(navigator.onLine ? "synced" : "offline");
       } catch (error: unknown) {
-        if (!cancelled) setSyncError(error instanceof Error ? error.message : "Cloud sync failed");
+        if (!cancelled) { setSyncError(error instanceof Error ? error.message : "Cloud sync failed"); setSyncStatus(navigator.onLine ? "error" : "offline"); }
       }
     }
 
@@ -259,9 +271,10 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
     }
 
     const timer = window.setTimeout(() => {
+      setSyncStatus(navigator.onLine ? "saving" : "offline");
       saveCloudFinance(user.id, { entries, categories, hiddenSummaryDates, recurringExpenses, reminders })
-        .then(() => setSyncError(null))
-        .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Cloud sync failed"));
+        .then(() => { setSyncError(null); setSyncStatus(navigator.onLine ? "synced" : "offline"); })
+        .catch((error: unknown) => { setSyncError(error instanceof Error ? error.message : "Cloud sync failed"); setSyncStatus(navigator.onLine ? "error" : "offline"); });
     }, 700);
 
     return () => window.clearTimeout(timer);
@@ -304,6 +317,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       reminders,
       syncEnabled: Boolean(user && cloudReadyOwner === user.id && !syncError),
       syncError,
+      syncStatus: user ? syncStatus : hydrated ? "local" : "loading",
       addEntry: (entry) => {
         const optimistic = { ...entry, id: Date.now(), time: currentTime() };
         setEntries((current) => [optimistic, ...current]);
@@ -426,7 +440,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         if (Array.isArray(data.reminders)) setReminders(data.reminders);
       },
     }),
-    [canSyncSupabase, categories, entries, hiddenSummaryDates, recurringExpenses, reminders, syncError, user],
+    [canSyncSupabase, categories, entries, hiddenSummaryDates, hydrated, recurringExpenses, reminders, syncError, syncStatus, user],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

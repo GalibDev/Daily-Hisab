@@ -39,6 +39,10 @@ import {
   ArrowLeft,
   Calculator,
   HandCoins,
+  CheckCircle2,
+  Cloud,
+  CloudOff,
+  LoaderCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiFloatingHelper } from "@/components/ai/ai-floating-helper";
@@ -71,7 +75,7 @@ const nav = [
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const { signOut, user } = useAuth();
-  const { entries } = useFinance();
+  const { entries, syncError, syncStatus } = useFinance();
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -107,6 +111,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const mobileActionLabel = pathname === "/categories" ? "Add category" : pathname === "/budget" ? "Add expense" : pathname === "/reminders" ? "Add reminder" : pathname === "/backup-restore" ? "Backup information" : pathname === "/calendar" || pathname === "/reports" ? "Open date filters" : "Open reminders";
   const profileName = user?.name ?? localProfileName;
   const profilePhoto = user?.photoUrl || localProfilePhoto;
+  const syncUi = syncStatus === "loading" ? { label: "Loading data…", icon: LoaderCircle, tone: "text-[#3152b8] bg-[#eef3ff]", spin: true }
+    : syncStatus === "saving" ? { label: "Saving…", icon: LoaderCircle, tone: "text-[#8a5a00] bg-[#fff7e8]", spin: true }
+    : syncStatus === "synced" ? { label: "Synced", icon: CheckCircle2, tone: "text-[#16824a] bg-[#eaf9f0]", spin: false }
+    : syncStatus === "offline" ? { label: "Offline · saved on device", icon: CloudOff, tone: "text-[#a34915] bg-[#fff1e8]", spin: false }
+    : syncStatus === "error" ? { label: "Sync failed", icon: CloudOff, tone: "text-[#c52949] bg-[#ffedf1]", spin: false }
+    : { label: "Local data", icon: Cloud, tone: "text-[#59627a] bg-[#f1f3f8]", spin: false };
+  const SyncIcon = syncUi.icon;
 
   function openMobileMenu() {
     setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
@@ -173,6 +184,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
   return (
     <div className="min-h-screen bg-[#F8F7FF] text-[#171424]">
+      <div title={syncError ?? syncUi.label} className={cn("fixed right-3 top-[76px] z-[75] flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-extrabold shadow-sm ring-1 ring-black/5 lg:right-7 lg:top-[86px]", syncUi.tone)}>
+        <SyncIcon size={14} className={syncUi.spin ? "animate-spin" : ""} />
+        <span>{syncUi.label}</span>
+      </div>
       <aside className="thin-scrollbar fixed left-0 top-0 z-30 hidden h-screen w-[228px] flex-col overflow-y-auto border-r border-[#ece8ff] bg-white px-5 py-7 lg:flex">
         <Link href="/" className="mb-8 flex items-center gap-3">
           <span className="grid size-12 place-items-center rounded-xl bg-[#6C4CF1] text-white shadow-lg shadow-[#6C4CF1]/25">
@@ -340,7 +355,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </div>
         )}
         <WebCalculator open={calculatorOpen && pathname === "/add-expense"} onClose={() => setCalculatorOpen(false)} />
-        <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">{children}</div>
+        <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">
+          {syncStatus === "loading" ? <div className="grid animate-pulse gap-4" aria-label="Loading your financial data"><div className="h-8 w-56 rounded-xl bg-[#e8ebf4]" /><div className="h-52 rounded-[24px] bg-[#e8ebf4]" /><div className="grid grid-cols-3 gap-3"><div className="h-28 rounded-2xl bg-[#edf0f6]" /><div className="h-28 rounded-2xl bg-[#edf0f6]" /><div className="h-28 rounded-2xl bg-[#edf0f6]" /></div><span className="sr-only">Loading data from Firebase</span></div> : children}
+        </div>
       </main>
 
       {mobileMenuOpen && (
