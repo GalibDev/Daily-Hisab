@@ -63,6 +63,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -2121,6 +2122,8 @@ private fun NotesScreen(
     var showAdd by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf("All") }
+    var openedNote by remember { mutableStateOf<NoteEntity?>(null) }
+    var deleteCandidate by remember { mutableStateOf<NoteEntity?>(null) }
     val visibleNotes = remember(notes, query, filter) {
         notes.filter { item ->
             val matchesSearch = query.isBlank() || item.title.contains(query, true) || item.body.contains(query, true)
@@ -2186,7 +2189,12 @@ private fun NotesScreen(
                             shape = RoundedCornerShape(20.dp),
                             colors = CardDefaults.cardColors(containerColor = color),
                             elevation = CardDefaults.cardElevation(1.dp),
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 190.dp)
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 190.dp).pointerInput(item.id) {
+                                detectTapGestures(
+                                    onTap = { openedNote = item },
+                                    onLongPress = { deleteCandidate = item }
+                                )
+                            }
                         ) {
                             Column(Modifier.fillMaxSize().padding(15.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -2205,9 +2213,7 @@ private fun NotesScreen(
                                 Spacer(Modifier.height(16.dp))
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(item.createdAt, Modifier.weight(1f), fontSize = 10.sp, color = Ink.copy(.55f))
-                                    IconButton(onClick = { onDelete(item) }, modifier = Modifier.size(30.dp)) {
-                                        Icon(Icons.Default.DeleteOutline, "Delete note", tint = Red.copy(.8f), modifier = Modifier.size(19.dp))
-                                    }
+                                    Text("Hold to manage", fontSize = 9.sp, color = Ink.copy(.45f))
                                 }
                             }
                         }
@@ -2228,6 +2234,37 @@ private fun NotesScreen(
             onAdd(NoteEntity(title = name, body = detail, createdAt = LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy")), colorIndex = colorIndex, template = template))
             showAdd = false
         }
+    }
+    openedNote?.let { item ->
+        AlertDialog(
+            onDismissRequest = { openedNote = null },
+            icon = { Icon(Icons.Default.NoteAlt, null, tint = Blue) },
+            title = { Text(item.title, fontWeight = FontWeight.ExtraBold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(9.dp), color = NotePalette[item.colorIndex.coerceIn(NotePalette.indices)]) {
+                            Text(item.template.uppercase(), Modifier.padding(horizontal = 9.dp, vertical = 5.dp), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(item.createdAt, fontSize = 11.sp, color = Muted)
+                    }
+                    SelectionContainer { Text(item.body.ifBlank { "No additional details" }, color = Ink, fontSize = 15.sp, lineHeight = 23.sp) }
+                }
+            },
+            confirmButton = { Button(onClick = { openedNote = null }) { Text("Close") } },
+            dismissButton = { TextButton(onClick = { onPin(item); openedNote = null }) { Text(if (item.pinned) "Unpin" else "Pin") } }
+        )
+    }
+    deleteCandidate?.let { item ->
+        AlertDialog(
+            onDismissRequest = { deleteCandidate = null },
+            icon = { Icon(Icons.Default.DeleteOutline, null, tint = Red) },
+            title = { Text("Delete this note?") },
+            text = { Text("${item.title} will be permanently removed. You can cancel to keep it.") },
+            confirmButton = { Button(onClick = { onDelete(item); deleteCandidate = null }, colors = ButtonDefaults.buttonColors(containerColor = Red)) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { deleteCandidate = null }) { Text("Cancel") } }
+        )
     }
 }
 
