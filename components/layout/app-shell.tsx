@@ -107,6 +107,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/settings": "Profile",
     "/profile-settings": "Settings",
     "/pet-management": "Pet Management",
+    "/payment-methods": "Payment Methods",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";

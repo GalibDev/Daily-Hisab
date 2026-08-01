@@ -35,12 +35,19 @@ import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from
 type EntryFormMode = "expense" | "income";
 const CATEGORY_ICON_STORAGE_KEY = "daily-hisab.category-icons.v1";
 const BUDGET_TARGET_STORAGE_KEY = "daily-hisab.budget-target.v1";
+const PAYMENT_METHOD_STORAGE_KEY = "daily-hisab.default-payment-method.v1";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry, categories } = useFinance();
   const { notify } = useToast();
   const isExpense = mode === "expense";
   const today = getTodayIso();
+  const [method, setMethod] = useState<PaymentMethod>("Cash");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(PAYMENT_METHOD_STORAGE_KEY);
+    if (saved && paymentMethods.includes(saved as PaymentMethod)) setMethod(saved as PaymentMethod);
+  }, []);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,7 +83,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
         <Field label="Source"><input name="source" className={inputClass} placeholder="বেতন, ফ্রিল্যান্স, ব্যবসা" /></Field>
       )}
       <Field label="Amount"><input name="amount" className={inputClass} placeholder="৳ 0.00" inputMode="decimal" /></Field>
-      <Field label="Payment Method"><select name="method" className={inputClass}>{paymentMethods.map((m) => <option key={m}>{m}</option>)}</select></Field>
+      <Field label="Payment Method"><select name="method" className={inputClass} value={method} onChange={(event) => setMethod(event.target.value as PaymentMethod)}>{paymentMethods.map((m) => <option key={m}>{m}</option>)}</select></Field>
       {isExpense && <Field label="Receipt upload placeholder"><div className="grid h-12 place-items-center rounded-lg border border-dashed border-[#bbaeff] text-[#6C4CF1]"><Upload size={18} /></div></Field>}
       <Field label="Note" className="md:col-span-2"><textarea name="note" className={textareaClass} placeholder={isExpense ? "অতিরিক্ত নোট লিখুন" : "আয়ের বিস্তারিত লিখুন"} /></Field>
       <Button type="submit" className="w-full md:w-fit"><Plus size={17} /> {isExpense ? "Submit Expense" : "Submit Income"}</Button>
@@ -1398,6 +1405,59 @@ export function PetManagementPage() {
   return <AppShell><PageTitle title="Pet Management" subtitle="Control your Home page companion" /><Card className="mx-auto max-w-2xl rounded-[20px] p-5"><div className="flex items-center gap-3 pb-4"><span className="grid size-12 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={24} /></span><div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pet</h2><p className="text-xs text-[#69718a]">Show or hide your interactive cat</p></div><button type="button" role="switch" aria-checked={enabled} onClick={() => { const next = !enabled; setEnabled(next); save(PET_ENABLED_KEY, next ? "1" : "0"); }} className={`relative h-7 w-12 rounded-full ${enabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${enabled ? "left-6" : "left-1"}`} /></button></div>{enabled && <>{group("Color", ["brown", "default", "black", "white"] as const, color, (value) => { setColor(value); save(PET_COLOR_KEY, value); })}{group("Size", ["small", "medium", "large"] as const, size, (value) => { setSize(value); save(PET_SIZE_KEY, value); })}{group("Behaviour", ["automatic", "default", "sit"] as const, mode, (value) => { setMode(value); save(PET_MODE_KEY, value); })}{group("Walk speed", ["slow", "normal", "fast"] as const, speed, (value) => { setSpeed(value); save(PET_SPEED_KEY, value); })}</>}</Card></AppShell>;
 }
 
+export function PaymentMethodsPage() {
+  const { notify } = useToast();
+  const [selected, setSelected] = useState<"bKash" | "Nagad" | "Cash">("Cash");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(PAYMENT_METHOD_STORAGE_KEY);
+    if (saved === "bKash" || saved === "Nagad" || saved === "Cash") setSelected(saved);
+  }, []);
+
+  const methods = [
+    { name: "bKash" as const, logo: "/payment-methods/bkash.png", description: "Pay with your bKash wallet", logoClass: "object-contain p-2" },
+    { name: "Nagad" as const, logo: "/payment-methods/nagad.png", description: "Pay with your Nagad wallet", logoClass: "object-contain p-2" },
+    { name: "Cash" as const, logo: "/payment-methods/cash.svg", description: "Track payments made in cash", logoClass: "object-cover" },
+  ];
+
+  function chooseMethod(method: "bKash" | "Nagad" | "Cash") {
+    setSelected(method);
+    window.localStorage.setItem(PAYMENT_METHOD_STORAGE_KEY, method);
+    notify(`${method} set as default payment method`, "success");
+  }
+
+  return (
+    <AppShell>
+      <PageTitle title="Payment Methods" subtitle="Choose the default method for new transactions" />
+      <Card className="mx-auto max-w-2xl overflow-hidden rounded-[22px] border-[#e8ebf4] p-0 shadow-[0_16px_40px_rgba(20,35,90,0.08)]">
+        <div className="border-b border-[#edf0f7] bg-gradient-to-r from-[#f5f7ff] to-white px-5 py-4">
+          <h2 className="font-extrabold text-[#111936]">Available methods</h2>
+          <p className="mt-1 text-xs font-semibold text-[#69718a]">Your selection is saved on this device.</p>
+        </div>
+        <div className="grid gap-3 p-4 sm:p-5">
+          {methods.map((method) => {
+            const active = selected === method.name;
+            return (
+              <button key={method.name} type="button" onClick={() => chooseMethod(method.name)} className={`grid grid-cols-[64px_1fr_auto] items-center gap-4 rounded-2xl border p-3 text-left transition ${active ? "border-[#9bacff] bg-[#f3f6ff] shadow-[0_8px_22px_rgba(17,41,143,0.08)]" : "border-[#e8ebf4] bg-white hover:border-[#cdd6ff] hover:bg-[#fafbff]"}`}>
+                <span className="grid size-16 place-items-center overflow-hidden rounded-2xl border border-[#edf0f7] bg-white">
+                  <Image src={method.logo} alt={`${method.name} logo`} width={64} height={64} className={`size-full ${method.logoClass}`} />
+                </span>
+                <span className="min-w-0">
+                  <strong className="block text-base font-extrabold text-[#111936]">{method.name}</strong>
+                  <span className="mt-1 block text-xs font-semibold text-[#69718a]">{method.description}</span>
+                </span>
+                <span className={`grid size-7 place-items-center rounded-full border ${active ? "border-[#11298f] bg-[#11298f] text-white" : "border-[#cbd1df] text-transparent"}`}>
+                  <CheckCircle2 size={17} />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+    </AppShell>
+  );
+}
+
 export function SettingsPage() {
   const { changePassword, sendPasswordReset, signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -1428,7 +1488,7 @@ export function SettingsPage() {
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/hero-management", icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/ai-helper", icon: <MessageCircle size={20} />, label: "AI Helper", tone: "bg-[#eafbf0] text-[#16a34a]" },
-    { href: "/settings", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
+    { href: "/payment-methods", icon: <CreditCard size={20} />, label: "Payment Methods", tone: "bg-[#fff2e8] text-[#f97316]" },
     { href: "/profile-settings", icon: <Wrench size={20} />, label: "Settings", tone: "bg-[#eef4ff] text-[#11298f]" },
   ];
   const preferenceItems = [
