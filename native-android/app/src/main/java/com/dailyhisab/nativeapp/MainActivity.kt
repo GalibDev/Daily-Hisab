@@ -78,6 +78,8 @@ import com.dailyhisab.nativeapp.data.RecurringEntity
 import com.dailyhisab.nativeapp.data.ReminderEntity
 import com.dailyhisab.nativeapp.data.ReceiptEntity
 import com.dailyhisab.nativeapp.data.TransactionEntity
+import com.dailyhisab.nativeapp.data.LoanEntity
+import com.dailyhisab.nativeapp.data.LoanPaymentEntity
 import com.dailyhisab.nativeapp.notifications.ReminderWorker
 import com.dailyhisab.nativeapp.notifications.DailyInsightWorker
 import com.dailyhisab.nativeapp.backup.AutomaticBackupWorker
@@ -165,7 +167,7 @@ private fun Expense.toEntity() = TransactionEntity(
     type = if (income) "income" else "expense",
     note = note
 )
-enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Calendar, Profile, Recurring, Reminders, NotificationCenter, Notes, Receipts, Settings, Backup, Privacy, Help }
+enum class Screen { Home, Reports, Analytics, Add, Entries, Categories, CategoryDetails, Budget, Loans, Calendar, Profile, Recurring, Reminders, NotificationCenter, Notes, Receipts, Settings, Backup, Privacy, Help }
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -240,6 +242,9 @@ fun DailyHisabApp() {
     val receipts by receiptDao.observeAll().collectAsState(initial = emptyList())
     val categoryDao = remember { FinanceDatabase.get(context).categoryDao() }
     val categories by categoryDao.observeAll().collectAsState(initial = emptyList())
+    val loanDao = remember { FinanceDatabase.get(context).loanDao() }
+    val loans by loanDao.observeAll().collectAsState(initial = emptyList())
+    val loanPayments by loanDao.observePayments().collectAsState(initial = emptyList())
     val prefs = remember { context.getSharedPreferences("daily_hisab_settings", 0) }
     LaunchedEffect(Unit) {
         useBangla = prefs.getString("language", "English") == "Bangla"
@@ -376,6 +381,15 @@ fun DailyHisabApp() {
                         onDelete = { item -> scope.launch { dao.delete(storedTransactions.first { it.id == item.id }) } }
                     )
                     Screen.Budget -> FunctionalBudgetScreen(categories, expenses)
+                    Screen.Loans -> LoansScreen(
+                        loans = loans,
+                        payments = loanPayments,
+                        onAdd = { scope.launch { loanDao.insert(it) } },
+                        onUpdate = { scope.launch { loanDao.update(it) } },
+                        onDelete = { item -> scope.launch { FinanceDatabase.get(context).withTransaction { loanDao.deletePaymentsForLoan(item.id); loanDao.delete(item) } } },
+                        onAddPayment = { scope.launch { loanDao.insertPayment(it) } },
+                        onDeletePayment = { scope.launch { loanDao.deletePayment(it) } }
+                    )
                     Screen.Calendar -> CalendarV2(expenses)
                     Screen.Profile -> ProfileScreen(profileName, profilePhoto, onNameChange = {
                         profileName = it
@@ -564,6 +578,18 @@ private fun HomeScreen(expenses: List<Expense>, onNavigate: (Screen) -> Unit) {
                     QuickAction("Income", Icons.Default.Payments, Green) { onNavigate(Screen.Add) }
                     QuickAction("Categories", Icons.Default.GridView, Color(0xFF7C3AED)) { onNavigate(Screen.Categories) }
                     QuickAction("Budget", Icons.Default.AccountBalance, Muted) { onNavigate(Screen.Budget) }
+                }
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable { onNavigate(Screen.Loans) },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF6EC))
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(Modifier.size(42.dp), RoundedCornerShape(13.dp), color = Orange.copy(.14f)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Handshake, null, tint = Orange) } }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) { Text("Loans & Dues", fontWeight = FontWeight.ExtraBold, color = Ink); Text("Borrowed, lent and payment deadlines", fontSize = 11.sp, color = Muted) }
+                        Icon(Icons.Default.ChevronRight, null, tint = Muted)
+                    }
                 }
                 MonthOverviewLive(monthEntries)
                 Row(
@@ -1773,6 +1799,103 @@ private fun BudgetScreen(expenses: List<Expense>) {
             }
         }
     }
+}
+
+@Composable
+private fun LoansScreen(
+    loans: List<LoanEntity>,
+    payments: List<LoanPaymentEntity>,
+    onAdd: (LoanEntity) -> Unit,
+    onUpdate: (LoanEntity) -> Unit,
+    onDelete: (LoanEntity) -> Unit,
+    onAddPayment: (LoanPaymentEntity) -> Unit,
+    onDeletePayment: (LoanPaymentEntity) -> Unit
+) {
+    var type by remember { mutableStateOf("borrowed") }
+    var editor by remember { mutableStateOf<LoanEntity?>(null) }
+    var showEditor by remember { mutableStateOf(false) }
+    var paymentLoan by remember { mutableStateOf<LoanEntity?>(null) }
+    val today = LocalDate.now().toString()
+    fun paid(loan: LoanEntity) = payments.filter { it.loanId == loan.id }.sumOf { it.amount }
+    fun remaining(loan: LoanEntity) = (loan.amount - paid(loan)).coerceAtLeast(0)
+    val payable = loans.filter { it.type == "borrowed" }.sumOf { remaining(it) }
+    val receivable = loans.filter { it.type == "lent" }.sumOf { remaining(it) }
+    val overdue = loans.count { remaining(it) > 0 && it.dueDate < today }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        item { AppHeader("Loans & Dues") }
+        item {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LoanSummary("Payable", payable, Orange, Modifier.weight(1f))
+                    LoanSummary("Receivable", receivable, Green, Modifier.weight(1f))
+                    LoanSummary("Overdue", overdue, Red, Modifier.weight(1f), true)
+                }
+                Row(Modifier.fillMaxWidth().background(Color(0xFFE9EDF8), RoundedCornerShape(14.dp)).padding(4.dp)) {
+                    listOf("borrowed" to "Borrowed", "lent" to "Lent").forEach { (value, label) ->
+                        Surface(
+                            modifier = Modifier.weight(1f).clickable { type = value },
+                            shape = RoundedCornerShape(11.dp),
+                            color = if (type == value) Color.White else Color.Transparent,
+                            shadowElevation = if (type == value) 2.dp else 0.dp
+                        ) { Text(label, Modifier.padding(11.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold, color = if (type == value) Blue else Muted) }
+                    }
+                }
+                Button(onClick = { editor = null; showEditor = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("Add ${if (type == "borrowed") "borrowed money" else "money lent"}") }
+            }
+        }
+        val visible = loans.filter { it.type == type }
+        if (visible.isEmpty()) item {
+            Column(Modifier.fillMaxWidth().padding(42.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Handshake, null, tint = Blue, modifier = Modifier.size(48.dp)); Spacer(Modifier.height(12.dp))
+                Text("No ${type} records yet", fontWeight = FontWeight.ExtraBold, color = Ink)
+                Text("Add a person, amount and return deadline.", fontSize = 12.sp, color = Muted)
+            }
+        }
+        items(visible, key = { it.id }) { loan ->
+            val paidAmount = paid(loan); val balance = remaining(loan); val isPaid = balance == 0; val isOverdue = !isPaid && loan.dueDate < today
+            Card(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Surface(Modifier.size(44.dp), RoundedCornerShape(14.dp), color = if (type == "borrowed") Orange.copy(.12f) else Green.copy(.12f)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, tint = if (type == "borrowed") Orange else Green) } }
+                        Spacer(Modifier.width(11.dp)); Column(Modifier.weight(1f)) { Text(loan.person, fontWeight = FontWeight.ExtraBold, color = Ink); Text("Due ${loan.dueDate}", fontSize = 11.sp, color = Muted); Surface(shape = RoundedCornerShape(20.dp), color = when { isPaid -> Green.copy(.12f); isOverdue -> Red.copy(.12f); paidAmount > 0 -> Orange.copy(.12f); else -> Blue.copy(.1f) }) { Text(when { isPaid -> "Paid"; isOverdue -> "Overdue"; paidAmount > 0 -> "Partial"; else -> "Pending" }, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = when { isPaid -> Green; isOverdue -> Red; paidAmount > 0 -> Orange; else -> Blue }) } }
+                        IconButton(onClick = { editor = loan; showEditor = true }) { Icon(Icons.Default.Edit, "Edit", tint = Muted) }
+                        IconButton(onClick = { onDelete(loan) }) { Icon(Icons.Default.DeleteOutline, "Delete", tint = Red) }
+                    }
+                    Row(Modifier.fillMaxWidth().background(Soft, RoundedCornerShape(14.dp)).padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        LoanAmount("Total", loan.amount); LoanAmount("Paid", paidAmount); LoanAmount("Remaining", balance, Blue)
+                    }
+                    LinearProgressIndicator(progress = { if (loan.amount == 0) 0f else (paidAmount.toFloat() / loan.amount).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth(), color = if (isPaid) Green else if (isOverdue) Red else Blue, trackColor = Color(0xFFE5E8F2))
+                    if (loan.note.isNotBlank()) Text(loan.note, fontSize = 12.sp, color = Muted)
+                    if (!isPaid) OutlinedButton(onClick = { paymentLoan = loan }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) { Icon(Icons.Default.Add, null); Text("Record payment") }
+                    val history = payments.filter { it.loanId == loan.id }
+                    if (history.isNotEmpty()) {
+                        HorizontalDivider(color = Color(0xFFEDF0F6)); Text("Payment history", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Ink)
+                        history.forEach { payment -> Row(Modifier.fillMaxWidth().background(Soft, RoundedCornerShape(12.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(money(payment.amount), fontWeight = FontWeight.Bold, color = Green); Text("${payment.date}${if (payment.note.isBlank()) "" else " · ${payment.note}"}", fontSize = 10.sp, color = Muted) }; IconButton(onClick = { onDeletePayment(payment) }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Close, "Delete payment", tint = Red, modifier = Modifier.size(16.dp)) } } }
+                    }
+                }
+            }
+        }
+    }
+    if (showEditor) LoanEditorDialog(type, editor, onDismiss = { showEditor = false }, onSave = { value -> if (editor == null) onAdd(value) else onUpdate(value); showEditor = false })
+    paymentLoan?.let { loan -> LoanPaymentDialog(loan, remaining(loan), onDismiss = { paymentLoan = null }, onSave = { onAddPayment(it); paymentLoan = null }) }
+}
+
+@Composable private fun LoanSummary(label: String, value: Int, color: Color, modifier: Modifier, count: Boolean = false) { Card(modifier, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(11.dp)) { Icon(if (count) Icons.Default.Schedule else Icons.Default.AccountBalanceWallet, null, tint = color, modifier = Modifier.size(20.dp)); Spacer(Modifier.height(8.dp)); Text(label, maxLines = 1, fontSize = 9.sp, color = Muted); Text(if (count) "$value items" else money(value), maxLines = 1, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Ink) } } }
+@Composable private fun LoanAmount(label: String, value: Int, color: Color = Ink) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(label.uppercase(), fontSize = 9.sp, color = Muted); Text(money(value), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = color) } }
+
+@Composable
+private fun LoanEditorDialog(type: String, editing: LoanEntity?, onDismiss: () -> Unit, onSave: (LoanEntity) -> Unit) {
+    val context = LocalContext.current
+    var loanType by remember { mutableStateOf(editing?.type ?: type) }; var person by remember { mutableStateOf(editing?.person ?: "") }; var amount by remember { mutableStateOf(editing?.amount?.toString() ?: "") }; var startDate by remember { mutableStateOf(editing?.startDate ?: LocalDate.now().toString()) }; var dueDate by remember { mutableStateOf(editing?.dueDate ?: LocalDate.now().plusMonths(1).toString()) }; var note by remember { mutableStateOf(editing?.note ?: "") }
+    fun pickDate(current: String, update: (String) -> Unit) { val date = runCatching { LocalDate.parse(current) }.getOrDefault(LocalDate.now()); DatePickerDialog(context, { _, y, m, d -> update(LocalDate.of(y, m + 1, d).toString()) }, date.year, date.monthValue - 1, date.dayOfMonth).show() }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (editing == null) "Add loan record" else "Edit loan record") }, text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { Row(Modifier.fillMaxWidth()) { FilterChip(loanType == "borrowed", { loanType = "borrowed" }, { Text("Borrowed") }, modifier = Modifier.weight(1f)); Spacer(Modifier.width(8.dp)); FilterChip(loanType == "lent", { loanType = "lent" }, { Text("Lent") }, modifier = Modifier.weight(1f)) }; OutlinedTextField(person, { person = it }, label = { Text("Person name") }, singleLine = true, modifier = Modifier.fillMaxWidth()); OutlinedTextField(amount, { amount = it.filter(Char::isDigit) }, label = { Text("Total amount") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth()); OutlinedButton({ pickDate(startDate) { startDate = it } }, Modifier.fillMaxWidth()) { Icon(Icons.Default.CalendarMonth, null); Spacer(Modifier.width(6.dp)); Text("Start: $startDate") }; OutlinedButton({ pickDate(dueDate) { dueDate = it } }, Modifier.fillMaxWidth()) { Icon(Icons.Default.Event, null); Spacer(Modifier.width(6.dp)); Text("Due: $dueDate") }; OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button(onClick = { val number = amount.toIntOrNull() ?: 0; if (person.isNotBlank() && number > 0) onSave(LoanEntity(editing?.id ?: 0, loanType, person.trim(), number, startDate, dueDate, note.trim())) }) { Text("Save") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+}
+
+@Composable
+private fun LoanPaymentDialog(loan: LoanEntity, remaining: Int, onDismiss: () -> Unit, onSave: (LoanPaymentEntity) -> Unit) {
+    val context = LocalContext.current; var amount by remember { mutableStateOf(remaining.toString()) }; var date by remember { mutableStateOf(LocalDate.now().toString()) }; var note by remember { mutableStateOf("") }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Record payment") }, text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { Text("Remaining: ${money(remaining)}", color = Blue, fontWeight = FontWeight.Bold); OutlinedTextField(amount, { amount = it.filter(Char::isDigit) }, label = { Text("Payment amount") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth()); OutlinedButton(onClick = { val current = LocalDate.parse(date); DatePickerDialog(context, { _, y, m, d -> date = LocalDate.of(y, m + 1, d).toString() }, current.year, current.monthValue - 1, current.dayOfMonth).show() }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.CalendarMonth, null); Text(date) }; OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button(onClick = { val number = amount.toIntOrNull() ?: 0; if (number in 1..remaining) onSave(LoanPaymentEntity(loanId = loan.id, amount = number, date = date, note = note.trim())) }) { Text("Save payment") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }
 
 @Composable

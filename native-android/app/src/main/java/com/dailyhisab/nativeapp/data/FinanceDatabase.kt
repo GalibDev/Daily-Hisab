@@ -84,6 +84,26 @@ data class AppNotificationEntity(
     val isRead: Boolean = false
 )
 
+@Entity(tableName = "loans")
+data class LoanEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val type: String,
+    val person: String,
+    val amount: Int,
+    val startDate: String,
+    val dueDate: String,
+    val note: String = ""
+)
+
+@Entity(tableName = "loan_payments", indices = [Index(value = ["loanId"])])
+data class LoanPaymentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val loanId: Long,
+    val amount: Int,
+    val date: String,
+    val note: String = ""
+)
+
 @Dao
 interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
@@ -183,9 +203,24 @@ interface AppNotificationDao {
     suspend fun clearAll()
 }
 
+@Dao
+interface LoanDao {
+    @Query("SELECT * FROM loans ORDER BY dueDate ASC, id DESC")
+    fun observeAll(): Flow<List<LoanEntity>>
+    @Query("SELECT * FROM loan_payments ORDER BY date DESC, id DESC")
+    fun observePayments(): Flow<List<LoanPaymentEntity>>
+    @Insert suspend fun insert(item: LoanEntity)
+    @Update suspend fun update(item: LoanEntity)
+    @Delete suspend fun delete(item: LoanEntity)
+    @Insert suspend fun insertPayment(item: LoanPaymentEntity)
+    @Delete suspend fun deletePayment(item: LoanPaymentEntity)
+    @Query("DELETE FROM loan_payments WHERE loanId = :loanId")
+    suspend fun deletePaymentsForLoan(loanId: Long)
+}
+
 @Database(
-    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class, CategoryEntity::class, AppNotificationEntity::class],
-    version = 6,
+    entities = [TransactionEntity::class, RecurringEntity::class, ReminderEntity::class, NoteEntity::class, ReceiptEntity::class, CategoryEntity::class, AppNotificationEntity::class, LoanEntity::class, LoanPaymentEntity::class],
+    version = 7,
     exportSchema = false
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -196,6 +231,7 @@ abstract class FinanceDatabase : RoomDatabase() {
     abstract fun receiptDao(): ReceiptDao
     abstract fun categoryDao(): CategoryDao
     abstract fun appNotificationDao(): AppNotificationDao
+    abstract fun loanDao(): LoanDao
 
     companion object {
         @Volatile private var instance: FinanceDatabase? = null
@@ -206,7 +242,7 @@ abstract class FinanceDatabase : RoomDatabase() {
                     context.applicationContext,
                     FinanceDatabase::class.java,
                     "daily_hisab.db"
-                ).addMigrations(MIGRATION_4_5, MIGRATION_5_6).fallbackToDestructiveMigration().build().also { instance = it }
+                ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).fallbackToDestructiveMigration().build().also { instance = it }
             }
 
         private val MIGRATION_4_5 = object : Migration(4, 5) {
@@ -228,6 +264,14 @@ abstract class FinanceDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE notes ADD COLUMN colorIndex INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE notes ADD COLUMN template TEXT NOT NULL DEFAULT 'Blank'")
+            }
+        }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS loans (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, type TEXT NOT NULL, person TEXT NOT NULL, amount INTEGER NOT NULL, startDate TEXT NOT NULL, dueDate TEXT NOT NULL, note TEXT NOT NULL DEFAULT '')""")
+                db.execSQL("""CREATE TABLE IF NOT EXISTS loan_payments (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, loanId INTEGER NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '')""")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_payments_loanId ON loan_payments(loanId)")
             }
         }
     }
