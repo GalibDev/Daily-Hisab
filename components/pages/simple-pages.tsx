@@ -1357,28 +1357,6 @@ function ProfileMenuSection({
   );
 }
 
-export function ProfilePage() {
-  const { user, signOut } = useAuth();
-  return (
-    <AppShell>
-      <PageTitle title="Profile" subtitle="Your account and personal information" />
-      <div className="mx-auto grid max-w-2xl gap-5">
-        <Card className="overflow-hidden rounded-[22px] border-[#e5eafa] p-6 shadow-[0_16px_40px_rgba(20,35,90,0.07)]">
-          <div className="flex items-center gap-4">
-            <span className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-[#eef3ff] text-[#11298f]">
-              {user?.photoUrl ? <Image src={user.photoUrl} alt="Profile" width={80} height={80} className="size-full object-cover" unoptimized /> : <User size={42} />}
-            </span>
-            <div className="min-w-0 flex-1"><h2 className="truncate text-xl font-extrabold text-[#111936]">{user?.name || "Daily Hisab User"}</h2><p className="truncate text-sm font-semibold text-[#69718a]">{user?.email || "Local profile"}</p></div>
-          </div>
-          {user && <div className="mt-5 border-t border-[#edf0f7] pt-5"><ProfileImageUploader /></div>}
-        </Card>
-        <Link href="/settings" className="flex items-center gap-3 rounded-[18px] border border-[#e5eafa] bg-white p-4 shadow-[0_12px_30px_rgba(20,35,90,0.06)]"><span className="grid size-12 place-items-center rounded-xl bg-[#eef4ff] text-[#11298f]"><Wrench size={23} /></span><span className="min-w-0 flex-1"><strong className="block text-[#111936]">Settings</strong><small className="text-[#69718a]">Security, family access, theme, language, currency and home pet</small></span><ChevronRight size={20} className="text-[#8a92a7]" /></Link>
-        {user ? <button type="button" onClick={() => void signOut()} className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-[#fee2e2] bg-[#fff5f6] font-extrabold text-[#ef4444]"><LogOut size={19} /> Logout</button> : <Link href="/login" className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#11298f] font-extrabold text-white">Login</Link>}
-      </div>
-    </AppShell>
-  );
-}
-
 export function SettingsPage() {
   const { changePassword, sendPasswordReset, signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -1565,7 +1543,6 @@ export function SettingsPage() {
           <div className="flex items-center gap-3 px-5 py-4"><span className="grid size-10 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={20} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#111936]">Home Page Pet</strong><small className="text-[#69718a]">Configure color, size, behaviour and speed below</small></span><button type="button" role="switch" aria-checked={petEnabled} onClick={() => updatePetEnabled(!petEnabled)} className={`relative h-7 w-12 rounded-full transition ${petEnabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${petEnabled ? "left-6" : "left-1"}`} /></button></div>
         </div>
       </Card>
-      {showSecurity && (user ? <Card className="mb-5 rounded-[18px] border-[#dce8df] p-5"><form onSubmit={handlePasswordChange} className="grid gap-3"><div><h2 className="font-extrabold text-[#111936]">Security & Password</h2><p className="text-xs text-[#69718a]">Change your password or request a secure reset link.</p></div><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><div className="flex flex-wrap gap-2"><Button type="submit" disabled={securityBusy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || securityBusy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></div></form></Card> : <Card className="mb-5 flex items-center justify-between rounded-[18px] p-5"><span className="text-sm font-semibold text-[#59627a]">Login to manage password and account security.</span><Link href="/login"><Button>Login</Button></Link></Card>)}
       <Card className="mb-5 rounded-[18px] border-[#e6eafa] p-4 shadow-[0_10px_28px_rgba(20,35,90,0.05)]">
         <div className="flex items-center gap-3">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={22} /></span>
@@ -1574,7 +1551,7 @@ export function SettingsPage() {
         </div>
         {petEnabled && <div className="mt-4 grid gap-4 border-t border-[#edf0f7] pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat color</span><div className="flex flex-wrap rounded-xl bg-[#f1f3f8] p-1">{(["brown", "default", "black", "white"] as const).map((color) => <button key={color} type="button" onClick={() => updatePetColor(color)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petColor === color ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{color}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat size</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["small", "medium", "large"] as const).map((size) => <button key={size} type="button" onClick={() => updatePetSize(size)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petSize === size ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{size}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Behaviour</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["automatic", "default", "sit"] as const).map((mode) => <button key={mode} type="button" onClick={() => updatePetMode(mode)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petMode === mode ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{mode}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Walk speed</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["slow", "normal", "fast"] as const).map((speed) => <button key={speed} type="button" onClick={() => updatePetSpeed(speed)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petSpeed === speed ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{speed}</button>)}</div></div></div>}
       </Card>
-      <div className="hidden">
+      <div className="grid gap-5 md:hidden">
         <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
           <div className="flex items-center gap-4">
             <input ref={mobileProfileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void handleMobileProfileImage(event.target.files?.[0])} />
@@ -1637,7 +1614,7 @@ export function SettingsPage() {
           <Link href="/login" className="flex h-14 items-center justify-center gap-3 rounded-2xl border border-[#dbe4ff] bg-[#f5f7ff] text-sm font-extrabold text-[#11298f]"><LogOut size={20} /> Login</Link>
         )}
       </div>
-      <div className="hidden">
+      <div className="hidden gap-5 md:grid lg:grid-cols-2">
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
             <span className="font-semibold">Profile: {user?.name ?? user?.email ?? "Guest User"}</span>

@@ -104,8 +104,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/hero-management": "Hero Management",
     "/loans": "Loans & Dues",
     "/reports": "Reports",
-    "/profile": "Profile",
-    "/settings": "Settings",
+    "/settings": "Profile",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
@@ -440,7 +439,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           { href: "/reports", label: "Reports", icon: BarChart3 },
           { href: "/add-expense", label: "Add", icon: Plus, primary: true },
           { href: "/calendar", label: "Calendar", icon: CalendarDays },
-          { href: "/profile", label: "Profile", icon: User },
+          { href: "/settings", label: "Profile", icon: User },
         ].map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
