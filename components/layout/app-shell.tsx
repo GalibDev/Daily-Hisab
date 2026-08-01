@@ -80,6 +80,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [syncIndicatorVisible, setSyncIndicatorVisible] = useState(true);
   const [pwaInstall, setPwaInstall] = useState({ available: false, ios: false });
   const [localProfileName, setLocalProfileName] = useState(() => typeof window === "undefined" ? "Guest User" : window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
@@ -133,6 +134,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   }, [mobileMenuOpen]);
 
   useEffect(() => {
+    setSyncIndicatorVisible(true);
+    if (syncStatus === "loading" || syncStatus === "saving") return;
+    const timer = window.setTimeout(() => setSyncIndicatorVisible(false), syncStatus === "error" || syncStatus === "offline" ? 4200 : 2600);
+    return () => window.clearTimeout(timer);
+  }, [syncStatus]);
+
+  useEffect(() => {
     function handlePwaStatus(event: Event) {
       const detail = (event as CustomEvent<{ available: boolean; ios: boolean }>).detail;
       if (detail) setPwaInstall(detail);
@@ -184,7 +192,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
   return (
     <div className="min-h-screen bg-[#F8F7FF] text-[#171424]">
-      <div title={syncError ?? syncUi.label} className={cn("fixed right-3 top-[76px] z-[75] flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-extrabold shadow-sm ring-1 ring-black/5 lg:right-7 lg:top-[86px]", syncUi.tone)}>
+      <div title={syncError ?? syncUi.label} aria-live="polite" className={cn("fixed right-3 top-[76px] z-[75] flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-extrabold shadow-sm ring-1 ring-black/5 transition-all duration-300 lg:right-7 lg:top-[86px]", syncUi.tone, syncIndicatorVisible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0")}>
         <SyncIcon size={14} className={syncUi.spin ? "animate-spin" : ""} />
         <span>{syncUi.label}</span>
       </div>
