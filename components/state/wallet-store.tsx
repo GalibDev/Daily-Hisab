@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
 import { getTodayIso } from "@/lib/utils";
 import type { WalletSource } from "@/types";
-import { loadCloudWallet, saveCloudWallet } from "@/lib/firebase/user-data";
+import { loadCloudWallet, saveCloudWallet, validWalletDeposits } from "@/lib/firebase/user-data";
 
 type WalletDeposit = { id: number; wallet: WalletSource; amount: number; note: string; date: string };
 type WalletStore = {
@@ -43,7 +43,7 @@ export function WalletProvider({ children }: Readonly<{ children: React.ReactNod
     queueMicrotask(() => {
       try {
         const saved = window.localStorage.getItem(`${STORAGE_KEY}.${owner}`);
-        setDeposits(saved ? JSON.parse(saved) as WalletDeposit[] : []);
+        setDeposits(saved ? validWalletDeposits(JSON.parse(saved)) : []);
         const savedSettings = window.localStorage.getItem(`${SETTINGS_STORAGE_KEY}.${owner}`);
         setWalletSettings(savedSettings ? JSON.parse(savedSettings) as { personal: boolean; family: boolean } : { personal: true, family: false });
       } catch {

@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
-import { loadCloudLoans, saveCloudLoans } from "@/lib/firebase/user-data";
+import { loadCloudLoans, saveCloudLoans, validLoans } from "@/lib/firebase/user-data";
 import type { Loan } from "@/types";
 
 type LoanInput = Omit<Loan, "id" | "payments">;
@@ -29,7 +29,7 @@ export function LoanProvider({ children }: Readonly<{ children: React.ReactNode 
 
   useEffect(() => {
     queueMicrotask(() => {
-      try { setLoans(JSON.parse(localStorage.getItem(`${STORAGE_KEY}.${owner}`) || "[]") as Loan[]); }
+      try { setLoans(validLoans(JSON.parse(localStorage.getItem(`${STORAGE_KEY}.${owner}`) || "[]"))); }
       catch { setLoans([]); }
       setActiveOwner(owner);
     });

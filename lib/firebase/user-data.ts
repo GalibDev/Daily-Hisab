@@ -17,6 +17,47 @@ export type CloudWalletData = {
 
 export type CloudLoanData = { loans: Loan[] };
 
+export function validWalletDeposits(value: unknown): CloudWalletData["deposits"] {
+  return records<Record<string, unknown>>(value).flatMap((item) => {
+    const amount = Number(item.amount);
+    if (!Number.isFinite(amount) || amount < 0) return [];
+    return [{
+      id: typeof item.id === "number" ? item.id : Date.now() + Math.random(),
+      wallet: item.wallet === "family" ? "family" as const : "personal" as const,
+      amount,
+      note: typeof item.note === "string" ? item.note : "",
+      date: typeof item.date === "string" && item.date.length >= 10 ? item.date : new Date().toISOString(),
+    }];
+  });
+}
+
+export function validLoans(value: unknown): Loan[] {
+  return records<Record<string, unknown>>(value).flatMap((item) => {
+    const amount = Number(item.amount);
+    if (typeof item.id !== "number" || !Number.isFinite(amount) || amount <= 0 || typeof item.person !== "string") return [];
+    const payments = records<Record<string, unknown>>(item.payments).flatMap((payment) => {
+      const paidAmount = Number(payment.amount);
+      if (!Number.isFinite(paidAmount) || paidAmount <= 0) return [];
+      return [{
+        id: typeof payment.id === "number" ? payment.id : Date.now() + Math.random(),
+        amount: paidAmount,
+        date: typeof payment.date === "string" ? payment.date : new Date().toISOString().slice(0, 10),
+        note: typeof payment.note === "string" ? payment.note : undefined,
+      }];
+    });
+    return [{
+      id: item.id,
+      type: item.type === "lent" ? "lent" as const : "borrowed" as const,
+      person: item.person,
+      amount,
+      startDate: typeof item.startDate === "string" ? item.startDate : new Date().toISOString().slice(0, 10),
+      dueDate: typeof item.dueDate === "string" ? item.dueDate : new Date().toISOString().slice(0, 10),
+      note: typeof item.note === "string" ? item.note : undefined,
+      payments,
+    }];
+  });
+}
+
 function userDataRef(userId: string, name: "finance" | "wallet" | "loans") {
   if (!firebaseDatabase) throw new Error("Realtime Database is not configured");
   return ref(firebaseDatabase, `users/${userId}/appData/${name}`);
@@ -77,8 +118,11 @@ export async function loadCloudWallet(userId: string): Promise<CloudWalletData |
   if (!snapshot.exists()) return null;
   const data = snapshot.val() as Partial<CloudWalletData>;
   return {
-    deposits: Array.isArray(data.deposits) ? data.deposits : [],
-    settings: data.settings ?? { personal: true, family: false },
+    deposits: validWalletDeposits(data.deposits),
+    settings: {
+      personal: typeof data.settings?.personal === "boolean" ? data.settings.personal : true,
+      family: typeof data.settings?.family === "boolean" ? data.settings.family : false,
+    },
   };
 }
 
@@ -90,7 +134,7 @@ export async function loadCloudLoans(userId: string): Promise<CloudLoanData | nu
   const snapshot = await get(userDataRef(userId, "loans"));
   if (!snapshot.exists()) return null;
   const data = snapshot.val() as Partial<CloudLoanData>;
-  return { loans: Array.isArray(data.loans) ? data.loans : [] };
+  return { loans: validLoans(data.loans) };
 }
 
 export async function saveCloudLoans(userId: string, data: CloudLoanData) {
