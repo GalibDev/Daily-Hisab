@@ -22,16 +22,49 @@ function userDataRef(userId: string, name: "finance" | "wallet" | "loans") {
   return ref(firebaseDatabase, `users/${userId}/appData/${name}`);
 }
 
+function records<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value.filter((item): item is T => Boolean(item) && typeof item === "object") : [];
+}
+
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+export function validEntries(value: unknown): Entry[] {
+  return records<Record<string, unknown>>(value).filter((item) =>
+    typeof item.id === "number" &&
+    typeof item.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.date) &&
+    typeof item.category === "string" &&
+    typeof item.amount === "number" && Number.isFinite(item.amount) && item.amount >= 0 &&
+    (item.type === "expense" || item.type === "income"),
+  ) as Entry[];
+}
+
+export function validRecurringExpenses(value: unknown): RecurringExpense[] {
+  return records<Record<string, unknown>>(value).filter((item) =>
+    typeof item.id === "number" && typeof item.title === "string" &&
+    typeof item.amount === "number" && Number.isFinite(item.amount) &&
+    typeof item.nextDueDate === "string",
+  ) as RecurringExpense[];
+}
+
+export function validReminders(value: unknown): Reminder[] {
+  return records<Record<string, unknown>>(value).filter((item) =>
+    typeof item.id === "number" && typeof item.title === "string" &&
+    typeof item.date === "string" && typeof item.time === "string",
+  ) as Reminder[];
+}
+
 export async function loadCloudFinance(userId: string): Promise<CloudFinanceData | null> {
   const snapshot = await get(userDataRef(userId, "finance"));
   if (!snapshot.exists()) return null;
   const data = snapshot.val() as Partial<CloudFinanceData>;
   return {
-    entries: Array.isArray(data.entries) ? data.entries : [],
-    categories: Array.isArray(data.categories) ? data.categories : [],
-    hiddenSummaryDates: Array.isArray(data.hiddenSummaryDates) ? data.hiddenSummaryDates : [],
-    recurringExpenses: Array.isArray(data.recurringExpenses) ? data.recurringExpenses : [],
-    reminders: Array.isArray(data.reminders) ? data.reminders : [],
+    entries: validEntries(data.entries),
+    categories: strings(data.categories),
+    hiddenSummaryDates: strings(data.hiddenSummaryDates),
+    recurringExpenses: validRecurringExpenses(data.recurringExpenses),
+    reminders: validReminders(data.reminders),
   };
 }
 

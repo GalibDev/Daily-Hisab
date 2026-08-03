@@ -25,7 +25,7 @@ import {
   type EntryInput,
 } from "@/lib/supabase/finance";
 import type { Entry, RecurringExpense, Reminder } from "@/types";
-import { loadCloudFinance, saveCloudFinance } from "@/lib/firebase/user-data";
+import { loadCloudFinance, saveCloudFinance, validEntries, validRecurringExpenses, validReminders } from "@/lib/firebase/user-data";
 
 const STORAGE_KEY = "daily-hisab.entries.v1";
 const CATEGORY_STORAGE_KEY = "daily-hisab.categories.v1";
@@ -101,6 +101,26 @@ function getScopedItem(ownerId: string, key: string) {
   return window.localStorage.getItem(scopedStorageKey(ownerId, key));
 }
 
+function parseStoredArray<T>(saved: string | null): T[] {
+  if (!saved) return [];
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed.filter((item): item is T => Boolean(item) && typeof item === "object") : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseStoredStrings(saved: string | null): string[] {
+  if (!saved) return [];
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
 function mergeItemsById<T extends { id: number }>(cloud: T[], local: T[]) {
   const merged = new Map<number, T>();
   cloud.forEach((item) => merged.set(item.id, item));
@@ -168,32 +188,32 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       try {
         const saved = getScopedItem(ownerId, STORAGE_KEY);
         if (saved) {
-          const parsedEntries = JSON.parse(saved) as Entry[];
+          const parsedEntries = validEntries(parseStoredArray<unknown>(saved));
           setEntries(isLegacyDemoEntries(parsedEntries) ? [] : moveDemoEntriesToToday(parsedEntries));
         } else {
           setEntries([]);
         }
         const savedCategories = getScopedItem(ownerId, CATEGORY_STORAGE_KEY);
         if (savedCategories) {
-          const parsedCategories = JSON.parse(savedCategories) as string[];
+          const parsedCategories = parseStoredStrings(savedCategories);
           const hasValidCategories = parsedCategories.length > 0 && !parsedCategories.some((category) => category.includes("Ã "));
           setCategories(hasValidCategories ? parsedCategories : initialCategories);
         } else {
           setCategories(initialCategories);
         }
         const savedHiddenSummaryDates = getScopedItem(ownerId, SUMMARY_STORAGE_KEY);
-        setHiddenSummaryDates(savedHiddenSummaryDates ? (JSON.parse(savedHiddenSummaryDates) as string[]) : []);
+        setHiddenSummaryDates(parseStoredStrings(savedHiddenSummaryDates));
 
         const savedRecurringExpenses = getScopedItem(ownerId, RECURRING_STORAGE_KEY);
         if (savedRecurringExpenses) {
-          const parsedRecurringExpenses = JSON.parse(savedRecurringExpenses) as RecurringExpense[];
+          const parsedRecurringExpenses = validRecurringExpenses(parseStoredArray<unknown>(savedRecurringExpenses));
           setRecurringExpenses(isLegacyDemoList(parsedRecurringExpenses, [1, 2, 3]) ? [] : parsedRecurringExpenses);
         } else {
           setRecurringExpenses([]);
         }
         const savedReminders = getScopedItem(ownerId, REMINDER_STORAGE_KEY);
         if (savedReminders) {
-          const parsedReminders = JSON.parse(savedReminders) as Reminder[];
+          const parsedReminders = validReminders(parseStoredArray<unknown>(savedReminders));
           setReminders(isLegacyDemoList(parsedReminders, [1, 2, 3]) ? [] : parsedReminders);
         } else {
           setReminders([]);
