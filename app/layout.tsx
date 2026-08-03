@@ -23,6 +23,15 @@ export const metadata: Metadata = {
   publisher: "Daily Hisab",
   category: "Finance",
   keywords: ["Daily Hisab", "দৈনিক হিসাব", "খরচের হিসাব", "আয় ব্যয় হিসাব", "expense tracker Bangladesh", "Bangla expense tracker", "personal finance app", "budget tracker"],
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/daily-hisab-logo-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   formatDetection: { email: false, address: false, telephone: false },
   openGraph: {
     type: "website",
@@ -72,7 +81,7 @@ export default function RootLayout({
         "@id": "https://dailyhisab.xyz/#organization",
         name: "Daily Hisab",
         url: "https://dailyhisab.xyz/",
-        logo: "https://dailyhisab.xyz/icon.svg",
+        logo: "https://dailyhisab.xyz/daily-hisab-logo-512.png",
       },
       {
         "@type": ["SoftwareApplication", "WebApplication"],
