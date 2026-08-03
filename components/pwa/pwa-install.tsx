@@ -13,7 +13,7 @@ export function PwaInstall() {
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js");
+      void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then((registration) => registration.update());
     }
 
     const standalone = window.matchMedia("(display-mode: standalone)").matches;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-hisab-v1";
+const CACHE_NAME = "daily-hisab-v2";
 const APP_SHELL = ["/", "/login", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -22,28 +22,28 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
           return response;
         })
-        .catch(async () => (await caches.match(event.request)) || (await caches.match("/"))),
+        .catch(async () => (await caches.match(event.request, { ignoreSearch: true })) || (await caches.match("/")) || Response.error()),
     );
     return;
   }
 
   if (["style", "script", "image", "font"].includes(event.request.destination)) {
     event.respondWith(
-      caches.match(event.request).then(
-        (cached) =>
-          cached ||
-          fetch(event.request).then((response) => {
-            if (response.ok) {
-              const copy = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-            }
-            return response;
-          }),
-      ),
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(async () => (await caches.match(event.request)) || Response.error()),
     );
   }
 });
