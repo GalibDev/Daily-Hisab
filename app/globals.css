@@ -154,6 +154,12 @@ html.dark textarea {
     box-shadow: 0 12px 28px rgba(14, 116, 144, .12);
   }
 
+  .ui-theme-aurora .profile-status-item {
+    border: 1px solid rgba(255, 255, 255, .94);
+    background: rgba(255, 255, 255, .72) !important;
+    box-shadow: 0 12px 30px rgba(24, 102, 132, .08);
+  }
+
   .ui-theme-aurora .profile-premium-card,
   .ui-theme-aurora .profile-menu-card {
     border-color: rgba(255, 255, 255, .92) !important;

@@ -39,6 +39,7 @@ const BUDGET_TARGET_STORAGE_KEY = "daily-hisab.budget-target.v1";
 const PAYMENT_METHOD_STORAGE_KEY = "daily-hisab.default-payment-method.v1";
 const LANGUAGE_STORAGE_KEY = "daily-hisab.language.v1";
 const CURRENCY_STORAGE_KEY = "daily-hisab.currency.v1";
+const PROFILE_STATUS_VISIBLE_KEY = "daily-hisab.profile-status-visible.v1";
 type AppLanguage = "default" | "bangla" | "english";
 type AppCurrency = "BDT" | "USD";
 
@@ -1404,6 +1405,34 @@ export function ProfileSettingsPage() {
   return <AppShell><PageTitle title="Settings" subtitle="Security, backup, family and pet management" /><div className="mx-auto grid max-w-2xl gap-5"><ProfileMenuSection title="Settings" items={items} />{showSecurity && (user ? <Card className="rounded-[18px] p-5"><form onSubmit={submitPassword} className="grid gap-3"><h2 className="font-extrabold text-[#111936]">Security & Password</h2><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><Button type="submit" disabled={busy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || busy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></form></Card> : <Card className="rounded-[18px] p-5"><p className="mb-3 text-sm text-[#69718a]">Login to manage account security.</p><Link href="/login"><Button>Login</Button></Link></Card>)}</div></AppShell>;
 }
 
+export function ProfileDetailsPage() {
+  const { updateDisplayName, user } = useAuth();
+  const { notify } = useToast();
+  const [localName, setLocalName] = useState("Guest User");
+
+  useEffect(() => {
+    setLocalName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
+  }, []);
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = String(new FormData(event.currentTarget).get("name") || "").trim();
+    if (!name) return;
+    try {
+      if (user) await updateDisplayName(name);
+      else {
+        window.localStorage.setItem("daily-hisab.local-profile-name", name);
+        setLocalName(name);
+      }
+      notify("Profile details updated", "success");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Profile update failed", "danger");
+    }
+  }
+
+  return <AppShell><PageTitle title="Profile Details" subtitle="View and update your personal information" /><Card className="mx-auto max-w-2xl rounded-[24px] border-white/80 bg-white/80 p-5 shadow-[0_20px_50px_rgba(29,98,124,0.10)] backdrop-blur-xl sm:p-7"><div className="mb-6 flex flex-col items-center gap-3 text-center"><ProfileImageUploader /><div><h2 className="text-xl font-extrabold text-[#111936]">{user?.name || localName}</h2><p className="mt-1 text-sm font-semibold text-[#69718a]">{user?.email || "Local profile"}</p></div></div><form onSubmit={saveProfile} className="grid gap-4"><Field label="Name"><input name="name" className={inputClass} defaultValue={user?.name || localName} required /></Field><Field label="Email"><input className={inputClass} value={user?.email || "Local profile"} disabled readOnly /></Field><Button type="submit">Save Changes</Button></form></Card></AppShell>;
+}
+
 export function PetManagementPage() {
   const [enabled, setEnabled] = useState(false);
   const [color, setColor] = useState<PetColor>("default");
@@ -1599,6 +1628,7 @@ export function SettingsPage() {
   const [petSize, setPetSize] = useState<PetSize>("medium");
   const [petMode, setPetMode] = useState<PetMode>("default");
   const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
+  const [statusVisible, setStatusVisible] = useState(true);
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -1608,7 +1638,7 @@ export function SettingsPage() {
   const profilePhoto = user?.photoUrl ?? localProfilePhoto;
   const profileEmail = user?.email ?? "Login to sync your data";
   const accountItems = [
-    { onClick: () => setShowPersonalInfo((open) => !open), icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { href: "/profile-details", icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/hero-management", icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/ai-helper", icon: <MessageCircle size={20} />, label: "AI Helper", tone: "bg-[#eafbf0] text-[#16a34a]" },
@@ -1634,6 +1664,7 @@ export function SettingsPage() {
       const savedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
       setLanguagePreference((savedLanguage === "bangla" || savedLanguage === "english" ? savedLanguage : "default") as AppLanguage);
       setCurrencyPreference(window.localStorage.getItem(CURRENCY_STORAGE_KEY) === "USD" ? "USD" : "BDT");
+      setStatusVisible(window.localStorage.getItem(PROFILE_STATUS_VISIBLE_KEY) !== "0");
       setPetEnabled(window.localStorage.getItem(PET_ENABLED_KEY) === "1");
       const savedPetColor = window.localStorage.getItem(PET_COLOR_KEY);
       setPetColor((["brown", "default", "black", "white"].includes(savedPetColor || "") ? savedPetColor : "default") as PetColor);
@@ -1645,6 +1676,12 @@ export function SettingsPage() {
       setPetSpeed((["slow", "normal", "fast"].includes(savedPetSpeed || "") ? savedPetSpeed : "normal") as PetSpeed);
     });
   }, []);
+
+  function toggleProfileStatus() {
+    const next = !statusVisible;
+    setStatusVisible(next);
+    window.localStorage.setItem(PROFILE_STATUS_VISIBLE_KEY, next ? "1" : "0");
+  }
 
   function updatePetEnabled(enabled: boolean) {
     setPetEnabled(enabled);
@@ -1756,30 +1793,31 @@ export function SettingsPage() {
             <button type="button" disabled={mobileProfileUploading} onClick={() => mobileProfileInputRef.current?.click()} className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb] disabled:opacity-70" aria-label="Upload profile image">
               {profilePhoto ? <Image src={profilePhoto} alt="Profile" width={96} height={96} className="size-full object-cover" unoptimized /> : <User size={56} fill="currentColor" strokeWidth={1.5} />}
             </button>
-            <div className="min-w-0 flex-1">
+            <Link href="/profile-details" className="min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">
               <h2 className="truncate text-[22px] font-extrabold leading-7">{profileName}</h2>
               <p className="mt-1 truncate text-sm font-semibold text-white/82">{profileEmail}</p>
               <span className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#422d77]/55 px-3 py-2 text-xs font-extrabold text-[#ffb347]"><Crown size={16} fill="currentColor" /> {syncEnabled ? "Premium User" : "Local User"}</span>
-            </div>
-            <ChevronRight size={24} />
+            </Link>
+            <Link href="/profile-details" aria-label="Open profile details" className="grid size-10 place-items-center rounded-full"><ChevronRight size={24} /></Link>
           </div>
-          <div className="mt-6 grid grid-cols-3 border-t border-white/15 pt-5 text-center">
-            <div>
+          <div className="mt-5 flex justify-end"><button type="button" onClick={toggleProfileStatus} className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white">{statusVisible ? "Hide status" : "Show status"}</button></div>
+          {statusVisible && <div className="profile-status-grid mt-4 grid grid-cols-3 gap-3 text-center">
+            <div className="profile-status-item rounded-2xl bg-white/10 px-2 py-4">
               <p className="text-xs font-semibold text-white/78">Total Expense</p>
               <strong className="mt-2 block text-xl font-extrabold">{takaShort(totalExpense)}</strong>
               <span className="mt-1 block text-xs text-white/78">This Month</span>
             </div>
-            <div className="border-x border-white/15 px-2">
+            <div className="profile-status-item rounded-2xl bg-white/10 px-2 py-4">
               <p className="text-xs font-semibold text-white/78">Daily Average</p>
               <strong className="mt-2 block text-xl font-extrabold">{takaShort(dailyAverage)}</strong>
               <span className="mt-1 block text-xs text-white/78">This Month</span>
             </div>
-            <div>
+            <div className="profile-status-item rounded-2xl bg-white/10 px-2 py-4">
               <p className="text-xs font-semibold text-white/78">Total Days</p>
               <strong className="mt-2 block text-xl font-extrabold">{daysWithExpense} Days</strong>
               <span className="mt-1 block text-xs text-white/78">Expenses Added</span>
             </div>
-          </div>
+          </div>}
         </section>
 
         <Card className="profile-premium-card grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
