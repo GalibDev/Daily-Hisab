@@ -38,8 +38,11 @@ const BUDGET_TARGET_STORAGE_KEY = "daily-hisab.budget-target.v1";
 const PAYMENT_METHOD_STORAGE_KEY = "daily-hisab.default-payment-method.v1";
 const LANGUAGE_STORAGE_KEY = "daily-hisab.language.v1";
 const CURRENCY_STORAGE_KEY = "daily-hisab.currency.v1";
+const ICON_STYLE_STORAGE_KEY = "daily-hisab.icon-style.v1";
+const ICON_STYLE_EVENT = "daily-hisab:icon-style-change";
 type AppLanguage = "default" | "bangla" | "english";
 type AppCurrency = "BDT" | "USD";
+type IconStyle = "minimal" | "duotone" | "brand";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry, categories } = useFinance();
@@ -1341,6 +1344,19 @@ function ProfileMenuSection({
   items: { href?: string; external?: boolean; icon: React.ReactNode; label: string; meta?: string; onClick?: () => void; tone: string }[];
   title: string;
 }>) {
+  const [iconStyle, setIconStyle] = useState<IconStyle>(() => {
+    if (typeof window === "undefined") return "duotone";
+    const saved = window.localStorage.getItem(ICON_STYLE_STORAGE_KEY);
+    return saved === "minimal" || saved === "brand" ? saved : "duotone";
+  });
+  useEffect(() => {
+    const update = () => {
+      const saved = window.localStorage.getItem(ICON_STYLE_STORAGE_KEY);
+      setIconStyle(saved === "minimal" || saved === "brand" ? saved : "duotone");
+    };
+    window.addEventListener(ICON_STYLE_EVENT, update);
+    return () => window.removeEventListener(ICON_STYLE_EVENT, update);
+  }, []);
   return (
     <section>
       <h2 className="mb-3 px-1 text-base font-extrabold text-[#111936]">{title}</h2>
@@ -1348,7 +1364,7 @@ function ProfileMenuSection({
         {items.map((item) => {
           const content = (
             <>
-              <span className={`grid size-11 shrink-0 place-items-center rounded-2xl ${item.tone}`}>{item.icon}</span>
+              <span className={`grid size-11 shrink-0 place-items-center rounded-2xl transition ${iconStyle === "minimal" ? "bg-transparent text-[#11298f]" : iconStyle === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : item.tone}`}>{item.icon}</span>
               <span className="min-w-0 flex-1 text-sm font-extrabold text-[#111936]">{item.label}</span>
               {item.meta && <span className="text-sm font-semibold text-[#59627a]">{item.meta}</span>}
               <ChevronRight size={18} className="text-[#7b8499]" />
@@ -1390,6 +1406,7 @@ export function ProfileSettingsPage() {
     { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/family-access", icon: <UsersRound size={20} />, label: "Family Access", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/pet-management", icon: <PawPrint size={20} />, label: "Pet Management", tone: "bg-[#fff2e8] text-[#f97316]" },
+    { href: "/personalization", icon: <Palette size={20} />, label: "Personalization", tone: "bg-[#eef4ff] text-[#11298f]" },
   ];
   return <AppShell><PageTitle title="Settings" subtitle="Security, backup, family and pet management" /><div className="mx-auto grid max-w-2xl gap-5"><ProfileMenuSection title="Settings" items={items} />{showSecurity && (user ? <Card className="rounded-[18px] p-5"><form onSubmit={submitPassword} className="grid gap-3"><h2 className="font-extrabold text-[#111936]">Security & Password</h2><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><Button type="submit" disabled={busy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || busy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></form></Card> : <Card className="rounded-[18px] p-5"><p className="mb-3 text-sm text-[#69718a]">Login to manage account security.</p><Link href="/login"><Button>Login</Button></Link></Card>)}</div></AppShell>;
 }
@@ -1496,6 +1513,28 @@ export function PremiumPlanPage() {
       </div>
     </AppShell>
   );
+}
+
+export function PersonalizationPage() {
+  const { notify } = useToast();
+  const [iconStyle, setIconStyle] = useState<IconStyle>(() => {
+    if (typeof window === "undefined") return "duotone";
+    const saved = window.localStorage.getItem(ICON_STYLE_STORAGE_KEY);
+    return saved === "minimal" || saved === "brand" ? saved : "duotone";
+  });
+  const options: Array<{ value: IconStyle; title: string; subtitle: string }> = [
+    { value: "minimal", title: "Minimal Outline", subtitle: "Clean icons without background containers" },
+    { value: "duotone", title: "Soft Duotone", subtitle: "Friendly icons with subtle color backgrounds" },
+    { value: "brand", title: "Brand Filled", subtitle: "Bold Daily Hisab blue icon containers" },
+  ];
+  const samples = [Bell, Languages, BadgeDollarSign, Mail];
+  function choose(value: IconStyle) {
+    setIconStyle(value);
+    window.localStorage.setItem(ICON_STYLE_STORAGE_KEY, value);
+    window.dispatchEvent(new Event(ICON_STYLE_EVENT));
+    notify(`${options.find((option) => option.value === value)?.title} icons selected`, "success");
+  }
+  return <AppShell><PageTitle title="Personalization" subtitle="Choose the icon style that feels best to you" /><div className="mx-auto grid max-w-3xl gap-4">{options.map((option) => { const active = iconStyle === option.value; return <button key={option.value} type="button" onClick={() => choose(option.value)} className={`rounded-[22px] border p-5 text-left transition ${active ? "border-[#8da2f4] bg-[#f3f6ff] shadow-[0_12px_32px_rgba(17,41,143,0.12)]" : "border-[#e7ebf4] bg-white"}`}><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><h2 className="text-base font-extrabold text-[#111936]">{option.title}</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">{option.subtitle}</p></div><CheckCircle2 size={23} className={active ? "text-[#11298f]" : "text-[#cbd1df]"} /></div><div className="mt-4 flex gap-3">{samples.map((SampleIcon, index) => <span key={index} className={`grid size-12 place-items-center rounded-2xl ${option.value === "minimal" ? "bg-transparent text-[#11298f]" : option.value === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : "bg-[#eaf0ff] text-[#2446b8]"}`}><SampleIcon size={22} strokeWidth={option.value === "brand" ? 2.3 : 1.8} /></span>)}</div></button>; })}</div></AppShell>;
 }
 
 export function LanguageSettingsPage() {
