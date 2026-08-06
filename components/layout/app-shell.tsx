@@ -118,6 +118,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/contact": "Contact Us",
     "/about": "About Daily Hisab",
     "/personalization": "Personalization",
+    "/privacy-policy": "Privacy Policy",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
@@ -203,7 +204,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       items: [
         { href: "/settings", icon: HelpCircle, label: "Help Center", tone: "text-[#7c3aed]" },
         { href: "/settings", icon: Star, label: "Rate App", tone: "text-[#f59e0b]" },
-        { href: "/settings", icon: Shield, label: "Privacy Policy", tone: "text-[#2563eb]" },
+        { href: "/privacy-policy", icon: Shield, label: "Privacy Policy", tone: "text-[#2563eb]" },
       ],
       title: "SUPPORT & MORE",
     },
@@ -444,7 +445,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                   Login
                 </Link>
               )}
-              <p className="mt-8 text-center text-sm font-semibold text-[#59627a]">Version 1.0.0</p>
+              <p className="mt-8 text-center text-sm font-semibold text-[#59627a]">Version 7.0</p>
             </div>
           </aside>
         </div>
