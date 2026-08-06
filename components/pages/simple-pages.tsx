@@ -30,6 +30,7 @@ import {
   type SummaryRow,
 } from "@/lib/finance";
 import { displayDate, getTodayIso, taka, takaShort } from "@/lib/utils";
+import { getStoredIconStyle, getStoredUiTheme, ICON_STYLE_EVENT, ICON_STYLE_STORAGE_KEY, UI_THEME_EVENT, UI_THEME_STORAGE_KEY, type IconStyle, type UiTheme } from "@/lib/personalization";
 import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from "@/types";
 
 type EntryFormMode = "expense" | "income";
@@ -38,11 +39,8 @@ const BUDGET_TARGET_STORAGE_KEY = "daily-hisab.budget-target.v1";
 const PAYMENT_METHOD_STORAGE_KEY = "daily-hisab.default-payment-method.v1";
 const LANGUAGE_STORAGE_KEY = "daily-hisab.language.v1";
 const CURRENCY_STORAGE_KEY = "daily-hisab.currency.v1";
-const ICON_STYLE_STORAGE_KEY = "daily-hisab.icon-style.v1";
-const ICON_STYLE_EVENT = "daily-hisab:icon-style-change";
 type AppLanguage = "default" | "bangla" | "english";
 type AppCurrency = "BDT" | "USD";
-type IconStyle = "minimal" | "duotone" | "brand";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry, categories } = useFinance();
@@ -1344,34 +1342,29 @@ function ProfileMenuSection({
   items: { href?: string; external?: boolean; icon: React.ReactNode; label: string; meta?: string; onClick?: () => void; tone: string }[];
   title: string;
 }>) {
-  const [iconStyle, setIconStyle] = useState<IconStyle>(() => {
-    if (typeof window === "undefined") return "duotone";
-    const saved = window.localStorage.getItem(ICON_STYLE_STORAGE_KEY);
-    return saved === "minimal" || saved === "brand" ? saved : "duotone";
-  });
+  const [iconStyle, setIconStyle] = useState<IconStyle>(getStoredIconStyle);
   useEffect(() => {
     const update = () => {
-      const saved = window.localStorage.getItem(ICON_STYLE_STORAGE_KEY);
-      setIconStyle(saved === "minimal" || saved === "brand" ? saved : "duotone");
+      setIconStyle(getStoredIconStyle());
     };
     window.addEventListener(ICON_STYLE_EVENT, update);
     return () => window.removeEventListener(ICON_STYLE_EVENT, update);
   }, []);
   return (
-    <section>
+    <section className="profile-menu-section">
       <h2 className="mb-3 px-1 text-base font-extrabold text-[#111936]">{title}</h2>
-      <Card className="overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+      <Card className="profile-menu-card overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         {items.map((item) => {
           const content = (
             <>
-              <span className={`grid size-11 shrink-0 place-items-center rounded-2xl transition ${iconStyle === "minimal" ? "bg-transparent text-[#11298f]" : iconStyle === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : item.tone}`}>{item.icon}</span>
+              <span className={`profile-menu-icon grid size-11 shrink-0 place-items-center rounded-2xl transition ${iconStyle === "minimal" ? "bg-transparent text-[#11298f]" : iconStyle === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : item.tone}`}>{item.icon}</span>
               <span className="min-w-0 flex-1 text-sm font-extrabold text-[#111936]">{item.label}</span>
               {item.meta && <span className="text-sm font-semibold text-[#59627a]">{item.meta}</span>}
               <ChevronRight size={18} className="text-[#7b8499]" />
             </>
           );
 
-          const className = "flex w-full items-center gap-3 border-b border-[#eef0f8] px-4 py-3.5 text-left last:border-b-0";
+          const className = "profile-menu-row flex w-full items-center gap-3 border-b border-[#eef0f8] px-4 py-3.5 text-left last:border-b-0";
 
           if (item.href) {
             if (item.external) {
@@ -1517,12 +1510,9 @@ export function PremiumPlanPage() {
 
 export function PersonalizationPage() {
   const { notify } = useToast();
-  const [iconStyle, setIconStyle] = useState<IconStyle>(() => {
-    if (typeof window === "undefined") return "duotone";
-    const saved = window.localStorage.getItem(ICON_STYLE_STORAGE_KEY);
-    return saved === "minimal" || saved === "brand" ? saved : "duotone";
-  });
-  const options: Array<{ value: IconStyle; title: string; subtitle: string }> = [
+  const [iconStyle, setIconStyle] = useState<IconStyle>(getStoredIconStyle);
+  const [uiTheme, setUiTheme] = useState<UiTheme>(getStoredUiTheme);
+  const iconOptions: Array<{ value: IconStyle; title: string; subtitle: string }> = [
     { value: "minimal", title: "Minimal Outline", subtitle: "Clean icons without background containers" },
     { value: "duotone", title: "Soft Duotone", subtitle: "Friendly icons with subtle color backgrounds" },
     { value: "brand", title: "Brand Filled", subtitle: "Bold Daily Hisab blue icon containers" },
@@ -1532,9 +1522,15 @@ export function PersonalizationPage() {
     setIconStyle(value);
     window.localStorage.setItem(ICON_STYLE_STORAGE_KEY, value);
     window.dispatchEvent(new Event(ICON_STYLE_EVENT));
-    notify(`${options.find((option) => option.value === value)?.title} icons selected`, "success");
+    notify(`${iconOptions.find((option) => option.value === value)?.title} icons selected`, "success");
   }
-  return <AppShell><PageTitle title="Personalization" subtitle="Choose the icon style that feels best to you" /><div className="mx-auto grid max-w-3xl gap-4">{options.map((option) => { const active = iconStyle === option.value; return <button key={option.value} type="button" onClick={() => choose(option.value)} className={`rounded-[22px] border p-5 text-left transition ${active ? "border-[#8da2f4] bg-[#f3f6ff] shadow-[0_12px_32px_rgba(17,41,143,0.12)]" : "border-[#e7ebf4] bg-white"}`}><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><h2 className="text-base font-extrabold text-[#111936]">{option.title}</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">{option.subtitle}</p></div><CheckCircle2 size={23} className={active ? "text-[#11298f]" : "text-[#cbd1df]"} /></div><div className="mt-4 flex gap-3">{samples.map((SampleIcon, index) => <span key={index} className={`grid size-12 place-items-center rounded-2xl ${option.value === "minimal" ? "bg-transparent text-[#11298f]" : option.value === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : "bg-[#eaf0ff] text-[#2446b8]"}`}><SampleIcon size={22} strokeWidth={option.value === "brand" ? 2.3 : 1.8} /></span>)}</div></button>; })}</div></AppShell>;
+  function chooseTheme(value: UiTheme) {
+    setUiTheme(value);
+    window.localStorage.setItem(UI_THEME_STORAGE_KEY, value);
+    window.dispatchEvent(new Event(UI_THEME_EVENT));
+    notify(value === "aurora" ? "Aurora Glass theme selected" : "Default theme selected", "success");
+  }
+  return <AppShell><PageTitle title="Personalization" subtitle="Choose your interface theme and icon style" /><div className="mx-auto grid max-w-3xl gap-7"><section><h2 className="mb-3 text-lg font-extrabold text-[#111936]">Customize theme</h2><div className="grid gap-4 sm:grid-cols-2"><button type="button" onClick={() => chooseTheme("default")} className={`overflow-hidden rounded-[24px] border p-4 text-left transition ${uiTheme === "default" ? "border-[#8da2f4] ring-2 ring-[#dce5ff]" : "border-[#e7ebf4]"}`}><div className="h-28 rounded-2xl bg-[#f8f7ff] p-3"><div className="h-6 w-20 rounded-lg bg-[#11298f]" /><div className="mt-3 grid grid-cols-3 gap-2"><span className="h-12 rounded-xl bg-white shadow-sm" /><span className="h-12 rounded-xl bg-white shadow-sm" /><span className="h-12 rounded-xl bg-white shadow-sm" /></div></div><div className="mt-4 flex items-center gap-3"><div className="flex-1"><strong className="text-sm font-extrabold text-[#111936]">Default</strong><p className="mt-1 text-xs font-semibold text-[#69718a]">Current Daily Hisab design</p></div><CheckCircle2 size={22} className={uiTheme === "default" ? "text-[#11298f]" : "text-[#cbd1df]"} /></div></button><button type="button" onClick={() => chooseTheme("aurora")} className={`overflow-hidden rounded-[24px] border p-4 text-left transition ${uiTheme === "aurora" ? "border-[#4ccddd] ring-2 ring-[#caf8ff]" : "border-[#e7ebf4]"}`}><div className="h-28 rounded-2xl bg-[radial-gradient(circle_at_top_right,#baf9ff,transparent_55%),linear-gradient(145deg,#f9fcff,#eef8fb)] p-3"><div className="h-6 w-20 rounded-lg bg-white/80 shadow-sm" /><div className="mt-3 grid grid-cols-3 gap-2"><span className="h-12 rounded-xl bg-white/80 shadow-sm" /><span className="h-12 rounded-xl bg-white/80 shadow-sm" /><span className="h-12 rounded-xl bg-white/80 shadow-sm" /></div></div><div className="mt-4 flex items-center gap-3"><div className="flex-1"><strong className="text-sm font-extrabold text-[#111936]">Aurora Glass</strong><p className="mt-1 text-xs font-semibold text-[#69718a]">Soft blue glow and clean glass surfaces</p></div><CheckCircle2 size={22} className={uiTheme === "aurora" ? "text-[#0891b2]" : "text-[#cbd1df]"} /></div></button></div></section><section><h2 className="mb-3 text-lg font-extrabold text-[#111936]">Icon design</h2><div className="grid gap-4">{iconOptions.map((option) => { const active = iconStyle === option.value; return <button key={option.value} type="button" onClick={() => choose(option.value)} className={`rounded-[22px] border p-5 text-left transition ${active ? "border-[#8da2f4] bg-[#f3f6ff] shadow-[0_12px_32px_rgba(17,41,143,0.12)]" : "border-[#e7ebf4] bg-white"}`}><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><h3 className="text-base font-extrabold text-[#111936]">{option.title}</h3><p className="mt-1 text-xs font-semibold text-[#69718a]">{option.subtitle}</p></div><CheckCircle2 size={23} className={active ? "text-[#11298f]" : "text-[#cbd1df]"} /></div><div className="mt-4 flex gap-3">{samples.map((SampleIcon, index) => <span key={index} className={`grid size-12 place-items-center rounded-2xl ${option.value === "minimal" ? "bg-transparent text-[#11298f]" : option.value === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : "bg-[#eaf0ff] text-[#2446b8]"}`}><SampleIcon size={22} strokeWidth={option.value === "brand" ? 2.3 : 1.8} /></span>)}</div></button>; })}</div></section></div></AppShell>;
 }
 
 export function LanguageSettingsPage() {
@@ -1753,8 +1749,8 @@ export function SettingsPage() {
         </div>
         {petEnabled && <div className="mt-4 grid gap-4 border-t border-[#edf0f7] pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat color</span><div className="flex flex-wrap rounded-xl bg-[#f1f3f8] p-1">{(["brown", "default", "black", "white"] as const).map((color) => <button key={color} type="button" onClick={() => updatePetColor(color)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petColor === color ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{color}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Cat size</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["small", "medium", "large"] as const).map((size) => <button key={size} type="button" onClick={() => updatePetSize(size)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petSize === size ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{size}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Behaviour</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["automatic", "default", "sit"] as const).map((mode) => <button key={mode} type="button" onClick={() => updatePetMode(mode)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petMode === mode ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{mode}</button>)}</div></div><div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-bold text-[#27304b]">Walk speed</span><div className="flex rounded-xl bg-[#f1f3f8] p-1">{(["slow", "normal", "fast"] as const).map((speed) => <button key={speed} type="button" onClick={() => updatePetSpeed(speed)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${petSpeed === speed ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{speed}</button>)}</div></div></div>}
       </Card>
-      <div className="grid gap-5 md:hidden">
-        <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
+      <div className="profile-mobile-layout grid gap-5 md:hidden">
+        <section className="profile-summary-card overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.24)]">
           <div className="flex items-center gap-4">
             <input ref={mobileProfileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void handleMobileProfileImage(event.target.files?.[0])} />
             <button type="button" disabled={mobileProfileUploading} onClick={() => mobileProfileInputRef.current?.click()} className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb] disabled:opacity-70" aria-label="Upload profile image">
@@ -1786,7 +1782,7 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <Card className="grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        <Card className="profile-premium-card grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
           <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-[#fff2e8] text-[#f97316]"><Crown size={28} fill="currentColor" /></span>
           <div className="min-w-0 flex-1">
             <h3 className="whitespace-nowrap text-sm font-extrabold text-[#111936]">You&apos;re Premium!</h3>

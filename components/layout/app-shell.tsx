@@ -51,6 +51,7 @@ import { useFinance } from "@/components/state/finance-store";
 import { useTheme } from "@/components/state/theme-store";
 import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
 import { WebCalculator } from "@/components/calculator/web-calculator";
+import { getStoredUiTheme, UI_THEME_EVENT, type UiTheme } from "@/lib/personalization";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -78,6 +79,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const { signOut, user } = useAuth();
   const { entries, syncError, syncStatus } = useFinance();
   const { setTheme, theme } = useTheme();
+  const [uiTheme, setUiTheme] = useState<UiTheme>(getStoredUiTheme);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -135,6 +137,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
     setMobileMenuOpen(true);
   }
+
+  useEffect(() => {
+    const updateUiTheme = () => setUiTheme(getStoredUiTheme());
+    window.addEventListener(UI_THEME_EVENT, updateUiTheme);
+    return () => window.removeEventListener(UI_THEME_EVENT, updateUiTheme);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
@@ -201,7 +209,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F7FF] text-[#171424]">
+    <div className={cn("daily-hisab-shell min-h-screen bg-[#F8F7FF] text-[#171424]", uiTheme === "aurora" && "ui-theme-aurora")}>
       <div title={syncError ?? syncUi.label} aria-live="polite" className={cn("fixed right-3 top-[76px] z-[75] flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-extrabold shadow-sm ring-1 ring-black/5 transition-all duration-300 lg:right-7 lg:top-[86px]", syncUi.tone, syncIndicatorVisible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0")}>
         <SyncIcon size={14} className={syncUi.spin ? "animate-spin" : ""} />
         <span>{syncUi.label}</span>
@@ -443,7 +451,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
       {pathname !== "/ai-helper" && <AiFloatingHelper />}
 
-      <nav className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-3 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] sm:px-5 lg:hidden">
+      <nav className="mobile-bottom-navigation fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-3 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] sm:px-5 lg:hidden">
         {[
           { href: "/", label: "Home", icon: Home },
           { href: "/reports", label: "Reports", icon: BarChart3 },
