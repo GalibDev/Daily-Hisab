@@ -110,6 +110,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/pet-management": "Pet Management",
     "/payment-methods": "Payment Methods",
     "/premium": "Premium Plan",
+    "/language": "Language",
+    "/currency": "Currency",
+    "/contact": "Contact Us",
+    "/about": "About Daily Hisab",
   };
   const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
   const isHome = pathname === "/";
@@ -447,7 +451,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           { href: "/settings", label: "Profile", icon: User },
         ].map((item) => {
           const Icon = item.icon;
-          const profileRoutes = ["/settings", "/profile-settings", "/pet-management", "/payment-methods", "/premium"];
+          const profileRoutes = ["/settings", "/profile-settings", "/pet-management", "/payment-methods", "/premium", "/language", "/currency", "/contact", "/about"];
           const active = pathname === item.href || (item.href === "/settings" && profileRoutes.includes(pathname));
 
           return (

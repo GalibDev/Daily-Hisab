@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertTriangle, Baby, Banknote, Beef, Bell, BookOpen, Bot, BriefcaseBusiness, Bus, CakeSlice, CalendarDays, Camera, Candy, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, Cookie, CookingPot, CreditCard, Crown, CupSoda, Download, Drumstick, Dumbbell, Edit2, EggFried, FileSpreadsheet, Fish, Folder, Fuel, Gamepad2, Gift, GlassWater, Globe2, GraduationCap, Grid2X2, HeartPulse, HelpCircle, Home, IceCreamBowl, Info, Lightbulb, LogOut, MessageCircle, Milk, Moon, Palette, PawPrint, Pencil, Pizza, Plane, Plus, Popcorn, Receipt, RotateCcw, Salad, Sandwich, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Soup, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
+import { AlertTriangle, Baby, BadgeDollarSign, BadgeHelp, Banknote, Beef, Bell, BookOpen, BookOpenCheck, Bot, BriefcaseBusiness, Bus, CakeSlice, CalendarDays, Camera, Candy, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, Cookie, CookingPot, CreditCard, Crown, CupSoda, Download, Drumstick, Dumbbell, Edit2, EggFried, ExternalLink, FileSpreadsheet, Fish, Folder, Fuel, Gamepad2, Gift, GlassWater, GraduationCap, Grid2X2, HeartPulse, Home, IceCreamBowl, Languages, Lightbulb, LogOut, Mail, MessageCircle, Milk, Moon, Palette, PawPrint, Pencil, Pizza, Plane, Plus, Popcorn, Receipt, RotateCcw, Salad, Sandwich, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Soup, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -36,6 +36,10 @@ type EntryFormMode = "expense" | "income";
 const CATEGORY_ICON_STORAGE_KEY = "daily-hisab.category-icons.v1";
 const BUDGET_TARGET_STORAGE_KEY = "daily-hisab.budget-target.v1";
 const PAYMENT_METHOD_STORAGE_KEY = "daily-hisab.default-payment-method.v1";
+const LANGUAGE_STORAGE_KEY = "daily-hisab.language.v1";
+const CURRENCY_STORAGE_KEY = "daily-hisab.currency.v1";
+type AppLanguage = "default" | "bangla" | "english";
+type AppCurrency = "BDT" | "USD";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
   const { addEntry, categories } = useFinance();
@@ -1334,7 +1338,7 @@ function ProfileMenuSection({
   items,
   title,
 }: Readonly<{
-  items: { href?: string; icon: React.ReactNode; label: string; meta?: string; onClick?: () => void; tone: string }[];
+  items: { href?: string; external?: boolean; icon: React.ReactNode; label: string; meta?: string; onClick?: () => void; tone: string }[];
   title: string;
 }>) {
   return (
@@ -1354,6 +1358,9 @@ function ProfileMenuSection({
           const className = "flex w-full items-center gap-3 border-b border-[#eef0f8] px-4 py-3.5 text-left last:border-b-0";
 
           if (item.href) {
+            if (item.external) {
+              return <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className={className}>{content}</a>;
+            }
             return <Link key={item.label} href={item.href} className={className}>{content}</Link>;
           }
 
@@ -1491,6 +1498,53 @@ export function PremiumPlanPage() {
   );
 }
 
+export function LanguageSettingsPage() {
+  const { notify } = useToast();
+  const [language, setLanguage] = useState<AppLanguage>(() => {
+    if (typeof window === "undefined") return "default";
+    const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return saved === "bangla" || saved === "english" ? saved : "default";
+  });
+  const options: Array<{ value: AppLanguage; title: string; subtitle: string; sample: string }> = [
+    { value: "default", title: "Default", subtitle: "বর্তমান বাংলা ও English mixed interface", sample: "বাংলা + English" },
+    { value: "bangla", title: "বাংলা", subtitle: "বাংলা ভাষাকে interface preference হিসেবে ব্যবহার করুন", sample: "দৈনিক হিসাব" },
+    { value: "english", title: "English", subtitle: "Use English as your interface preference", sample: "Daily Hisab" },
+  ];
+  function choose(value: AppLanguage) {
+    setLanguage(value);
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
+    document.documentElement.setAttribute("lang", value === "english" ? "en" : "bn");
+    window.dispatchEvent(new CustomEvent("daily-hisab:language-change", { detail: value }));
+    notify(`${options.find((item) => item.value === value)?.title} language selected`, "success");
+  }
+  return <AppShell><PageTitle title="Language" subtitle="Choose how Daily Hisab should present its interface" /><Card className="mx-auto max-w-2xl overflow-hidden rounded-[22px] border-[#e7ebf4] p-0 shadow-[0_16px_40px_rgba(20,35,90,0.08)]"><div className="border-b border-[#edf0f7] bg-gradient-to-r from-[#eef4ff] to-white p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#11298f] text-white"><Languages size={24} /></span><h2 className="mt-4 text-lg font-extrabold text-[#111936]">Language preference</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">Your choice is saved on this device.</p></div><div className="grid gap-3 p-4 sm:p-5">{options.map((option) => { const active = language === option.value; return <button key={option.value} type="button" onClick={() => choose(option.value)} className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition ${active ? "border-[#7f95ef] bg-[#f1f5ff] shadow-[0_8px_24px_rgba(17,41,143,0.10)]" : "border-[#e8ebf4] bg-white"}`}><span className={`grid size-12 shrink-0 place-items-center rounded-xl text-sm font-black ${active ? "bg-[#11298f] text-white" : "bg-[#f1f4fa] text-[#59627a]"}`}>{option.value === "bangla" ? "বাং" : option.value === "english" ? "EN" : "A/অ"}</span><span className="min-w-0 flex-1"><strong className="block text-sm font-extrabold text-[#111936]">{option.title}</strong><span className="mt-1 block text-xs font-semibold leading-5 text-[#69718a]">{option.subtitle}</span><span className="mt-1 block text-[11px] font-bold text-[#11298f]">{option.sample}</span></span><CheckCircle2 size={22} className={active ? "text-[#11298f]" : "text-[#cbd1df]"} /></button>; })}</div></Card></AppShell>;
+}
+
+export function CurrencySettingsPage() {
+  const { notify } = useToast();
+  const [currency, setCurrency] = useState<AppCurrency>(() => typeof window !== "undefined" && window.localStorage.getItem(CURRENCY_STORAGE_KEY) === "USD" ? "USD" : "BDT");
+  const options = [
+    { value: "BDT" as const, symbol: "৳", title: "Bangladeshi Taka", subtitle: "BDT — বাংলাদেশি টাকা" },
+    { value: "USD" as const, symbol: "$", title: "US Dollar", subtitle: "USD — United States Dollar" },
+  ];
+  function choose(value: AppCurrency) {
+    setCurrency(value);
+    window.localStorage.setItem(CURRENCY_STORAGE_KEY, value);
+    window.dispatchEvent(new CustomEvent("daily-hisab:currency-change", { detail: value }));
+    notify(`${value} selected as your currency`, "success");
+  }
+  return <AppShell><PageTitle title="Currency" subtitle="Select the currency used for your financial records" /><Card className="mx-auto max-w-2xl overflow-hidden rounded-[22px] border-[#e7ebf4] p-0 shadow-[0_16px_40px_rgba(20,35,90,0.08)]"><div className="border-b border-[#edf0f7] bg-gradient-to-r from-[#edf9f3] to-white p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#087f5b] text-white"><BadgeDollarSign size={25} /></span><h2 className="mt-4 text-lg font-extrabold text-[#111936]">Display currency</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">Choose BDT or USD for new financial records.</p></div><div className="grid gap-3 p-4 sm:p-5">{options.map((option) => { const active = currency === option.value; return <button key={option.value} type="button" onClick={() => choose(option.value)} className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition ${active ? "border-[#75c9ad] bg-[#effbf6] shadow-[0_8px_24px_rgba(8,127,91,0.10)]" : "border-[#e8ebf4] bg-white"}`}><span className={`grid size-14 shrink-0 place-items-center rounded-2xl text-2xl font-black ${active ? "bg-[#087f5b] text-white" : "bg-[#f1f4fa] text-[#27304b]"}`}>{option.symbol}</span><span className="min-w-0 flex-1"><strong className="block text-sm font-extrabold text-[#111936]">{option.title}</strong><span className="mt-1 block text-xs font-semibold text-[#69718a]">{option.subtitle}</span></span><CheckCircle2 size={22} className={active ? "text-[#087f5b]" : "text-[#cbd1df]"} /></button>; })}</div></Card></AppShell>;
+}
+
+export function ContactPage() {
+  return <AppShell><PageTitle title="Contact Us" subtitle="Get support directly from the Daily Hisab developer" /><div className="mx-auto grid max-w-2xl gap-5"><Card className="overflow-hidden rounded-[24px] border-[#e6ebf5] p-0 shadow-[0_18px_45px_rgba(20,35,90,0.09)]"><div className="bg-gradient-to-br from-[#0b247d] to-[#3158cc] p-6 text-white"><span className="grid size-14 place-items-center rounded-2xl bg-white/14 ring-1 ring-white/20"><Mail size={27} /></span><h2 className="mt-5 text-2xl font-black">We&apos;re here to help</h2><p className="mt-2 max-w-lg text-sm font-semibold leading-6 text-white/75">Bug report, account issue, feature suggestion বা Daily Hisab ব্যবহারে কোনো সাহায্য প্রয়োজন হলে সরাসরি developer-এর সঙ্গে যোগাযোগ করুন।</p></div><div className="p-5"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#7b8499]">Developer support email</p><a href="mailto:mirza.galib.palash@gmail.com?subject=Daily%20Hisab%20Support" className="mt-3 flex items-center gap-3 rounded-2xl border border-[#dce5ff] bg-[#f5f8ff] p-4 text-sm font-extrabold text-[#11298f]"><Mail size={21} /> mirza.galib.palash@gmail.com</a><p className="mt-4 text-xs font-semibold leading-5 text-[#69718a]">আপনার সমস্যার screenshot, device/browser এবং কীভাবে সমস্যাটি হয়েছে তার ছোট বিবরণ দিলে দ্রুত সমাধান করা সহজ হবে।</p></div></Card></div></AppShell>;
+}
+
+export function AboutDailyHisabPage() {
+  const features = ["Daily expense and income tracking", "Budget, reports and smart insights", "Calendar-based financial history", "Loans, reminders and recurring records", "Cloud sync, backup and multi-device access", "Bangla-friendly mobile and desktop experience"];
+  return <AppShell><PageTitle title="About Daily Hisab" subtitle="A clearer, simpler way to understand your money" /><div className="mx-auto grid max-w-3xl gap-5"><section className="overflow-hidden rounded-[26px] bg-gradient-to-br from-[#071b75] via-[#11298f] to-[#315fdf] p-6 text-white shadow-[0_22px_55px_rgba(17,41,143,0.25)] sm:p-8"><span className="inline-flex items-center gap-2 rounded-full bg-white/14 px-4 py-2 text-xs font-extrabold ring-1 ring-white/20"><BookOpenCheck size={17} /> VERSION 7.0</span><h1 className="mt-6 text-3xl font-black tracking-[-0.04em]">Daily Hisab</h1><p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-white/78">Daily Hisab একটি বাংলা-friendly personal finance platform, যেখানে দৈনিক আয়-ব্যয়, budget, reports, loans, reminders এবং পারিবারিক হিসাব একটি পরিষ্কার ও নিরাপদ জায়গায় পরিচালনা করা যায়।</p></section><Card className="rounded-[22px] border-[#e7eaf4] p-5 sm:p-6"><h2 className="text-lg font-extrabold text-[#111936]">What you can do</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{features.map((feature) => <div key={feature} className="flex items-start gap-3 rounded-2xl bg-[#f7f9ff] p-4"><CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[#16a34a]" /><span className="text-sm font-bold leading-5 text-[#27304b]">{feature}</span></div>)}</div><div className="mt-5 rounded-2xl border border-[#ffe1ca] bg-[#fff7ef] p-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#c45b13]">Developer</p><p className="mt-2 text-sm font-extrabold text-[#111936]">Mirza Galib Palash</p><a href="https://mirzagalib.xyz" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#11298f]">mirzagalib.xyz <ExternalLink size={15} /></a></div></Card></div></AppShell>;
+}
+
 export function SettingsPage() {
   const { changePassword, sendPasswordReset, signOut, updateDisplayName, uploadProfileImage, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -1503,6 +1557,8 @@ export function SettingsPage() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
+  const [languagePreference, setLanguagePreference] = useState<AppLanguage>("default");
+  const [currencyPreference, setCurrencyPreference] = useState<AppCurrency>("BDT");
   const [petEnabled, setPetEnabled] = useState(false);
   const [petColor, setPetColor] = useState<PetColor>("default");
   const [petSize, setPetSize] = useState<PetSize>("medium");
@@ -1527,19 +1583,22 @@ export function SettingsPage() {
   const preferenceItems = [
     { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },
     { onClick: toggleTheme, icon: theme === "dark" ? <Moon size={20} /> : <Palette size={20} />, label: "Theme", meta: theme === "dark" ? "Dark" : "Light", tone: "bg-[#f5efff] text-[#7c3aed]" },
-    { href: "/settings", icon: <Globe2 size={20} />, label: "Language", meta: "English", tone: "bg-[#eafbf0] text-[#16a34a]" },
-    { href: "/settings", icon: <CreditCard size={20} />, label: "Currency", meta: "BDT", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { href: "/language", icon: <Languages size={20} />, label: "Language", meta: languagePreference === "bangla" ? "বাংলা" : languagePreference === "english" ? "English" : "Default", tone: "bg-[#eafbf0] text-[#07825c]" },
+    { href: "/currency", icon: <BadgeDollarSign size={20} />, label: "Currency", meta: currencyPreference, tone: "bg-[#eef4ff] text-[#1d4ed8]" },
   ];
   const supportItems = [
-    { href: "/settings", icon: <HelpCircle size={20} />, label: "Help Center", tone: "bg-[#eef4ff] text-[#2563eb]" },
-    { href: "/settings", icon: <MessageCircle size={20} />, label: "Contact Us", tone: "bg-[#eafbf0] text-[#16a34a]" },
-    { href: "/settings", icon: <Info size={20} />, label: "About Daily Hisab", meta: "v1.0.0", tone: "bg-[#f5efff] text-[#7c3aed]" },
+    { href: "https://mirzagalib.xyz", external: true, icon: <BadgeHelp size={20} />, label: "Help Center", meta: "Portfolio", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { href: "/contact", icon: <Mail size={20} />, label: "Contact Us", tone: "bg-[#eafbf0] text-[#07825c]" },
+    { href: "/about", icon: <BookOpenCheck size={20} />, label: "About Daily Hisab", meta: "v7.0", tone: "bg-[#f5efff] text-[#7c3aed]" },
   ];
 
   useEffect(() => {
     queueMicrotask(() => {
       setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
       setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
+      const savedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      setLanguagePreference((savedLanguage === "bangla" || savedLanguage === "english" ? savedLanguage : "default") as AppLanguage);
+      setCurrencyPreference(window.localStorage.getItem(CURRENCY_STORAGE_KEY) === "USD" ? "USD" : "BDT");
       setPetEnabled(window.localStorage.getItem(PET_ENABLED_KEY) === "1");
       const savedPetColor = window.localStorage.getItem(PET_COLOR_KEY);
       setPetColor((["brown", "default", "black", "white"].includes(savedPetColor || "") ? savedPetColor : "default") as PetColor);
