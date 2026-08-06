@@ -1406,13 +1406,56 @@ export function ProfileSettingsPage() {
 }
 
 export function ProfileDetailsPage() {
-  const { updateDisplayName, user } = useAuth();
+  const { updateDisplayName, uploadProfileImage, user } = useAuth();
+  const { entries, syncEnabled } = useFinance();
   const { notify } = useToast();
   const [localName, setLocalName] = useState("Guest User");
+  const [localPhoto, setLocalPhoto] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [statusVisible, setStatusVisible] = useState(true);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
+  const dailyAverage = daysWithExpense ? totalExpense / daysWithExpense : 0;
+  const profilePhoto = user?.photoUrl || localPhoto;
 
   useEffect(() => {
     setLocalName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
+    setLocalPhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
+    setStatusVisible(window.localStorage.getItem(PROFILE_STATUS_VISIBLE_KEY) !== "0");
   }, []);
+
+  async function uploadPhoto(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { notify("Only image files are allowed", "danger"); return; }
+    try {
+      setUploading(true);
+      if (user) await uploadProfileImage(file);
+      else {
+        const photo = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Image could not be read"));
+          reader.readAsDataURL(file);
+        });
+        setLocalPhoto(photo);
+        window.localStorage.setItem("daily-hisab.local-profile-photo", photo);
+      }
+      notify("Profile image updated", "success");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Image upload failed", "danger");
+    } finally {
+      setUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  }
+
+  function toggleStatus() {
+    const next = !statusVisible;
+    setStatusVisible(next);
+    window.localStorage.setItem(PROFILE_STATUS_VISIBLE_KEY, next ? "1" : "0");
+  }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1430,7 +1473,7 @@ export function ProfileDetailsPage() {
     }
   }
 
-  return <AppShell><PageTitle title="Profile Details" subtitle="View and update your personal information" /><Card className="mx-auto max-w-2xl rounded-[24px] border-white/80 bg-white/80 p-5 shadow-[0_20px_50px_rgba(29,98,124,0.10)] backdrop-blur-xl sm:p-7"><div className="mb-6 flex flex-col items-center gap-3 text-center"><ProfileImageUploader /><div><h2 className="text-xl font-extrabold text-[#111936]">{user?.name || localName}</h2><p className="mt-1 text-sm font-semibold text-[#69718a]">{user?.email || "Local profile"}</p></div></div><form onSubmit={saveProfile} className="grid gap-4"><Field label="Name"><input name="name" className={inputClass} defaultValue={user?.name || localName} required /></Field><Field label="Email"><input className={inputClass} value={user?.email || "Local profile"} disabled readOnly /></Field><Button type="submit">Save Changes</Button></form></Card></AppShell>;
+  return <AppShell><PageTitle title="Profile Details" subtitle="View and update your personal information" /><div className="mx-auto grid max-w-2xl gap-5"><Card className="rounded-[24px] border-white/80 bg-white/80 p-5 shadow-[0_20px_50px_rgba(29,98,124,0.10)] backdrop-blur-xl sm:p-7"><div className="mb-6 flex flex-col items-center gap-3 text-center"><input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void uploadPhoto(event.target.files?.[0])} /><button type="button" disabled={uploading} onClick={() => photoInputRef.current?.click()} className="relative grid size-28 place-items-center overflow-hidden rounded-full bg-[#edf4ff] text-[#11298f] shadow-[0_12px_28px_rgba(17,41,143,0.14)] disabled:opacity-60" aria-label="Upload profile photo">{profilePhoto ? <Image src={profilePhoto} alt="Profile" width={112} height={112} className="size-full object-cover" unoptimized /> : <User size={58} />}<span className="absolute bottom-1 right-1 grid size-9 place-items-center rounded-full bg-[#11298f] text-white ring-4 ring-white"><Camera size={17} /></span></button><div><h2 className="text-xl font-extrabold text-[#111936]">{user?.name || localName}</h2><p className="mt-1 text-sm font-semibold text-[#69718a]">{user?.email || "Local profile"}</p></div></div><form onSubmit={saveProfile} className="grid gap-4"><Field label="Name"><input name="name" className={inputClass} defaultValue={user?.name || localName} required /></Field><Field label="Email"><input className={inputClass} value={user?.email || "Local profile"} disabled readOnly /></Field><Button type="submit">Save Changes</Button></form></Card><Card className="profile-premium-card grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]"><span className="grid size-14 place-items-center rounded-2xl bg-[#fff2e8] text-[#f97316]"><Crown size={28} fill="currentColor" /></span><div><h3 className="text-sm font-extrabold text-[#111936]">{syncEnabled ? "You're Premium!" : "Daily Hisab Account"}</h3><p className="text-sm font-medium text-[#59627a]">{syncEnabled ? "Enjoy all premium features" : "Your personal finance profile"}</p></div><Link href="/premium" className="rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Plan</Link></Card><Card className="rounded-[22px] border-[#e8ebf4] p-4"><div className="mb-4 flex items-center justify-between gap-3"><div><h3 className="font-extrabold text-[#111936]">Profile status</h3><p className="text-xs font-semibold text-[#69718a]">Control whether your financial summary appears on Profile.</p></div><button type="button" onClick={toggleStatus} className="shrink-0 rounded-full bg-[#eef3ff] px-3 py-2 text-xs font-extrabold text-[#11298f]">{statusVisible ? "Hide" : "Show"}</button></div>{statusVisible && <div className="grid grid-cols-3 gap-3 text-center"><div className="rounded-2xl bg-[#f7f9ff] p-3"><strong className="block text-base text-[#111936]">{takaShort(totalExpense)}</strong><span className="text-[10px] font-bold text-[#69718a]">Expense</span></div><div className="rounded-2xl bg-[#f7f9ff] p-3"><strong className="block text-base text-[#111936]">{takaShort(dailyAverage)}</strong><span className="text-[10px] font-bold text-[#69718a]">Average</span></div><div className="rounded-2xl bg-[#f7f9ff] p-3"><strong className="block text-base text-[#111936]">{daysWithExpense}</strong><span className="text-[10px] font-bold text-[#69718a]">Days</span></div></div>}</Card></div></AppShell>;
 }
 
 export function PetManagementPage() {
@@ -1677,12 +1720,6 @@ export function SettingsPage() {
     });
   }, []);
 
-  function toggleProfileStatus() {
-    const next = !statusVisible;
-    setStatusVisible(next);
-    window.localStorage.setItem(PROFILE_STATUS_VISIBLE_KEY, next ? "1" : "0");
-  }
-
   function updatePetEnabled(enabled: boolean) {
     setPetEnabled(enabled);
     window.localStorage.setItem(PET_ENABLED_KEY, enabled ? "1" : "0");
@@ -1800,8 +1837,7 @@ export function SettingsPage() {
             </Link>
             <Link href="/profile-details" aria-label="Open profile details" className="grid size-10 place-items-center rounded-full"><ChevronRight size={24} /></Link>
           </div>
-          <div className="mt-5 flex justify-end"><button type="button" onClick={toggleProfileStatus} className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white">{statusVisible ? "Hide status" : "Show status"}</button></div>
-          {statusVisible && <div className="profile-status-grid mt-4 grid grid-cols-3 gap-3 text-center">
+          {statusVisible && <div className="profile-status-grid mt-5 grid grid-cols-3 gap-3 text-center">
             <div className="profile-status-item rounded-2xl bg-white/10 px-2 py-4">
               <p className="text-xs font-semibold text-white/78">Total Expense</p>
               <strong className="mt-2 block text-xl font-extrabold">{takaShort(totalExpense)}</strong>
@@ -1819,15 +1855,6 @@ export function SettingsPage() {
             </div>
           </div>}
         </section>
-
-        <Card className="profile-premium-card grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
-          <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-[#fff2e8] text-[#f97316]"><Crown size={28} fill="currentColor" /></span>
-          <div className="min-w-0 flex-1">
-            <h3 className="whitespace-nowrap text-sm font-extrabold text-[#111936]">You&apos;re Premium!</h3>
-            <p className="text-sm font-medium text-[#59627a]">Enjoy all premium features</p>
-          </div>
-          <Link href="/premium" className="shrink-0 rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Plan</Link>
-        </Card>
 
         {syncError && <div className="rounded-xl bg-[#fff4e2] p-3 text-xs font-medium text-[#8a5a00]">{syncError}</div>}
         {showPersonalInfo && (
