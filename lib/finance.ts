@@ -17,6 +17,15 @@ export function summarizeEntries(entries: Entry[], date?: string) {
   };
 }
 
+export function countExpenseDaysInMonth(entries: Entry[], monthPrefix: string) {
+  const expenseDates = entries
+    .filter((entry) => entry.type === "expense")
+    .map((entry) => entry.date.trim().slice(0, 10))
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date.startsWith(monthPrefix));
+
+  return new Set(expenseDates).size;
+}
+
 export function buildCategoryExpense(entries: Entry[], categories = defaultCategories) {
   const expenseCategories = entries
     .filter((entry) => entry.type === "expense")

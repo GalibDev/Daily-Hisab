@@ -101,6 +101,15 @@ function getScopedItem(ownerId: string, key: string) {
   return window.localStorage.getItem(scopedStorageKey(ownerId, key));
 }
 
+function normalizeEntryInput(entry: EntryInput): EntryInput {
+  const selectedDate = entry.date.trim().slice(0, 10);
+
+  return {
+    ...entry,
+    date: /^\d{4}-\d{2}-\d{2}$/.test(selectedDate) ? selectedDate : getTodayIso(),
+  };
+}
+
 function parseStoredArray<T>(saved: string | null): T[] {
   if (!saved) return [];
   try {
@@ -339,11 +348,12 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
       syncError,
       syncStatus: user ? syncStatus : hydrated ? "local" : "loading",
       addEntry: (entry) => {
-        const optimistic = { ...entry, id: Date.now(), time: currentTime() };
+        const normalizedEntry = normalizeEntryInput(entry);
+        const optimistic = { ...normalizedEntry, id: Date.now(), time: currentTime() };
         setEntries((current) => [optimistic, ...current]);
 
         if (user && canSyncSupabase) {
-          createEntry(user.id, entry, optimistic.time)
+          createEntry(user.id, normalizedEntry, optimistic.time)
             .then((saved) => setEntries((current) => current.map((item) => (item.id === optimistic.id ? saved : item))))
             .catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry sync failed"));
         }
@@ -372,18 +382,19 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         setCategories((current) => current.filter((item) => item !== category));
       },
       updateEntry: (id, entry) => {
+        const normalizedEntry = normalizeEntryInput(entry);
         setEntries((current) =>
           current.map((item) =>
             item.id === id
               ? {
                   ...item,
-                  ...entry,
+                  ...normalizedEntry,
                 }
               : item,
           ),
         );
         if (user && canSyncSupabase) {
-          saveEntry(id, entry).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry update sync failed"));
+          saveEntry(id, normalizedEntry).catch((error: unknown) => setSyncError(error instanceof Error ? error.message : "Entry update sync failed"));
         }
       },
       deleteEntry: (id) => {
