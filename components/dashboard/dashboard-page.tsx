@@ -591,10 +591,11 @@ function MobileDashboard({
   const monthlyIncome = incomeEntries.filter((entry) => entry.date.startsWith(monthPrefix)).reduce((sum, entry) => sum + entry.amount, 0);
   const allIncome = incomeEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const daysWithExpense = new Set(monthlyExpenseEntries.map((entry) => entry.date)).size;
+  const totalTrackedDays = new Set(expenseEntries.map((entry) => entry.date)).size;
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
   const familyRemainingBalance = Math.max(0, combinedFamilyDeposits - wallet.familyExpenseTotal);
-  const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
+  const totalDaysLabel = `${totalTrackedDays} ${totalTrackedDays === 1 ? "Day" : "Days"}`;
   const totalCategoryValue = categoryData.reduce((sum, item) => sum + item.value, 0);
   const todayExpenseTitle = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a";
   const emptyDailyExpenseText = "\u0986\u099c\u0995\u09c7\u09b0 \u0996\u09b0\u099a add \u0995\u09b0\u09c1\u09a8";
@@ -970,7 +971,7 @@ function MobileDashboard({
 
       <div className="grid grid-cols-3 gap-3">
         <MobileStatCard onClick={() => setStatDetails("monthly")} icon={<Wallet size={22} />} label="Total Expense" value={takaShort(monthExpense)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Tap for details</span></>} />
-        <MobileStatCard onClick={() => setStatDetails("today")} icon={<CalendarCheck size={22} />} label="Total Days" value={totalDaysLabel} meta={<><span>{"Today's expenses"}</span><br /><span>Tap for details</span></>} />
+        <MobileStatCard onClick={() => setStatDetails("today")} icon={<CalendarCheck size={22} />} label="Total Days" value={totalDaysLabel} meta={<><span>All expense dates</span><br /><span>Tap for details</span></>} />
         <MobileStatCard onClick={() => setStatDetails("average")} icon={<TrendingUp size={22} />} label="Daily Average" value={takaShort(dailyAverage)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Tap for details</span></>} />
       </div>
 
