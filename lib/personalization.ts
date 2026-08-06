@@ -13,6 +13,6 @@ export function getStoredIconStyle(): IconStyle {
 }
 
 export function getStoredUiTheme(): UiTheme {
-  if (typeof window === "undefined") return "default";
-  return window.localStorage.getItem(UI_THEME_STORAGE_KEY) === "aurora" ? "aurora" : "default";
+  if (typeof window === "undefined") return "aurora";
+  return window.localStorage.getItem(UI_THEME_STORAGE_KEY) === "default" ? "default" : "aurora";
 }
