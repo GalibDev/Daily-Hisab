@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuthenticated } from "@/lib/firebase/admin-server";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -21,6 +22,11 @@ function normalizeBaseUrl(value: string) {
 }
 
 export async function POST(request: Request) {
+  try {
+    await requireAuthenticated(request);
+  } catch {
+    return NextResponse.json({ error: "Login or create an account to use Daily Hisab AI." }, { status: 401 });
+  }
   const provider = process.env.AI_PROVIDER || "walkai";
   const apiKey = process.env.WALKAI_API_KEY;
   const baseUrls = Array.from(new Set([

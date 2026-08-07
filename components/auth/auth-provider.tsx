@@ -38,6 +38,7 @@ type AuthStore = {
   uploadProfileImage: (file: File) => Promise<string>;
   sendPasswordReset: (email: string) => Promise<void>;
   changePassword: (password: string) => Promise<void>;
+  getIdToken: () => Promise<string>;
 };
 
 const AuthContext = createContext<AuthStore | null>(null);
@@ -142,6 +143,10 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       if (!firebaseAuth?.currentUser) throw new Error("Login required");
       if (password.length < 6) throw new Error("Password must contain at least 6 characters");
       await updatePassword(firebaseAuth.currentUser, password);
+    },
+    getIdToken: async () => {
+      if (!firebaseAuth?.currentUser) throw new Error("Login required");
+      return firebaseAuth.currentUser.getIdToken();
     },
   };
 

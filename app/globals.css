@@ -186,6 +186,12 @@ html.dark textarea {
     stroke-width: 1.65;
   }
 
+  .ui-theme-aurora .profile-menu-highlight .profile-menu-icon {
+    border-radius: 1rem !important;
+    background: rgba(255, 255, 255, .16) !important;
+    color: #fff !important;
+  }
+
   .ui-theme-aurora .mobile-bottom-navigation {
     border-color: rgba(255, 255, 255, .92) !important;
     background: rgba(255, 255, 255, .76) !important;

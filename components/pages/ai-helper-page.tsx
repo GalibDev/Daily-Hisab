@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Send, User } from "lucide-react";
 import { AiLogo } from "@/components/ai/ai-logo";
+import { useAuth } from "@/components/auth/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { useFinance } from "@/components/state/finance-store";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { getTodayIso, takaShort } from "@/lib/utils";
 type Message = { role: "user" | "assistant"; content: string };
 
 export function AiHelperPage() {
+  const { getIdToken, loading: authLoading, user } = useAuth();
   const { entries } = useFinance();
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "আসসালামু আলাইকুম! আপনার খরচ, বাজেট বা সঞ্চয় নিয়ে কী জানতে চান?" }]);
   const [question, setQuestion] = useState("");
@@ -35,7 +37,8 @@ export function AiHelperPage() {
     setQuestion("");
     setLoading(true);
     try {
-      const response = await fetch("/api/ai-helper", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: nextMessages.slice(1), context }) });
+      const token = await getIdToken();
+      const response = await fetch("/api/ai-helper", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ messages: nextMessages.slice(1), context }) });
       const data = await response.json() as { reply?: string; error?: string };
       setMessages((current) => [...current, { role: "assistant", content: data.reply || data.error || "AI response পাওয়া যায়নি।" }]);
     } catch {
@@ -46,6 +49,8 @@ export function AiHelperPage() {
   }
 
   const suggestions = ["এই মাসে কোথায় বেশি খরচ হয়েছে?", "কীভাবে খরচ কমাতে পারি?", "আমার জন্য ছোট বাজেট বানাও"];
+
+  if (!authLoading && !user) return <AppShell><div className="mx-auto grid min-h-[65dvh] max-w-xl place-items-center"><Card className="w-full overflow-hidden rounded-[26px] border-[#dce5ff] p-0 text-center shadow-[0_22px_55px_rgba(17,41,143,0.14)]"><div className="bg-gradient-to-br from-[#071b75] via-[#11298f] to-[#315ddd] p-7 text-white"><AiLogo /><h1 className="mt-5 text-2xl font-black">Login to use Daily Hisab AI</h1><p className="mt-2 text-sm font-semibold leading-6 text-white/76">Create a free account to receive secure, personalized insights based on your own expense data.</p></div><div className="grid gap-3 p-5"><Link href="/login" className="rounded-2xl bg-[#11298f] px-5 py-3.5 text-sm font-extrabold text-white shadow-lg">Login or Create Account</Link><p className="text-xs font-semibold text-[#69718a]">Your AI requests are protected with your signed-in account.</p></div></Card></div></AppShell>;
 
   return (
     <AppShell>

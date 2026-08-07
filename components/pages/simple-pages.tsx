@@ -1355,7 +1355,7 @@ function ProfileMenuSection({
   items,
   title,
 }: Readonly<{
-  items: { href?: string; external?: boolean; icon: React.ReactNode; label: string; meta?: string; onClick?: () => void; tone: string }[];
+  items: { href?: string; external?: boolean; highlight?: boolean; icon: React.ReactNode; label: string; meta?: string; onClick?: () => void; tone: string }[];
   title: string;
 }>) {
   const [iconStyle, setIconStyle] = useState<IconStyle>(getStoredIconStyle);
@@ -1373,14 +1373,14 @@ function ProfileMenuSection({
         {items.map((item) => {
           const content = (
             <>
-              <span className={`profile-menu-icon grid size-11 shrink-0 place-items-center rounded-2xl transition ${iconStyle === "minimal" ? "bg-transparent text-[#11298f]" : iconStyle === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : item.tone}`}>{item.icon}</span>
-              <span className="min-w-0 flex-1 text-sm font-extrabold text-[#111936]">{item.label}</span>
-              {item.meta && <span className="text-sm font-semibold text-[#59627a]">{item.meta}</span>}
-              <ChevronRight size={18} className="text-[#7b8499]" />
+              <span className={`profile-menu-icon grid size-11 shrink-0 place-items-center rounded-2xl transition ${item.highlight ? "bg-white/16 text-white" : iconStyle === "minimal" ? "bg-transparent text-[#11298f]" : iconStyle === "brand" ? "bg-[#11298f] text-white shadow-[0_7px_16px_rgba(17,41,143,0.24)]" : item.tone}`}>{item.icon}</span>
+              <span className={`min-w-0 flex-1 text-sm font-extrabold ${item.highlight ? "text-white" : "text-[#111936]"}`}>{item.label}{item.highlight && <small className="mt-1 block text-[10px] font-semibold text-white/72">Unlock AI and secure cloud sync</small>}</span>
+              {item.meta && <span className={item.highlight ? "text-sm font-semibold text-white/75" : "text-sm font-semibold text-[#59627a]"}>{item.meta}</span>}
+              <ChevronRight size={18} className={item.highlight ? "text-white" : "text-[#7b8499]"} />
             </>
           );
 
-          const className = "profile-menu-row flex w-full items-center gap-3 border-b border-[#eef0f8] px-4 py-3.5 text-left last:border-b-0";
+          const className = `profile-menu-row flex w-full items-center gap-3 border-b border-[#eef0f8] px-4 py-3.5 text-left last:border-b-0 ${item.highlight ? "profile-menu-highlight bg-gradient-to-r from-[#11298f] to-[#315ddd] shadow-[0_12px_28px_rgba(17,41,143,0.22)]" : ""}`;
 
           if (item.href) {
             if (item.external) {
@@ -1708,7 +1708,7 @@ export function SettingsPage() {
   const profilePhoto = user?.photoUrl ?? localProfilePhoto;
   const profileEmail = user?.email ?? "Login to sync your data";
   const accountItems = [
-    { href: "/profile-details", icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" },
+    user ? { href: "/profile-details", icon: <User size={20} />, label: "Personal Information", tone: "bg-[#eef4ff] text-[#2563eb]" } : { href: "/login", highlight: true, icon: <User size={20} />, label: "Create Account / Login", meta: "Free", tone: "bg-[#11298f] text-white" },
     { href: "/categories", icon: <Grid2X2 size={20} />, label: "Categories", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/hero-management", icon: <Wallet size={20} />, label: "Hero Management", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/ai-helper", icon: <MessageCircle size={20} />, label: "AI Helper", tone: "bg-[#eafbf0] text-[#16a34a]" },
@@ -1857,12 +1857,12 @@ export function SettingsPage() {
             <button type="button" disabled={mobileProfileUploading} onClick={() => mobileProfileInputRef.current?.click()} className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[#2563eb] disabled:opacity-70" aria-label="Upload profile image">
               {profilePhoto ? <Image src={profilePhoto} alt="Profile" width={96} height={96} className="size-full object-cover" unoptimized /> : <User size={56} fill="currentColor" strokeWidth={1.5} />}
             </button>
-            <Link href="/profile-details" className="min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">
+            <Link href={user ? "/profile-details" : "/login"} className="min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">
               <h2 className="truncate text-[22px] font-extrabold leading-7">{profileName}</h2>
               <p className="mt-1 truncate text-sm font-semibold text-white/82">{profileEmail}</p>
               <span className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#422d77]/55 px-3 py-2 text-xs font-extrabold text-[#ffb347]"><Crown size={16} fill="currentColor" /> {syncEnabled ? "Premium User" : "Local User"}</span>
             </Link>
-            <Link href="/profile-details" aria-label="Open profile details" className="grid size-10 place-items-center rounded-full"><ChevronRight size={24} /></Link>
+            <Link href={user ? "/profile-details" : "/login"} aria-label={user ? "Open profile details" : "Create account or login"} className="grid size-10 place-items-center rounded-full"><ChevronRight size={24} /></Link>
           </div>
           {statusVisible && <div className="profile-status-grid mt-5 grid grid-cols-3 gap-3 text-center">
             <div className="profile-status-item rounded-2xl bg-white/10 px-2 py-4">

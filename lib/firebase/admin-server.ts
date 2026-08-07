@@ -14,10 +14,14 @@ function serverApp() {
   return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), databaseURL });
 }
 
-export async function requireAdmin(request: Request) {
+export async function requireAuthenticated(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("UNAUTHENTICATED");
-  const decoded = await getAuth(serverApp()).verifyIdToken(token);
+  return getAuth(serverApp()).verifyIdToken(token);
+}
+
+export async function requireAdmin(request: Request) {
+  const decoded = await requireAuthenticated(request);
   const allowed = (process.env.ADMIN_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
   if (!decoded.email || !allowed.includes(decoded.email.toLowerCase())) throw new Error("FORBIDDEN");
   return decoded;
