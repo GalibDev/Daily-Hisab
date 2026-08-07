@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { Wallet } from "lucide-react";
+import { Eye, EyeOff, Wallet } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,7 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   useEffect(() => {
     const restoreLoginControls = () => setLoading(false);
@@ -84,7 +85,7 @@ export function AuthPage() {
         <form onSubmit={handleSubmit} className="grid gap-4">
           {mode === "signup" && <input name="name" className={inputClass} placeholder="Full name" />}
           <input name="email" type="email" className={inputClass} placeholder="Email" required />
-          <input name="password" type="password" className={inputClass} placeholder="Password" required minLength={6} />
+          <div className="relative"><input name="password" type={passwordVisible ? "text" : "password"} className={`${inputClass} pr-12`} placeholder="Password" required minLength={6} /><button type="button" onClick={() => setPasswordVisible((visible) => !visible)} aria-label={passwordVisible ? "Hide password" : "Show password"} aria-pressed={passwordVisible} className="absolute inset-y-0 right-0 grid w-12 place-items-center text-[#69718a]">{passwordVisible ? <EyeOff size={19} /> : <Eye size={19} />}</button></div>
           <Button type="submit" disabled={loading || !configured}>{loading ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}</Button>
         </form>
         {mode === "login" && <button type="button" className="mt-3 w-full text-right text-xs font-bold text-[#6C4CF1]" onClick={() => setForgotOpen((open) => !open)}>Forgot password?</button>}
