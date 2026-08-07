@@ -180,27 +180,23 @@ export function BudgetPage() {
   const { categories, entries } = useFinance();
   const { notify } = useToast();
   const today = getTodayIso();
-  const [budgetPeriod, setBudgetPeriod] = useState<"daily" | "monthly" | "yearly">(() => {
-    if (typeof window === "undefined") return "monthly";
-
-    try {
-      const saved = window.localStorage.getItem(BUDGET_TARGET_STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as { period?: "daily" | "monthly" | "yearly" }).period ?? "monthly" : "monthly";
-    } catch {
-      return "monthly";
-    }
-  });
-  const [budgetTarget, setBudgetTarget] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-
-    try {
-      const saved = window.localStorage.getItem(BUDGET_TARGET_STORAGE_KEY);
-      return saved ? Number((JSON.parse(saved) as { target?: number }).target ?? 0) : 0;
-    } catch {
-      return 0;
-    }
-  });
-  const scopedEntries = useMemo(() => filterEntriesByReportPeriod(entries, budgetPeriod, today), [budgetPeriod, entries, today]);
+  type BudgetPeriod = "daily" | "monthly" | "yearly" | "custom";
+  type SavedBudgetTarget = { period?: BudgetPeriod; target?: number; startDate?: string; endDate?: string };
+  const readSavedBudget = () => {
+    if (typeof window === "undefined") return {} as SavedBudgetTarget;
+    try { return JSON.parse(window.localStorage.getItem(BUDGET_TARGET_STORAGE_KEY) || "{}") as SavedBudgetTarget; }
+    catch { return {} as SavedBudgetTarget; }
+  };
+  const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>(() => readSavedBudget().period ?? "monthly");
+  const [formPeriod, setFormPeriod] = useState<BudgetPeriod>(() => readSavedBudget().period ?? "monthly");
+  const [budgetTarget, setBudgetTarget] = useState<number>(() => Number(readSavedBudget().target ?? 0));
+  const [customStartDate, setCustomStartDate] = useState(() => readSavedBudget().startDate || today);
+  const [customEndDate, setCustomEndDate] = useState(() => readSavedBudget().endDate || today);
+  const [formStartDate, setFormStartDate] = useState(() => readSavedBudget().startDate || today);
+  const [formEndDate, setFormEndDate] = useState(() => readSavedBudget().endDate || today);
+  const scopedEntries = useMemo(() => budgetPeriod === "custom"
+    ? entries.filter((entry) => entry.date >= customStartDate && entry.date <= customEndDate)
+    : filterEntriesByReportPeriod(entries, budgetPeriod, today), [budgetPeriod, customEndDate, customStartDate, entries, today]);
   const spentByCategory = useMemo(() => buildCategoryExpense(scopedEntries, categories), [categories, scopedEntries]);
   const spent = scopedEntries.filter((entry) => entry.type === "expense").reduce((sum, entry) => sum + entry.amount, 0);
   const remaining = budgetTarget - spent;
@@ -211,29 +207,46 @@ export function BudgetPage() {
     if (budgetPeriod === "monthly") {
       return new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() - currentDate.getDate() + 1;
     }
-    const yearEnd = new Date(currentDate.getFullYear(), 11, 31);
-    return Math.max(1, Math.ceil((yearEnd.getTime() - currentDate.getTime()) / 86400000) + 1);
+    if (budgetPeriod === "yearly") {
+      const yearEnd = new Date(currentDate.getFullYear(), 11, 31);
+      return Math.max(1, Math.ceil((yearEnd.getTime() - currentDate.getTime()) / 86400000) + 1);
+    }
+    const customEnd = new Date(`${customEndDate}T00:00:00`);
+    const customStart = new Date(`${customStartDate}T00:00:00`);
+    const countingFrom = currentDate < customStart ? customStart : currentDate;
+    return Math.max(1, Math.ceil((customEnd.getTime() - countingFrom.getTime()) / 86400000) + 1);
   })();
   const averageAllowed = Math.max(remaining, 0) / Math.max(daysLeft, 1);
   const alertTone = budgetTarget <= 0 ? "info" : remaining < 0 ? "danger" : percent >= 85 ? "warning" : "good";
-  const periodLabel = budgetPeriod === "daily" ? "Daily" : budgetPeriod === "monthly" ? "Monthly" : "Yearly";
+  const periodLabel = budgetPeriod === "daily" ? "Daily" : budgetPeriod === "monthly" ? "Monthly" : budgetPeriod === "yearly" ? "Yearly" : "Custom";
 
   useEffect(() => {
-    window.localStorage.setItem(BUDGET_TARGET_STORAGE_KEY, JSON.stringify({ period: budgetPeriod, target: budgetTarget }));
-  }, [budgetPeriod, budgetTarget]);
+    window.localStorage.setItem(BUDGET_TARGET_STORAGE_KEY, JSON.stringify({ period: budgetPeriod, target: budgetTarget, startDate: customStartDate, endDate: customEndDate }));
+  }, [budgetPeriod, budgetTarget, customEndDate, customStartDate]);
 
   function saveBudgetTarget(formData: FormData) {
-    const nextPeriod = String(formData.get("period")) as "daily" | "monthly" | "yearly";
+    const nextPeriod = String(formData.get("period")) as BudgetPeriod;
     const nextTarget = Number(formData.get("target"));
+    const nextStartDate = String(formData.get("startDate") || formStartDate);
+    const nextEndDate = String(formData.get("endDate") || formEndDate);
+
+    if (!nextTarget || nextTarget <= 0) { notify("Enter a valid budget amount", "danger"); return; }
+    if (nextPeriod === "custom" && (!nextStartDate || !nextEndDate || nextStartDate > nextEndDate)) {
+      notify("Choose a valid start and end date", "danger");
+      return;
+    }
 
     setBudgetPeriod(nextPeriod);
-    setBudgetTarget(nextTarget > 0 ? nextTarget : 0);
-    notify("Budget target saved", "success");
+    setFormPeriod(nextPeriod);
+    setBudgetTarget(nextTarget);
+    setCustomStartDate(nextStartDate);
+    setCustomEndDate(nextEndDate);
+    notify(budgetTarget > 0 ? "Budget target updated without resetting spending" : "Budget target saved", "success");
   }
 
   return (
     <AppShell>
-      <PageTitle title="Budget" subtitle="Daily, monthly and yearly spending targets" />
+      <PageTitle title="Budget" subtitle="Daily, monthly, yearly and custom spending targets" />
       <div className="grid gap-5">
         <section className="overflow-hidden rounded-[18px] bg-[#11298f] p-5 text-white shadow-[0_18px_38px_rgba(14,37,126,0.22)]">
           <div className="flex items-start justify-between gap-4">
@@ -255,18 +268,20 @@ export function BudgetPage() {
         </section>
 
         <Card className="p-5">
-          <form action={saveBudgetTarget} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+          <form action={saveBudgetTarget} className="grid gap-4 md:grid-cols-2 md:items-end">
             <Field label="Budget period">
-              <select name="period" className={inputClass} defaultValue={budgetPeriod}>
+              <select name="period" className={inputClass} value={formPeriod} onChange={(event) => setFormPeriod(event.target.value as BudgetPeriod)}>
                 <option value="daily">Daily</option>
                 <option value="monthly">Monthly</option>
                 <option value="yearly">Yearly</option>
+                <option value="custom">Custom date range</option>
               </select>
             </Field>
             <Field label="Target amount">
               <input name="target" className={inputClass} defaultValue={budgetTarget || ""} inputMode="decimal" placeholder="৳ 0.00" />
             </Field>
-            <Button type="submit" className="h-12"><Target size={16} /> Save Target</Button>
+            {formPeriod === "custom" && <><Field label="Start date"><input name="startDate" type="date" className={inputClass} value={formStartDate} max={formEndDate} onChange={(event) => setFormStartDate(event.target.value)} required /></Field><Field label="End date"><input name="endDate" type="date" className={inputClass} value={formEndDate} min={formStartDate} onChange={(event) => setFormEndDate(event.target.value)} required /></Field></>}
+            <Button type="submit" className="h-12 md:col-span-2"><Target size={16} /> {budgetTarget > 0 ? "Update Target" : "Save Target"}</Button>
           </form>
         </Card>
 
