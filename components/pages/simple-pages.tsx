@@ -1397,27 +1397,14 @@ function ProfileMenuSection({
 }
 
 export function ProfileSettingsPage() {
-  const { changePassword, sendPasswordReset, user } = useAuth();
-  const { notify } = useToast();
-  const [showSecurity, setShowSecurity] = useState(false);
-  const [busy, setBusy] = useState(false);
-  async function submitPassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const password = String(data.get("password") || "");
-    if (password !== String(data.get("confirmPassword") || "")) { notify("Passwords do not match", "danger"); return; }
-    try { setBusy(true); await changePassword(password); event.currentTarget.reset(); notify("Password changed", "success"); }
-    catch (error) { notify(error instanceof Error ? error.message : "Password change failed", "danger"); }
-    finally { setBusy(false); }
-  }
   const items = [
-    { onClick: () => setShowSecurity((open) => !open), icon: <ShieldCheck size={20} />, label: "Security & Password", tone: "bg-[#eafbf0] text-[#16a34a]" },
+    { href: "/security-password", icon: <ShieldCheck size={20} />, label: "Security & Password", tone: "bg-[#eafbf0] text-[#16a34a]" },
     { href: "/backup-restore", icon: <CloudUpload size={20} />, label: "Backup & Restore", tone: "bg-[#f5efff] text-[#7c3aed]" },
     { href: "/family-access", icon: <UsersRound size={20} />, label: "Family Access", tone: "bg-[#eef4ff] text-[#11298f]" },
     { href: "/pet-management", icon: <PawPrint size={20} />, label: "Pet Management", tone: "bg-[#fff2e8] text-[#f97316]" },
     { href: "/personalization", icon: <Palette size={20} />, label: "Personalization", tone: "bg-[#eef4ff] text-[#11298f]" },
   ];
-  return <AppShell><PageTitle title="Settings" subtitle="Security, backup, family and pet management" /><div className="mx-auto grid max-w-2xl gap-5"><ProfileMenuSection title="Settings" items={items} />{showSecurity && (user ? <Card className="rounded-[18px] p-5"><form onSubmit={submitPassword} className="grid gap-3"><h2 className="font-extrabold text-[#111936]">Security & Password</h2><input name="password" type="password" className={inputClass} placeholder="New password" minLength={6} required /><input name="confirmPassword" type="password" className={inputClass} placeholder="Confirm password" minLength={6} required /><Button type="submit" disabled={busy}>Change password</Button><Button type="button" variant="outline" disabled={!user.email || busy} onClick={() => user.email && void sendPasswordReset(user.email).then(() => notify("Reset link sent", "success")).catch((error: unknown) => notify(error instanceof Error ? error.message : "Reset failed", "danger"))}>Forgot password</Button></form></Card> : <Card className="rounded-[18px] p-5"><p className="mb-3 text-sm text-[#69718a]">Login to manage account security.</p><Link href="/login"><Button>Login</Button></Link></Card>)}</div></AppShell>;
+  return <AppShell><PageTitle title="Settings" subtitle="Security, backup, family and pet management" /><div className="mx-auto grid max-w-2xl gap-5"><ProfileMenuSection title="Settings" items={items} /></div></AppShell>;
 }
 
 export function ProfileDetailsPage() {
@@ -1491,6 +1478,35 @@ export function ProfileDetailsPage() {
   return <AppShell><PageTitle title="Profile Details" subtitle="View and update your personal information" /><div className="mx-auto grid max-w-2xl gap-5"><Card className="rounded-[24px] border-white/80 bg-white/80 p-5 shadow-[0_20px_50px_rgba(29,98,124,0.10)] backdrop-blur-xl sm:p-7"><div className="mb-6 flex flex-col items-center gap-3 text-center"><input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void uploadPhoto(event.target.files?.[0])} /><button type="button" disabled={uploading} onClick={() => photoInputRef.current?.click()} className="relative grid size-28 place-items-center overflow-hidden rounded-full bg-[#edf4ff] text-[#11298f] shadow-[0_12px_28px_rgba(17,41,143,0.14)] disabled:opacity-60" aria-label="Upload profile photo">{profilePhoto ? <Image src={profilePhoto} alt="Profile" width={112} height={112} className="size-full object-cover" unoptimized /> : <User size={58} />}<span className="absolute bottom-1 right-1 grid size-9 place-items-center rounded-full bg-[#11298f] text-white ring-4 ring-white"><Camera size={17} /></span></button><div><h2 className="text-xl font-extrabold text-[#111936]">{user?.name || localName}</h2><p className="mt-1 text-sm font-semibold text-[#69718a]">{user?.email || "Local profile"}</p></div></div><form onSubmit={saveProfile} className="grid gap-4"><Field label="Name"><input name="name" className={inputClass} defaultValue={user?.name || localName} required /></Field><Field label="Email"><input className={inputClass} value={user?.email || "Local profile"} disabled readOnly /></Field><Button type="submit">Save Changes</Button></form></Card><Card className="profile-premium-card grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]"><span className="grid size-14 place-items-center rounded-2xl bg-[#fff2e8] text-[#f97316]"><Crown size={28} fill="currentColor" /></span><div><h3 className="text-sm font-extrabold text-[#111936]">{syncEnabled ? "You're Premium!" : "Daily Hisab Account"}</h3><p className="text-sm font-medium text-[#59627a]">{syncEnabled ? "Enjoy all premium features" : "Your personal finance profile"}</p></div><Link href="/premium" className="rounded-xl border border-[#9aa4c0] px-3 py-2 text-sm font-extrabold text-[#11298f]">View Plan</Link></Card><Card className="rounded-[22px] border-[#e8ebf4] p-4"><div className="mb-4 flex items-center justify-between gap-3"><div><h3 className="font-extrabold text-[#111936]">Profile status</h3><p className="text-xs font-semibold text-[#69718a]">Control whether your financial summary appears on Profile.</p></div><button type="button" onClick={toggleStatus} className="shrink-0 rounded-full bg-[#eef3ff] px-3 py-2 text-xs font-extrabold text-[#11298f]">{statusVisible ? "Hide" : "Show"}</button></div>{statusVisible && <div className="grid grid-cols-3 gap-3 text-center"><div className="rounded-2xl bg-[#f7f9ff] p-3"><strong className="block text-base text-[#111936]">{takaShort(totalExpense)}</strong><span className="text-[10px] font-bold text-[#69718a]">Expense</span></div><div className="rounded-2xl bg-[#f7f9ff] p-3"><strong className="block text-base text-[#111936]">{takaShort(dailyAverage)}</strong><span className="text-[10px] font-bold text-[#69718a]">Average</span></div><div className="rounded-2xl bg-[#f7f9ff] p-3"><strong className="block text-base text-[#111936]">{daysWithExpense}</strong><span className="text-[10px] font-bold text-[#69718a]">Days</span></div></div>}</Card></div></AppShell>;
 }
 
+export function SecurityPasswordPage() {
+  const { changePassword, createPassword, sendPasswordReset, user } = useAuth();
+  const { notify } = useToast();
+  const [busy, setBusy] = useState(false);
+  const hasPassword = Boolean(user?.hasPasswordProvider);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const password = String(data.get("password") || "");
+    const confirmation = String(data.get("confirmPassword") || "");
+    if (password !== confirmation) { notify("Passwords do not match", "danger"); return; }
+    try {
+      setBusy(true);
+      if (hasPassword) await changePassword(password);
+      else await createPassword(password);
+      form.reset();
+      notify(hasPassword ? "Password changed successfully" : "Password created successfully", "success");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Password update failed", "danger");
+    } finally { setBusy(false); }
+  }
+
+  if (!user) return <AppShell><PageTitle title="Security & Password" subtitle="Protect your Daily Hisab account" /><Card className="mx-auto max-w-xl rounded-[22px] p-6 text-center"><ShieldCheck size={48} className="mx-auto text-[#11298f]" /><h2 className="mt-4 text-xl font-extrabold text-[#111936]">Login required</h2><p className="mt-2 text-sm font-semibold text-[#69718a]">Login or create an account to manage password security.</p><Link href="/login" className="mt-5 block rounded-xl bg-[#11298f] px-5 py-3 text-sm font-extrabold text-white">Login or Create Account</Link></Card></AppShell>;
+
+  return <AppShell><PageTitle title="Security & Password" subtitle="Protect your Daily Hisab account" /><div className="mx-auto grid max-w-xl gap-5"><Card className="overflow-hidden rounded-[22px] border-[#e4eaf6] p-0"><div className="bg-gradient-to-br from-[#071b75] to-[#315ddd] p-6 text-white"><ShieldCheck size={38} /><h2 className="mt-4 text-xl font-black">{hasPassword ? "Change your password" : "Create a password"}</h2><p className="mt-2 text-sm font-semibold leading-6 text-white/75">{hasPassword ? "Your account already supports email and password login." : "You signed in with Google. Create a password to also login using your email address."}</p></div><form onSubmit={submit} className="grid gap-4 p-5"><Field label={hasPassword ? "New password" : "Create password"}><input name="password" type="password" className={inputClass} minLength={6} autoComplete="new-password" required /></Field><Field label="Confirm password"><input name="confirmPassword" type="password" className={inputClass} minLength={6} autoComplete="new-password" required /></Field><Button type="submit" disabled={busy}>{busy ? "Please wait..." : hasPassword ? "Change Password" : "Create Password"}</Button></form></Card><Card className="rounded-[20px] border-[#dce5ff] bg-[#f7f9ff] p-5"><h3 className="font-extrabold text-[#111936]">Forgot your password?</h3><p className="mt-2 text-sm font-semibold leading-6 text-[#69718a]">We will send a secure reset link to {user.email}.</p><Button type="button" variant="outline" className="mt-4 w-full" disabled={busy || !user.email} onClick={async () => { if (!user.email) return; try { setBusy(true); await sendPasswordReset(user.email); notify("Password reset email sent", "success"); } catch (error) { notify(error instanceof Error ? error.message : "Reset email failed", "danger"); } finally { setBusy(false); } }}>Send Forgot Password Link</Button></Card></div></AppShell>;
+}
+
 export function PetManagementPage() {
   const [enabled, setEnabled] = useState(false);
   const [color, setColor] = useState<PetColor>("default");
@@ -1498,7 +1514,7 @@ export function PetManagementPage() {
   const [mode, setMode] = useState<PetMode>("default");
   const [speed, setSpeed] = useState<PetSpeed>("normal");
   useEffect(() => {
-    setEnabled(localStorage.getItem(PET_ENABLED_KEY) === "1");
+    setEnabled(localStorage.getItem(PET_ENABLED_KEY) !== "0");
     setColor((localStorage.getItem(PET_COLOR_KEY) as PetColor) || "default");
     setSize((localStorage.getItem(PET_SIZE_KEY) as PetSize) || "medium");
     setMode((localStorage.getItem(PET_MODE_KEY) as PetMode) || "default");
@@ -1735,7 +1751,7 @@ export function SettingsPage() {
       setLanguagePreference((savedLanguage === "bangla" || savedLanguage === "english" ? savedLanguage : "default") as AppLanguage);
       setCurrencyPreference(window.localStorage.getItem(CURRENCY_STORAGE_KEY) === "USD" ? "USD" : "BDT");
       setStatusVisible(window.localStorage.getItem(PROFILE_STATUS_VISIBLE_KEY) !== "0");
-      setPetEnabled(window.localStorage.getItem(PET_ENABLED_KEY) === "1");
+      setPetEnabled(window.localStorage.getItem(PET_ENABLED_KEY) !== "0");
       const savedPetColor = window.localStorage.getItem(PET_COLOR_KEY);
       setPetColor((["brown", "default", "black", "white"].includes(savedPetColor || "") ? savedPetColor : "default") as PetColor);
       const savedPetSize = window.localStorage.getItem(PET_SIZE_KEY);

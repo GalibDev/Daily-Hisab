@@ -34,7 +34,7 @@ export function FloatingPet() {
 
   useEffect(() => {
     const load = () => {
-      setEnabled(localStorage.getItem(PET_ENABLED_KEY) === "1");
+      setEnabled(localStorage.getItem(PET_ENABLED_KEY) !== "0");
       const savedColor = localStorage.getItem(PET_COLOR_KEY);
       setColor((["brown", "default", "black", "white"].includes(savedColor || "") ? savedColor : "default") as PetColor);
       const savedSize = localStorage.getItem(PET_SIZE_KEY);

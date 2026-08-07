@@ -3,8 +3,10 @@
 import type { User as FirebaseUser } from "firebase/auth";
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
+  linkWithCredential,
   reload,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -24,6 +26,7 @@ export type AppUser = {
   name: string | null;
   photoUrl: string | null;
   provider: "firebase";
+  hasPasswordProvider: boolean;
 };
 
 type AuthStore = {
@@ -38,6 +41,7 @@ type AuthStore = {
   uploadProfileImage: (file: File) => Promise<string>;
   sendPasswordReset: (email: string) => Promise<void>;
   changePassword: (password: string) => Promise<void>;
+  createPassword: (password: string) => Promise<void>;
   getIdToken: () => Promise<string>;
 };
 
@@ -52,6 +56,7 @@ function mapUser(user: FirebaseUser | null): AppUser | null {
     name: user.displayName,
     photoUrl: user.photoURL,
     provider: "firebase",
+    hasPasswordProvider: user.providerData.some((provider) => provider.providerId === "password"),
   };
 }
 
@@ -143,6 +148,16 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       if (!firebaseAuth?.currentUser) throw new Error("Login required");
       if (password.length < 6) throw new Error("Password must contain at least 6 characters");
       await updatePassword(firebaseAuth.currentUser, password);
+    },
+    createPassword: async (password) => {
+      const currentUser = firebaseAuth?.currentUser;
+      if (!currentUser?.email) throw new Error("Login with Google first");
+      if (currentUser.providerData.some((provider) => provider.providerId === "password")) throw new Error("Password already exists. Use Change Password instead.");
+      if (password.length < 6) throw new Error("Password must contain at least 6 characters");
+      await linkWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, password));
+      await reload(currentUser);
+      setFirebaseUser(currentUser);
+      setProfileVersion((version) => version + 1);
     },
     getIdToken: async () => {
       if (!firebaseAuth?.currentUser) throw new Error("Login required");
