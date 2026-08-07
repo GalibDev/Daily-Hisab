@@ -175,6 +175,18 @@ html.dark textarea {
     padding-block: 1rem;
   }
 
+  .ui-theme-aurora .profile-menu-highlight {
+    min-height: 5.25rem;
+    background: linear-gradient(110deg, #0b247d 0%, #173ba9 52%, #3472dc 100%) !important;
+    box-shadow: 0 14px 32px rgba(17, 41, 143, .24);
+  }
+
+  .ui-theme-aurora .profile-menu-highlight span,
+  .ui-theme-aurora .profile-menu-highlight small,
+  .ui-theme-aurora .profile-menu-highlight svg {
+    color: #fff !important;
+  }
+
   .ui-theme-aurora .profile-menu-icon {
     border-radius: 0 !important;
     background: transparent !important;
