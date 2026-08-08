@@ -22,6 +22,7 @@ export const metadata: Metadata = {
   creator: "Daily Hisab",
   publisher: "Daily Hisab",
   category: "Finance",
+  alternates: { canonical: "/" },
   keywords: [
     "Daily Hisab",
     "DailyHisab",
