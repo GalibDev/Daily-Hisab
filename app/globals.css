@@ -216,3 +216,10 @@ html.dark textarea {
   .hero-live, .hero-orb, .stat-sheet, .ai-float-button, .ai-chat-open { animation: none; }
   .stat-pop { transition: none; }
 }
+/* Keep mobile long-press sorting from selecting labels or opening the copy callout. */
+.daily-category-sort,
+.daily-category-sort * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

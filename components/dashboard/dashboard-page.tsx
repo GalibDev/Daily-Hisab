@@ -1159,7 +1159,7 @@ function MobileDashboard({
                 <input value={dailyNewCategory} onChange={(event) => setDailyNewCategory(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addDailyCategory(); } }} className={inputClass} placeholder="নতুন category লিখুন" />
                 <Button type="button" className="h-12 shrink-0 px-4" onClick={addDailyCategory}><Plus size={17} /> Add</Button>
               </div>
-              <div className="grid gap-2">
+              <div className="daily-category-sort grid select-none gap-2" onContextMenu={(event) => event.preventDefault()}>
                 {dailyCategoryOptions.map((category) => {
                   const selected = dailyCategoryNames.includes(category);
                   const option = getCategoryIcon(category);
