@@ -36,6 +36,7 @@ import {
   Gift,
   GlassWater,
   GraduationCap,
+  GripVertical,
   Grid2X2,
   HandCoins,
   HeartPulse,
@@ -577,6 +578,7 @@ function MobileDashboard({
   const [summarySlideIndex, setSummarySlideIndex] = useState(0);
   const [statDetails, setStatDetails] = useState<"monthly" | "today" | "average" | null>(null);
   const [dailyCategoryManagerOpen, setDailyCategoryManagerOpen] = useState(false);
+  const [draggedDailyCategory, setDraggedDailyCategory] = useState<string | null>(null);
   const [dailyNewCategory, setDailyNewCategory] = useState("");
   const [dailyCategoryNames, setDailyCategoryNames] = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_DAILY_CATEGORIES;
@@ -721,6 +723,11 @@ function MobileDashboard({
     const option = getCategoryIcon(category);
     return { category, icon: option.icon, tone: option.tone };
   });
+  const dailyCategoryOptions = [
+    ...dailyCategoryNames,
+    ...Array.from(new Set([...categories, ...allExpenseShortcuts.map((item) => item.category)]))
+      .filter((category) => !dailyCategoryNames.includes(category)),
+  ];
 
   useEffect(() => {
     window.localStorage.setItem(CUSTOM_SHORTCUTS_STORAGE_KEY, JSON.stringify(customShortcuts));
@@ -801,6 +808,27 @@ function MobileDashboard({
       }
       return [...current, category];
     });
+  }
+
+  function reorderDailyCategory(source: string, target: string) {
+    if (source === target) return;
+    setDailyCategoryNames((current) => {
+      const sourceIndex = current.indexOf(source);
+      const targetIndex = current.indexOf(target);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+      const next = [...current];
+      next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, source);
+      return next;
+    });
+  }
+
+  function handleDailyCategoryTouchMove(event: React.TouchEvent<HTMLElement>) {
+    if (!draggedDailyCategory) return;
+    const touch = event.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest<HTMLElement>("[data-daily-category]");
+    const targetCategory = target?.dataset.dailyCategory;
+    if (targetCategory) reorderDailyCategory(draggedDailyCategory, targetCategory);
   }
 
   function addDailyCategory() {
@@ -1132,16 +1160,39 @@ function MobileDashboard({
                 <Button type="button" className="h-12 shrink-0 px-4" onClick={addDailyCategory}><Plus size={17} /> Add</Button>
               </div>
               <div className="grid gap-2">
-                {Array.from(new Set([...categories, ...allExpenseShortcuts.map((item) => item.category), ...dailyCategoryNames])).map((category) => {
+                {dailyCategoryOptions.map((category) => {
                   const selected = dailyCategoryNames.includes(category);
                   const option = getCategoryIcon(category);
                   const Icon = option.icon;
                   return (
-                    <button key={category} type="button" onClick={() => toggleDailyCategory(category)} className={`flex items-center gap-3 rounded-2xl border p-3 text-left ${selected ? "border-[#11298f] bg-[#f3f5ff]" : "border-[#e8ebf4] bg-white"}`}>
-                      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#20263a]">{category}</span>
-                      <span className={selected ? "rounded-full bg-[#11298f] px-2.5 py-1 text-[10px] font-extrabold text-white" : "rounded-full bg-[#eef1f8] px-2.5 py-1 text-[10px] font-bold text-[#69718a]"}>{selected ? "সরান" : "যোগ করুন"}</span>
-                    </button>
+                    <div
+                      key={category}
+                      data-daily-category={category}
+                      draggable={selected}
+                      onDragStart={() => setDraggedDailyCategory(category)}
+                      onDragOver={(event) => { if (selected) event.preventDefault(); }}
+                      onDrop={() => { if (draggedDailyCategory && selected) reorderDailyCategory(draggedDailyCategory, category); setDraggedDailyCategory(null); }}
+                      onDragEnd={() => setDraggedDailyCategory(null)}
+                      className={`flex items-center gap-2 rounded-2xl border p-2 transition ${selected ? "border-[#11298f] bg-[#f3f5ff]" : "border-[#e8ebf4] bg-white"} ${draggedDailyCategory === category ? "scale-[0.98] opacity-60" : ""}`}
+                    >
+                      {selected && (
+                        <button
+                          type="button"
+                          aria-label={`Drag to reorder ${category}`}
+                          className="grid size-8 shrink-0 touch-none place-items-center rounded-lg text-[#7b849a] active:bg-white"
+                          onTouchStart={() => setDraggedDailyCategory(category)}
+                          onTouchMove={handleDailyCategoryTouchMove}
+                          onTouchEnd={() => setDraggedDailyCategory(null)}
+                        >
+                          <GripVertical size={18} />
+                        </button>
+                      )}
+                      <button type="button" onClick={() => toggleDailyCategory(category)} className="flex min-w-0 flex-1 items-center gap-3 p-1 text-left">
+                        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${option.tone}`}><Icon size={19} /></span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#20263a]">{category}</span>
+                        <span className={selected ? "rounded-full bg-[#11298f] px-2.5 py-1 text-[10px] font-extrabold text-white" : "rounded-full bg-[#eef1f8] px-2.5 py-1 text-[10px] font-bold text-[#69718a]"}>{selected ? "সরান" : "যোগ করুন"}</span>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
