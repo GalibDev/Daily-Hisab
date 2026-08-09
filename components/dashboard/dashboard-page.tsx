@@ -6,34 +6,64 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
+  Baby,
   Banknote,
+  Beef,
+  BookOpen,
+  BriefcaseBusiness,
   Bus,
+  CakeSlice,
   CalendarCheck,
+  Candy,
+  Car,
   Check,
   ChevronRight,
   CircleDollarSign,
   Coffee,
+  Cookie,
+  CookingPot,
+  CupSoda,
   Download,
+  Drumstick,
+  Dumbbell,
   Edit2,
+  EggFried,
   FileText,
+  Fish,
+  Folder,
   Fuel,
+  Gamepad2,
+  Gift,
+  GlassWater,
+  GraduationCap,
   Grid2X2,
   HandCoins,
+  HeartPulse,
   Home,
+  IceCreamBowl,
   MoreHorizontal,
   MoreVertical,
   Plus,
+  PawPrint,
+  Pizza,
+  Plane,
+  Popcorn,
   Receipt,
+  Salad,
+  Sandwich,
   ShoppingBag,
   ShoppingCart,
   Sparkles,
   ShieldCheck,
+  Soup,
   Smartphone,
   TrendingDown,
   TrendingUp,
   Utensils,
   Upload,
   Wallet,
+  Wifi,
+  Wrench,
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -56,6 +86,7 @@ import { CategoryPieChart, ExpenseTrendChart } from "./charts";
 const CUSTOM_SHORTCUTS_STORAGE_KEY = "daily-hisab.mobile-expense-shortcuts.v1";
 const FRONT_SHORTCUTS_STORAGE_KEY = "daily-hisab.mobile-front-shortcuts.v1";
 const DAILY_CATEGORIES_STORAGE_KEY = "daily-hisab.mobile-daily-categories.v1";
+const CATEGORY_ICON_STORAGE_KEY = "daily-hisab.category-icons.v1";
 const DEFAULT_DAILY_CATEGORIES = ["সকালের নাস্তা", "যাতায়াত ভাড়া", "দুপুরের খরচ", "বিকেলের নাস্তা", "অন্যান্য খরচ"];
 
 function StatCard({
@@ -583,6 +614,15 @@ function MobileDashboard({
       return [];
     }
   });
+  const [categoryIconMap] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = window.localStorage.getItem(CATEGORY_ICON_STORAGE_KEY);
+      return saved ? JSON.parse(saved) as Record<string, string> : {};
+    } catch {
+      return {};
+    }
+  });
   const expenseEntries = entries.filter((entry) => entry.type === "expense");
   const incomeEntries = entries.filter((entry) => entry.type === "income");
   const todayExpenseEntries = expenseEntries.filter((entry) => entry.date === today);
@@ -609,6 +649,41 @@ function MobileDashboard({
     { name: "bag", icon: ShoppingBag, label: "কেনাকাটা", tone: "bg-[#fdf2f8] text-[#db2777]" },
     { name: "home", icon: Home, label: "বাসা", tone: "bg-[#ecfdf5] text-[#059669]" },
     { name: "receipt", icon: Receipt, label: "অন্যান্য", tone: "bg-[#f5efff] text-[#6d5adf]" },
+  ];
+  const categoryIconOptions = [
+    ...shortcutIconOptions,
+    { name: "egg", icon: EggFried, tone: "bg-[#fff7ed] text-[#eab308]" },
+    { name: "sandwich", icon: Sandwich, tone: "bg-[#fff0e6] text-[#f97316]" },
+    { name: "cookie", icon: Cookie, tone: "bg-[#fff7ed] text-[#d97706]" },
+    { name: "milk", icon: GlassWater, tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { name: "biryani", icon: CookingPot, tone: "bg-[#fff0e6] text-[#ea580c]" },
+    { name: "curry", icon: Soup, tone: "bg-[#fff7ed] text-[#d97706]" },
+    { name: "chicken", icon: Drumstick, tone: "bg-[#fff1f2] text-[#e11d48]" },
+    { name: "beef", icon: Beef, tone: "bg-[#fff1f2] text-[#be123c]" },
+    { name: "fish", icon: Fish, tone: "bg-[#ecfeff] text-[#0891b2]" },
+    { name: "salad", icon: Salad, tone: "bg-[#ecfdf5] text-[#059669]" },
+    { name: "pizza", icon: Pizza, tone: "bg-[#fff7ed] text-[#f97316]" },
+    { name: "soft-drink", icon: CupSoda, tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { name: "water", icon: GlassWater, tone: "bg-[#ecfeff] text-[#0891b2]" },
+    { name: "ice-cream", icon: IceCreamBowl, tone: "bg-[#fdf2f8] text-[#db2777]" },
+    { name: "cake", icon: CakeSlice, tone: "bg-[#fff1f2] text-[#e11d48]" },
+    { name: "candy", icon: Candy, tone: "bg-[#fdf2f8] text-[#db2777]" },
+    { name: "popcorn", icon: Popcorn, tone: "bg-[#fff7ed] text-[#d97706]" },
+    { name: "car", icon: Car, tone: "bg-[#edf4ff] text-[#2563eb]" },
+    { name: "travel", icon: Plane, tone: "bg-[#ecfeff] text-[#0891b2]" },
+    { name: "wifi", icon: Wifi, tone: "bg-[#eef4ff] text-[#2563eb]" },
+    { name: "money", icon: Banknote, tone: "bg-[#ecfdf5] text-[#16a34a]" },
+    { name: "health", icon: HeartPulse, tone: "bg-[#fff1f2] text-[#e11d48]" },
+    { name: "education", icon: GraduationCap, tone: "bg-[#eef2ff] text-[#4f46e5]" },
+    { name: "book", icon: BookOpen, tone: "bg-[#f5f3ff] text-[#7c3aed]" },
+    { name: "gift", icon: Gift, tone: "bg-[#fdf2f8] text-[#db2777]" },
+    { name: "family", icon: Baby, tone: "bg-[#fff7ed] text-[#f97316]" },
+    { name: "work", icon: BriefcaseBusiness, tone: "bg-[#f1f5f9] text-[#475569]" },
+    { name: "fitness", icon: Dumbbell, tone: "bg-[#ecfdf5] text-[#059669]" },
+    { name: "pet", icon: PawPrint, tone: "bg-[#fff7ed] text-[#d97706]" },
+    { name: "games", icon: Gamepad2, tone: "bg-[#f5f3ff] text-[#7c3aed]" },
+    { name: "repair", icon: Wrench, tone: "bg-[#f1f5f9] text-[#475569]" },
+    { name: "folder", icon: Folder, tone: "bg-[#fff7e8] text-[#c77800]" },
   ];
   const baseShortcuts = [
     { category: "সকালের নাস্তা", iconName: "coffee" },
@@ -668,7 +743,8 @@ function MobileDashboard({
   }
 
   function getCategoryIcon(category: string) {
-    return getShortcutIcon(allExpenseShortcuts.find((item) => item.category === category)?.iconName ?? "receipt");
+    const iconName = categoryIconMap[category] ?? allExpenseShortcuts.find((item) => item.category === category)?.iconName ?? "receipt";
+    return categoryIconOptions.find((option) => option.name === iconName) ?? getShortcutIcon("receipt");
   }
 
   function getMonthlyEntriesForCategory(category: string) {
