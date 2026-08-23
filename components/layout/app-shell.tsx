@@ -287,13 +287,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Link
                 key={item.href}
                 href={item.href}
+                title={desktopSidebarCollapsed ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[#5c566d] transition",
-                  active && "bg-[#6C4CF1] text-white shadow-lg shadow-[#6C4CF1]/25",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-[#40534d] transition",
+                  desktopSidebarCollapsed && "justify-center px-2",
+                  active && "bg-[#087d5a] text-white shadow-[0_8px_18px_rgba(8,125,90,0.18)]",
                 )}
               >
-                <Icon size={18} />
-                {item.label}
+                <Icon size={18} className="shrink-0" />
+                {!desktopSidebarCollapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
