@@ -540,25 +540,6 @@ function DesktopDashboard({
         <span className="rounded-full border border-[#dfe7e4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#62736d]">Updated today</span>
       </div>
 
-      <section className="relative overflow-hidden rounded-[30px] bg-[linear-gradient(120deg,#071743_0%,#102e91_48%,#1656bd_100%)] p-7 text-white shadow-[0_24px_60px_rgba(13,39,125,0.22)] xl:p-9">
-        <div className="absolute -right-20 -top-28 size-80 rounded-full border-[28px] border-white/5" />
-        <div className="absolute bottom-[-90px] right-[20%] size-56 rounded-full bg-cyan-300/10 blur-2xl" />
-        <div className="relative grid gap-8 xl:grid-cols-[1fr_360px] xl:items-center">
-          <div>
-            <div className="flex items-center gap-3"><span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em]">This month overview</span><span className="text-xs font-semibold text-white/65">{new Date(`${today.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span></div>
-            <p className="mt-7 text-sm font-semibold text-white/65">Total spending</p>
-            <strong className="mt-1 block text-5xl font-black tracking-[-0.05em]">{taka(monthExpense)}</strong>
-            <div className="mt-6 flex max-w-lg items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-cyan-300" style={{ width: `${Math.min((monthExpense / Math.max(monthIncome + monthExpense, 1)) * 100, 100)}%` }} /></div><span className="text-xs font-bold text-white/70">{monthIncome + monthExpense > 0 ? Math.round((monthExpense / (monthIncome + monthExpense)) * 100) : 0}%</span></div>
-            <p className="mt-2 text-xs text-white/55">of your tracked cash flow is spending</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"><span className="text-[10px] font-black uppercase tracking-[0.12em] text-white/55">Income</span><strong className="mt-2 block text-xl font-black text-[#77e5a0]">{takaShort(monthIncome)}</strong><span className="mt-1 block text-[11px] text-white/55">this month</span></div>
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"><span className="text-[10px] font-black uppercase tracking-[0.12em] text-white/55">Active days</span><strong className="mt-2 block text-xl font-black">{activeDays}</strong><span className="mt-1 block text-[11px] text-white/55">expense days</span></div>
-            <div className="col-span-2 flex items-center gap-3 rounded-2xl border border-cyan-200/15 bg-cyan-200/10 p-4"><span className="grid size-10 place-items-center rounded-xl bg-cyan-200/15 text-cyan-200"><Sparkles size={19} /></span><span><b className="block text-sm">Your spending rhythm</b><small className="text-xs text-white/60">{activeDays ? `Average ${takaShort(monthExpense / activeDays)} per active day` : "Add your first expense to start tracking"}</small></span></div>
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Today’s expense", value: taka(todaySummary.expense), meta: todaySummary.entries ? `${todaySummary.entries} entries today` : "No spending recorded", icon: Wallet, tone: "bg-[#eef2ff] text-[#3452bb]" },
