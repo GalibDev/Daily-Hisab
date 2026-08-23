@@ -199,6 +199,22 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     setNotificationOpen(false);
   }
 
+  function startDesktopSidebarResize(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = desktopSidebarCollapsed ? DESKTOP_SIDEBAR_MIN : desktopSidebarWidth;
+    setDesktopSidebarCollapsed(false);
+    setDesktopSidebarResizing(true);
+    const move = (pointerEvent: PointerEvent) => setDesktopSidebarWidth(Math.min(DESKTOP_SIDEBAR_MAX, Math.max(DESKTOP_SIDEBAR_MIN, startWidth + pointerEvent.clientX - startX)));
+    const stop = () => {
+      setDesktopSidebarResizing(false);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+  }
+
   const drawerGroups = [
     {
       items: [
