@@ -163,6 +163,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   }, []);
 
   useEffect(() => {
+    window.localStorage.setItem(DESKTOP_SIDEBAR_WIDTH_KEY, String(desktopSidebarWidth));
+  }, [desktopSidebarWidth]);
+
+  useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
