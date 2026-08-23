@@ -67,7 +67,7 @@ export function ExpenseTrendChart({ data = [], monthLabel }: Readonly<{ data?: T
           labelStyle={{ color: "#b9c2d5", fontSize: 11 }}
           itemStyle={{ color: "#fff", fontWeight: 800 }}
         />
-        <Area type="monotone" dataKey="expense" stroke="url(#expenseTrendStroke)" strokeWidth={4} fill="url(#expenseTrendFill)" activeDot={{ r: 7, fill: "#5b5bd6", stroke: "#d7d6ff", strokeWidth: 5 }} isAnimationActive animationDuration={850} />
+        <Area type="monotone" dataKey="expense" stroke="url(#expenseTrendStroke)" strokeWidth={3} fill="url(#expenseTrendFill)" activeDot={{ r: 6, fill: "#087d5a", stroke: "#c9f3e3", strokeWidth: 4 }} isAnimationActive animationDuration={850} />
         {(() => {
           const peak = data.reduce((best, item) => item.expense > best.expense ? item : best, data[0]);
           return peak?.expense > 0 ? (
@@ -75,8 +75,8 @@ export function ExpenseTrendChart({ data = [], monthLabel }: Readonly<{ data?: T
               x={peak.day}
               y={peak.expense}
               r={7}
-              fill="#5b5bd6"
-              stroke="#d7d6ff"
+              fill="#087d5a"
+              stroke="#c9f3e3"
               strokeWidth={5}
               filter="url(#expensePeakGlow)"
               label={{
