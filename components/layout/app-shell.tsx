@@ -24,6 +24,8 @@ import {
   Menu,
   Moon,
   NotebookPen,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Receipt,
   RefreshCcw,
