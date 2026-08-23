@@ -469,6 +469,21 @@ function MobileStatCard({
   );
 }
 
+function DesktopCommandRail({ monthExpense, todayExpense, walletBalance }: Readonly<{ monthExpense: number; todayExpense: number; walletBalance: number }>) {
+  return (
+    <aside className="desktop-command-rail hidden border-l border-[#dfe7e4] bg-white xl:block">
+      <div className="sticky top-[72px] p-5">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-[#6d7d77]">Financial command center</p>
+        <div className="mt-4 grid gap-3 text-sm">
+          <div className="flex items-center justify-between"><span className="text-[#65746f]">This month</span><strong className="text-[#14231e]">{takaShort(monthExpense)}</strong></div>
+          <div className="flex items-center justify-between"><span className="text-[#65746f]">Today</span><strong className="text-[#14231e]">{takaShort(todayExpense)}</strong></div>
+          <div className="flex items-center justify-between"><span className="text-[#65746f]">Wallet balance</span><strong className="text-[#14231e]">{takaShort(walletBalance)}</strong></div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 function DesktopDashboard({
   categoryData,
   entries,
@@ -495,7 +510,8 @@ function DesktopDashboard({
   const latestEntries = entries.slice().sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)).slice(0, 5);
 
   return (
-    <div className="hidden gap-6 lg:grid">
+    <div className="hidden lg:grid xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid min-w-0 gap-5 xl:pr-5">
       <div className="flex items-end justify-between gap-6">
         <div>
           <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#7b84a0]">Financial command center</p>
@@ -552,6 +568,8 @@ function DesktopDashboard({
 
       <Card className="border-[#e8ecf5] p-6 shadow-[0_14px_34px_rgba(20,35,90,0.06)]"><div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#7b84a0]">Activity</p><h2 className="mt-1 text-xl font-black text-[#111936]">Recent money movement</h2></div><Link href="/entries" className="flex items-center gap-1 text-xs font-black text-[#11298f]">View all <ChevronRight size={15} /></Link></div>{latestEntries.length > 0 ? <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">{latestEntries.map((entry) => <div key={entry.id} className="rounded-2xl border border-[#edf0f6] bg-[#fbfcff] p-4"><div className="flex items-center justify-between gap-2"><span className="truncate text-xs font-black text-[#27304b]">{entry.category}</span><span className={entry.type === "income" ? "text-xs font-black text-[#16a34a]" : "text-xs font-black text-[#ef4444]"}>{entry.type === "income" ? "+" : "-"}{takaShort(entry.amount)}</span></div><p className="mt-2 truncate text-[11px] font-semibold text-[#7b849b]">{entry.description || "No description"}</p><p className="mt-2 text-[10px] font-bold text-[#a0a7b8]">{displayDate(entry.date)} · {entry.time}</p></div>)}</div> : <div className="rounded-2xl border border-dashed border-[#d9dfed] p-8 text-center text-sm font-semibold text-[#7a8298]">No recent activity yet. Add an expense to start your timeline.</div>}</Card>
       {summaryRows.length > 0 && <div className="flex items-center gap-2 text-xs font-semibold text-[#7b849b]"><span className="size-2 rounded-full bg-[#16a34a]" /> Latest summary synced for {summaryRows[0].date}</div>}
+      </div>
+      <DesktopCommandRail monthExpense={monthExpense} todayExpense={todaySummary.expense} walletBalance={wallet.personalBalance} />
     </div>
   );
 }
