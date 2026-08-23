@@ -167,6 +167,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   }, [desktopSidebarWidth]);
 
   useEffect(() => {
+    window.localStorage.setItem(DESKTOP_SIDEBAR_COLLAPSED_KEY, String(desktopSidebarCollapsed));
+  }, [desktopSidebarCollapsed]);
+
+  useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
