@@ -395,6 +395,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Search size={16} className="text-[#73847e]" />
               <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#899993]" placeholder="Search transactions, reports or settings..." />
             </div>
+            <Link href="/about" aria-label="Help" className="grid size-10 place-items-center rounded-lg text-[#44564f] hover:bg-[#f1f6f4] hover:text-[#087d5a]"><HelpCircle size={18} /></Link>
             <button type="button" onClick={() => setNotificationOpen((open) => !open)} className="relative grid size-11 place-items-center rounded-xl bg-white shadow-sm">
               <Bell size={19} />
               {pwaInstall.available && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-[#EF4444]" />}
