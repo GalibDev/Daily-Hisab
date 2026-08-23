@@ -157,6 +157,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   }, []);
 
   useEffect(() => {
+    const savedWidth = Number(window.localStorage.getItem(DESKTOP_SIDEBAR_WIDTH_KEY));
+    if (Number.isFinite(savedWidth) && savedWidth >= DESKTOP_SIDEBAR_MIN && savedWidth <= DESKTOP_SIDEBAR_MAX) setDesktopSidebarWidth(savedWidth);
+    setDesktopSidebarCollapsed(window.localStorage.getItem(DESKTOP_SIDEBAR_COLLAPSED_KEY) === "true");
+  }, []);
+
+  useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
