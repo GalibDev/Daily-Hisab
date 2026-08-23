@@ -540,8 +540,6 @@ function DesktopDashboard({
         <span className="rounded-full border border-[#dfe7e4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#62736d]">Updated today</span>
       </div>
 
-      <DesktopQuickActions />
-
       <section className="relative overflow-hidden rounded-[30px] bg-[linear-gradient(120deg,#071743_0%,#102e91_48%,#1656bd_100%)] p-7 text-white shadow-[0_24px_60px_rgba(13,39,125,0.22)] xl:p-9">
         <div className="absolute -right-20 -top-28 size-80 rounded-full border-[28px] border-white/5" />
         <div className="absolute bottom-[-90px] right-[20%] size-56 rounded-full bg-cyan-300/10 blur-2xl" />
