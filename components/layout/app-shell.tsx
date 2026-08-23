@@ -277,6 +277,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             <small className="text-[#7c758d]">Your Daily Tracker</small>
           </span>
         </Link>
+        <button type="button" onClick={() => setDesktopSidebarCollapsed((value) => !value)} aria-label={desktopSidebarCollapsed ? "Expand desktop sidebar" : "Collapse desktop sidebar"} className="mb-4 flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe7e4] bg-[#f8fbfa] text-xs font-bold text-[#52645e] hover:border-[#9fcdbd] hover:text-[#087d5a]">
+          {desktopSidebarCollapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>Collapse</span></>}
+        </button>
 
         <nav className="space-y-1 pr-1">
           {nav.map((item) => {
