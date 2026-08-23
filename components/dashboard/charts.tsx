@@ -42,14 +42,14 @@ export function ExpenseTrendChart({ data = [], monthLabel }: Readonly<{ data?: T
       <AreaChart data={data} margin={{ top: 58, right: 12, left: 4, bottom: 4 }}>
         <defs>
           <linearGradient id="expenseTrendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3346aa" stopOpacity={0.68} />
-            <stop offset="58%" stopColor="#6d63c8" stopOpacity={0.28} />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.04} />
+            <stop offset="0%" stopColor="#16a879" stopOpacity={0.52} />
+            <stop offset="58%" stopColor="#4bc49b" stopOpacity={0.20} />
+            <stop offset="100%" stopColor="#8be0c1" stopOpacity={0.03} />
           </linearGradient>
           <linearGradient id="expenseTrendStroke" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#102f7b" />
-            <stop offset="62%" stopColor="#3245a8" />
-            <stop offset="100%" stopColor="#9b62cb" />
+            <stop offset="0%" stopColor="#076f50" />
+            <stop offset="62%" stopColor="#0b9469" />
+            <stop offset="100%" stopColor="#42b88f" />
           </linearGradient>
           <filter id="expensePeakGlow" x="-150%" y="-150%" width="400%" height="400%">
             <feGaussianBlur stdDeviation="5" result="blur" />
