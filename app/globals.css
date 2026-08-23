@@ -212,6 +212,17 @@ html.dark textarea {
   }
 }
 
+html.dark .desktop-sidebar,
+html.dark .desktop-command-rail {
+  border-color: #263a34 !important;
+  background: #101a17 !important;
+}
+
+html.dark .desktop-main > header {
+  border-color: #263a34 !important;
+  background: #101a17 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-live, .hero-orb, .stat-sheet, .ai-float-button, .ai-chat-open { animation: none; }
   .stat-pop { transition: none; }
