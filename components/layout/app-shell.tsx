@@ -91,6 +91,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [desktopSidebarWidth, setDesktopSidebarWidth] = useState(DESKTOP_SIDEBAR_DEFAULT);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const [syncIndicatorVisible, setSyncIndicatorVisible] = useState(true);
   const [pwaInstall, setPwaInstall] = useState({ available: false, ios: false });
   const [localProfileName, setLocalProfileName] = useState(() => typeof window === "undefined" ? "Guest User" : window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
