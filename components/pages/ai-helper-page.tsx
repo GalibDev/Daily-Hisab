@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Send, User } from "lucide-react";
 import { AiLogo } from "@/components/ai/ai-logo";
+import { AiMessageContent } from "@/components/ai/ai-message-content";
 import { useAuth } from "@/components/auth/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { useFinance } from "@/components/state/finance-store";
@@ -53,7 +54,7 @@ export function AiHelperPage() {
         </section>
         <Card className="flex min-h-[420px] flex-col overflow-hidden rounded-[20px] border-[#e7eaf3]">
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {messages.map((message, index) => <div key={`${message.role}-${index}`} className={`flex gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}>{message.role === "assistant" && <AiLogo compact />}<p className={message.role === "user" ? "max-w-[82%] rounded-2xl rounded-br-md bg-[#11298f] px-4 py-3 text-sm leading-6 text-white" : "max-w-[82%] rounded-2xl rounded-bl-md bg-[#f3f5fb] px-4 py-3 text-sm leading-6 text-[#20263a]"}>{message.content}</p>{message.role === "user" && <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#f3f1ff] text-[#6c4cf1]"><User size={16} /></span>}</div>)}
+            {messages.map((message, index) => <div key={`${message.role}-${index}`} className={`flex gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}>{message.role === "assistant" && <AiLogo compact />}<p className={message.role === "user" ? "max-w-[82%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#11298f] px-4 py-3 text-sm leading-6 text-white" : "max-w-[82%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[#f3f5fb] px-4 py-3 text-sm leading-6 text-[#20263a]"}><AiMessageContent content={message.content} /></p>{message.role === "user" && <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#f3f1ff] text-[#6c4cf1]"><User size={16} /></span>}</div>)}
             {loading && <p className="text-sm font-semibold text-[#59627a]">AI ভাবছে…</p>}
           </div>
           <div className="border-t border-[#eef0f8] p-3"><div className="mb-3 flex gap-2 overflow-x-auto">{suggestions.map((item) => <button key={item} type="button" onClick={() => setQuestion(item)} className="shrink-0 rounded-full border border-[#dbe4ff] bg-[#f7f9ff] px-3 py-2 text-[11px] font-bold text-[#11298f]">{item}</button>)}</div><form onSubmit={askAi} className="flex gap-2"><input value={question} onChange={(event) => setQuestion(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-[#dfe3ef] px-4 text-sm outline-none focus:border-[#6c4cf1]" placeholder="AI-কে প্রশ্ন করুন..." aria-label="Ask AI" /><Button type="submit" disabled={loading || !question.trim()} aria-label="Send question"><Send size={18} /></Button></form></div>
