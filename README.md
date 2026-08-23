@@ -146,7 +146,31 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 
 Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. The current finance experience remains local-first, so the app still works without Supabase sync.
 
-### WalkAI (server-side only)
+### AI providers (server-side only)
+
+The easiest provider-independent setup uses four variables. For OpenAI-compatible gateways (including Grok, DeepSeek, Claude gateways and WalkAI), use `openai` format:
+
+```env
+AI_API_FORMAT=openai
+AI_BASE_URL=https://your-provider.example/v1
+AI_API_KEY=your-server-side-api-key
+AI_MODEL=your-model-id
+```
+
+`AI_MODEL` may be left empty when the gateway exposes `GET /models`; Daily Hisab will select the first available text/chat model. The server appends `/v1` when needed and calls `/chat/completions` automatically.
+
+For the WalkCoding Grok gateway, the provider-specific aliases are also supported:
+
+```env
+AI_PROVIDER=grok
+GROK_MODELS_BASE_URL=https://st.walkcoding.top/v1
+GROK_API_KEY=your-grok-api-key
+GROK_MODEL=
+```
+
+When changing from Gemini to Grok in Vercel, replace `AI_PROVIDER=gemini` with `AI_PROVIDER=grok` (or remove the old provider variables and use the universal `AI_*` variables above), then redeploy.
+
+The legacy WalkAI variables continue to work:
 
 ```env
 AI_PROVIDER=walkai
@@ -160,7 +184,7 @@ Use a **text/chat** group in WalkAI. Do not use image-only groups such as `ç”Ÿå›
 
 `WALKAI_BASE_URL` should contain only the base URL. The server appends `/models` and `/chat/completions` automatically.
 
-For a Gemini-compatible endpoint, set these server-only variables instead:
+For a native Gemini `generateContent` endpoint, set these server-only variables instead:
 
 ```env
 AI_PROVIDER=gemini
