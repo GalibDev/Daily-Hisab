@@ -23,7 +23,6 @@ import {
   Cookie,
   CookingPot,
   CupSoda,
-  Download,
   Drumstick,
   Dumbbell,
   Edit2,
@@ -538,10 +537,7 @@ function DesktopDashboard({
           <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#70817b]">Dashboard overview</p>
           <h1 className="mt-1 text-xl font-black tracking-[-0.03em] text-[#14231e]">Good morning, {todaySummary.entries > 0 ? "your finances are updated" : "let’s plan today"}.</h1>
         </div>
-        <div className="flex shrink-0 gap-3">
-          <Link href="/reports" className="hidden items-center gap-2 rounded-2xl border border-[#e5e9f4] bg-white px-4 py-3 text-sm font-extrabold text-[#24305a] shadow-[0_8px_20px_rgba(20,35,90,0.04)] xl:flex"><Download size={17} /> Export</Link>
-          <Link href="/add-expense" className="flex items-center gap-2 rounded-2xl bg-[#11298f] px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_24px_rgba(17,41,143,0.24)] transition hover:-translate-y-0.5"><Plus size={18} /> Add expense</Link>
-        </div>
+        <span className="rounded-full border border-[#dfe7e4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#62736d]">Updated today</span>
       </div>
 
       <DesktopQuickActions />
