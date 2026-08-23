@@ -301,7 +301,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           })}
         </nav>
 
-        <div className="mt-6 space-y-5">
+        {!desktopSidebarCollapsed && <div className="mt-6 space-y-5">
           <div className="rounded-xl border border-[#ece8ff] bg-white p-4">
             <div className="mb-2 text-sm font-bold">Premium Plan</div>
             <p className="mb-3 text-xs text-[#7c758d]">Unlock all premium features</p>
@@ -340,7 +340,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <LogOut size={17} /> Login
             </Link>
           )}
-        </div>
+        </div>}
         <button type="button" aria-label="Resize desktop sidebar" aria-valuemin={DESKTOP_SIDEBAR_MIN} aria-valuemax={DESKTOP_SIDEBAR_MAX} aria-valuenow={effectiveDesktopSidebarWidth} onPointerDown={startDesktopSidebarResize} onKeyDown={resizeDesktopSidebarFromKeyboard} className="desktop-sidebar-resizer absolute -right-1.5 top-0 h-full w-3 touch-none cursor-col-resize" />
       </aside>
 
