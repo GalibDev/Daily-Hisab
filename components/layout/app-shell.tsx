@@ -337,6 +337,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </Link>
           )}
         </div>
+        <button type="button" aria-label="Resize desktop sidebar" aria-valuemin={DESKTOP_SIDEBAR_MIN} aria-valuemax={DESKTOP_SIDEBAR_MAX} aria-valuenow={effectiveDesktopSidebarWidth} onPointerDown={startDesktopSidebarResize} onKeyDown={resizeDesktopSidebarFromKeyboard} className="desktop-sidebar-resizer absolute -right-1.5 top-0 h-full w-3 touch-none cursor-col-resize" />
       </aside>
 
       <main style={{ "--desktop-sidebar-width": `${effectiveDesktopSidebarWidth}px` } as React.CSSProperties} className="desktop-main pb-[calc(9rem+env(safe-area-inset-bottom))] lg:pb-0">
