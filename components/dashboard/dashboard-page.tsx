@@ -469,7 +469,7 @@ function MobileStatCard({
   );
 }
 
-function DesktopCommandRail({ monthExpense, todayExpense, walletBalance }: Readonly<{ monthExpense: number; todayExpense: number; walletBalance: number }>) {
+function DesktopCommandRail({ categories, monthExpense, todayExpense, walletBalance }: Readonly<{ categories: Array<{ name: string; value: number; fill: string }>; monthExpense: number; todayExpense: number; walletBalance: number }>) {
   return (
     <aside className="desktop-command-rail -my-5 hidden min-h-[calc(100vh-72px)] border-l border-[#dfe7e4] bg-white xl:block">
       <div className="sticky top-[72px] p-5">
@@ -478,6 +478,15 @@ function DesktopCommandRail({ monthExpense, todayExpense, walletBalance }: Reado
           <div className="flex items-center justify-between py-3"><span className="text-[#65746f]">This month</span><strong className="text-[#14231e]">{takaShort(monthExpense)}</strong></div>
           <div className="flex items-center justify-between py-3"><span className="text-[#65746f]">Today</span><strong className="text-[#14231e]">{takaShort(todayExpense)}</strong></div>
           <div className="flex items-center justify-between py-3"><span className="text-[#65746f]">Wallet balance</span><strong className="text-[#14231e]">{takaShort(walletBalance)}</strong></div>
+        </div>
+        <div className="mt-6 border-t border-[#dfe7e4] pt-5">
+          <h3 className="text-sm font-black text-[#14231e]">Budget health</h3>
+          <div className="mt-4 grid gap-4">
+            {categories.slice(0, 4).map((category) => {
+              const percent = monthExpense > 0 ? Math.round((category.value / monthExpense) * 100) : 0;
+              return <div key={category.name}><div className="mb-1.5 flex justify-between text-[11px] font-bold"><span className="truncate text-[#52635d]">{category.name}</span><span className="text-[#71817b]">{percent}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-[#e8eeeb]"><div className="h-full rounded-full" style={{ width: `${percent}%`, background: category.fill }} /></div></div>;
+            })}
+          </div>
         </div>
       </div>
     </aside>
@@ -569,7 +578,7 @@ function DesktopDashboard({
       <Card className="border-[#e8ecf5] p-6 shadow-[0_14px_34px_rgba(20,35,90,0.06)]"><div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#7b84a0]">Activity</p><h2 className="mt-1 text-xl font-black text-[#111936]">Recent money movement</h2></div><Link href="/entries" className="flex items-center gap-1 text-xs font-black text-[#11298f]">View all <ChevronRight size={15} /></Link></div>{latestEntries.length > 0 ? <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">{latestEntries.map((entry) => <div key={entry.id} className="rounded-2xl border border-[#edf0f6] bg-[#fbfcff] p-4"><div className="flex items-center justify-between gap-2"><span className="truncate text-xs font-black text-[#27304b]">{entry.category}</span><span className={entry.type === "income" ? "text-xs font-black text-[#16a34a]" : "text-xs font-black text-[#ef4444]"}>{entry.type === "income" ? "+" : "-"}{takaShort(entry.amount)}</span></div><p className="mt-2 truncate text-[11px] font-semibold text-[#7b849b]">{entry.description || "No description"}</p><p className="mt-2 text-[10px] font-bold text-[#a0a7b8]">{displayDate(entry.date)} · {entry.time}</p></div>)}</div> : <div className="rounded-2xl border border-dashed border-[#d9dfed] p-8 text-center text-sm font-semibold text-[#7a8298]">No recent activity yet. Add an expense to start your timeline.</div>}</Card>
       {summaryRows.length > 0 && <div className="flex items-center gap-2 text-xs font-semibold text-[#7b849b]"><span className="size-2 rounded-full bg-[#16a34a]" /> Latest summary synced for {summaryRows[0].date}</div>}
       </div>
-      <DesktopCommandRail monthExpense={monthExpense} todayExpense={todaySummary.expense} walletBalance={wallet.personalBalance} />
+      <DesktopCommandRail categories={topCategories} monthExpense={monthExpense} todayExpense={todaySummary.expense} walletBalance={wallet.personalBalance} />
     </div>
   );
 }
