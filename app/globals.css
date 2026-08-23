@@ -223,3 +223,10 @@ html.dark textarea {
   user-select: none;
   -webkit-touch-callout: none;
 }
+
+@media (min-width: 1024px) {
+  .desktop-main {
+    margin-left: var(--desktop-sidebar-width);
+    transition: margin-left 180ms ease;
+  }
+}
