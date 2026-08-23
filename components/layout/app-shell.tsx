@@ -51,7 +51,7 @@ import { AiFloatingHelper } from "@/components/ai/ai-floating-helper";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
 import { useTheme } from "@/components/state/theme-store";
-import { cn, displayDateLong, getTodayIso } from "@/lib/utils";
+import { cn, getTodayIso } from "@/lib/utils";
 import { WebCalculator } from "@/components/calculator/web-calculator";
 import { getStoredUiTheme, UI_THEME_EVENT, type UiTheme } from "@/lib/personalization";
 
@@ -395,9 +395,6 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Search size={16} className="text-[#73847e]" />
               <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#899993]" placeholder="Search transactions, reports or settings..." />
             </div>
-            <button className="hidden h-12 items-center gap-3 rounded-xl border border-[#ece8ff] bg-white px-4 text-sm font-semibold md:flex">
-              <CalendarDays size={18} /> {displayDateLong(today)}
-            </button>
             <button type="button" onClick={() => setNotificationOpen((open) => !open)} className="relative grid size-11 place-items-center rounded-xl bg-white shadow-sm">
               <Bell size={19} />
               {pwaInstall.available && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-[#EF4444]" />}
