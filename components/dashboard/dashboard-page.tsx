@@ -23,6 +23,7 @@ import {
   Cookie,
   CookingPot,
   CupSoda,
+  Download,
   Drumstick,
   Dumbbell,
   Edit2,

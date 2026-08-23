@@ -50,7 +50,7 @@ export function FloatingPet() {
           positionRef.current = next;
           setPosition(next);
         } else {
-          const next = { x: Math.max(12, window.innerWidth - 160), y: Math.max(100, window.innerHeight - 170) };
+          const next = { x: Math.max(12, window.innerWidth - 160), y: window.innerWidth >= 1024 ? 96 : Math.max(100, window.innerHeight - 170) };
           positionRef.current = next;
           setPosition(next);
         }
