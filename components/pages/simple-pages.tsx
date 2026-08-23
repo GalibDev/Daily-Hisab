@@ -15,7 +15,7 @@ import { Card } from "@/components/ui/card";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
-import { CategoryPieChart } from "@/components/dashboard/charts";
+import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
 import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_MODE_KEY, PET_SETTINGS_EVENT, PET_SIZE_KEY, PET_SPEED_KEY, type PetColor, type PetMode, type PetSize, type PetSpeed } from "@/components/pet/floating-pet";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { exportDataJson, exportEntriesCsv, exportExpenseSheetCsv, exportExpenseSheetPdf } from "@/lib/export-data";
@@ -650,36 +650,6 @@ export function CategoriesPage() {
   );
 }
 
-function MobileTrendLine({ data }: Readonly<{ data: { day: number; expense: number }[] }>) {
-  const max = Math.max(...data.map((item) => item.expense), 1);
-  const points = data
-    .map((item, index) => {
-      const x = 18 + (index / Math.max(data.length - 1, 1)) * 304;
-      const y = 142 - (item.expense / max) * 112;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-
-  return (
-    <svg viewBox="0 0 340 170" className="h-48 w-full" role="img" aria-label="Expense trend line">
-      {[0, 1, 2, 3].map((line) => <line key={line} x1="18" x2="322" y1={30 + line * 36} y2={30 + line * 36} stroke="#eef2fb" strokeWidth="1" />)}
-      <text x="0" y="34" className="fill-[#59627a] text-[10px]">৳ {Math.round(max)}</text>
-      <text x="0" y="70" className="fill-[#59627a] text-[10px]">৳ {Math.round(max * 0.66)}</text>
-      <text x="0" y="106" className="fill-[#59627a] text-[10px]">৳ {Math.round(max * 0.33)}</text>
-      <text x="0" y="146" className="fill-[#59627a] text-[10px]">৳ 0</text>
-      <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      {data.map((item, index) => {
-        const x = 18 + (index / Math.max(data.length - 1, 1)) * 304;
-        const y = 142 - (item.expense / max) * 112;
-        return <circle key={item.day} cx={x} cy={y} r="3.5" fill="#fff" stroke="#2563eb" strokeWidth="2" />;
-      })}
-      <text x="18" y="164" className="fill-[#59627a] text-[11px]">1 May</text>
-      <text x="145" y="164" className="fill-[#59627a] text-[11px]">15 May</text>
-      <text x="292" y="164" className="fill-[#59627a] text-[11px]">31 May</text>
-    </svg>
-  );
-}
-
 function MobileReportsAnalytics({
   categories,
   entries,
@@ -853,9 +823,10 @@ function MobileReportsAnalytics({
       )}
 
       {(analyticsTab === "overview" || analyticsTab === "expense") && (
-        <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
-          <div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense Trend</h2><span className="text-sm font-bold text-[#59627a]">{filterLabel}</span></div>
-          <MobileTrendLine data={trendData} />
+        <Card className="overflow-hidden rounded-[22px] border-[#e6e9f1] p-5 shadow-[0_16px_38px_rgba(20,35,90,0.08)]">
+          <div className="mb-1 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense Trend</h2><span className="text-sm font-bold text-[#59627a]">{filterLabel}</span></div>
+          <p className="mb-1 text-[11px] font-semibold text-[#8a92a6]">দিন অনুযায়ী আপনার খরচের পরিবর্তন</p>
+          <ExpenseTrendChart data={trendData} monthLabel={new Intl.DateTimeFormat("en-US", { month: "short" }).format(selectedDate)} />
         </Card>
       )}
 
