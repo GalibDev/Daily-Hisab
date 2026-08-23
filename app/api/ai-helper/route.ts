@@ -60,7 +60,7 @@ export async function POST(request: Request) {
             model: activeModel,
             temperature: 0.4,
             messages: [
-              { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. Give practical budgeting and expense insights only; never claim to change transactions. Current local summary: ${body.context || "No summary available."}` },
+              { role: "system", content: `You are Daily Hisab AI Helper. Reply in the user's language, preferably concise Bangla. For questions about the user's spending, totals, categories, dates, or descriptions, answer strictly from the supplied local finance context and do not say that you cannot access it. If the requested period has no entries, clearly say the amount is zero. Give practical budgeting insights only and never claim to change transactions. Local finance context:\n${body.context || "No summary available."}` },
               ...messages,
             ],
           }),

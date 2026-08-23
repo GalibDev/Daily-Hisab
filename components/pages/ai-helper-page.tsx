@@ -9,7 +9,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { useFinance } from "@/components/state/finance-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getTodayIso, takaShort } from "@/lib/utils";
+import { buildAiFinanceContext } from "@/lib/ai-finance-context";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -19,14 +19,7 @@ export function AiHelperPage() {
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "আসসালামু আলাইকুম! আপনার খরচ, বাজেট বা সঞ্চয় নিয়ে কী জানতে চান?" }]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
-  const monthPrefix = getTodayIso().slice(0, 7);
-  const context = useMemo(() => {
-    const expenses = entries.filter((item) => item.type === "expense");
-    const monthExpenses = expenses.filter((item) => item.date.startsWith(monthPrefix));
-    const monthTotal = monthExpenses.reduce((sum, item) => sum + item.amount, 0);
-    const categoryTotals = monthExpenses.reduce<Record<string, number>>((totals, item) => ({ ...totals, [item.category]: (totals[item.category] ?? 0) + item.amount }), {});
-    return `This month expense ${takaShort(monthTotal)}. All expense ${takaShort(expenses.reduce((sum, item) => sum + item.amount, 0))}. Category totals: ${Object.entries(categoryTotals).map(([name, amount]) => `${name} ${takaShort(amount)}`).join(", ") || "none"}.`;
-  }, [entries, monthPrefix]);
+  const context = useMemo(() => buildAiFinanceContext(entries), [entries]);
 
   async function askAi(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

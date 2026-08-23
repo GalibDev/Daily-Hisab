@@ -6,7 +6,7 @@ import { MessageCircle, Send, X } from "lucide-react";
 import { AiLogo } from "@/components/ai/ai-logo";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
-import { getTodayIso, takaShort } from "@/lib/utils";
+import { buildAiFinanceContext } from "@/lib/ai-finance-context";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -17,12 +17,7 @@ export function AiFloatingHelper() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "হ্যালো! খরচ বা বাজেট নিয়ে আমাকে প্রশ্ন করুন।" }]);
-  const context = useMemo(() => {
-    const month = getTodayIso().slice(0, 7);
-    const expenses = entries.filter((item) => item.type === "expense");
-    const monthTotal = expenses.filter((item) => item.date.startsWith(month)).reduce((sum, item) => sum + item.amount, 0);
-    return `This month expense ${takaShort(monthTotal)}; all expense ${takaShort(expenses.reduce((sum, item) => sum + item.amount, 0))}.`;
-  }, [entries]);
+  const context = useMemo(() => buildAiFinanceContext(entries), [entries]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
