@@ -390,10 +390,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </div>
 
           <div className="hidden items-center gap-4 lg:flex">
-            <div className="mr-auto">
-              <h1 className="text-2xl font-bold tracking-normal md:text-3xl">Dashboard</h1>
-              <p className="hidden text-sm text-[#746d86] sm:block">Welcome back! Here&apos;s your financial overview.</p>
-            </div>
+            <Link href="/calendar" className="flex h-10 w-[210px] shrink-0 items-center gap-3 rounded-lg border border-[#dfe7e4] bg-white px-3 text-xs font-bold text-[#273b34] hover:bg-[#f7faf9]"><CalendarDays size={17} className="text-[#087d5a]" /><span className="flex-1 truncate">{new Date(`${today.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span><ChevronRight size={14} /></Link>
             <div className="hidden h-12 w-[260px] items-center gap-2 rounded-xl border border-[#ece8ff] bg-white px-4 md:flex">
               <input className="min-w-0 flex-1 text-sm outline-none placeholder:text-[#a9a2ba]" placeholder="Search anything..." />
               <Search size={18} />
