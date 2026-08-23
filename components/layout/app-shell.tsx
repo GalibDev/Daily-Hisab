@@ -215,6 +215,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     window.addEventListener("pointerup", stop);
   }
 
+  function resizeDesktopSidebarFromKeyboard(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    setDesktopSidebarCollapsed(false);
+    setDesktopSidebarWidth((width) => Math.min(DESKTOP_SIDEBAR_MAX, Math.max(DESKTOP_SIDEBAR_MIN, width + (event.key === "ArrowRight" ? 12 : -12))));
+  }
+
   const drawerGroups = [
     {
       items: [
