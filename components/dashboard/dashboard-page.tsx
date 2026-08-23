@@ -489,6 +489,17 @@ function DesktopCommandRail({ categories, monthExpense, todayExpense, walletBala
             {categories.length === 0 && <p className="rounded-lg bg-[#f5f8f7] p-3 text-xs font-semibold leading-5 text-[#71817b]">Add expenses to see category health.</p>}
           </div>
         </div>
+        <div className="mt-6 border-t border-[#dfe7e4] pt-5">
+          <h3 className="text-sm font-black text-[#14231e]">Quick actions</h3>
+          <div className="mt-3 grid gap-1.5">
+            {[
+              { href: "/add-expense", label: "Add new entry", icon: Plus },
+              { href: "/budget", label: "Budget entry", icon: CalendarCheck },
+              { href: "/loans", label: "Loans & dues", icon: HandCoins },
+              { href: "/ai-helper", label: "AI insights", icon: Sparkles },
+            ].map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="group flex items-center gap-3 rounded-lg px-2 py-2 text-xs font-bold text-[#41534d] hover:bg-[#f1f7f4] hover:text-[#087d5a]"><span className="grid size-8 place-items-center rounded-lg bg-[#edf6f2] text-[#087d5a]"><Icon size={15} /></span><span className="flex-1">{label}</span><ChevronRight size={14} className="text-[#9aaba5] transition group-hover:translate-x-0.5" /></Link>)}
+          </div>
+        </div>
       </div>
     </aside>
   );
