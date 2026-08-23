@@ -268,14 +268,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         <span>{syncUi.label}</span>
       </div>
       <aside style={{ width: effectiveDesktopSidebarWidth }} className={cn("desktop-sidebar thin-scrollbar fixed left-0 top-0 z-30 hidden h-screen flex-col overflow-y-auto border-r border-[#dfe7e4] bg-white py-5 lg:flex", desktopSidebarCollapsed ? "px-3" : "px-4", desktopSidebarResizing && "is-resizing")}>
-        <Link href="/" className="mb-8 flex items-center gap-3">
-          <span className="grid size-12 place-items-center rounded-xl bg-[#6C4CF1] text-white shadow-lg shadow-[#6C4CF1]/25">
+        <Link href="/" className={cn("mb-6 flex items-center gap-3", desktopSidebarCollapsed && "justify-center")}>
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#087d5a] text-white shadow-lg shadow-[#087d5a]/20">
             <Wallet size={24} />
           </span>
-          <span>
-            <strong className="block text-base">Daily Hisab</strong>
-            <small className="text-[#7c758d]">Your Daily Tracker</small>
-          </span>
+          {!desktopSidebarCollapsed && <span><strong className="block text-base text-[#10231d]">DailyHisab</strong><small className="text-[#6f7f79]">Finance workspace</small></span>}
         </Link>
         <button type="button" onClick={() => setDesktopSidebarCollapsed((value) => !value)} aria-label={desktopSidebarCollapsed ? "Expand desktop sidebar" : "Collapse desktop sidebar"} className="mb-4 flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe7e4] bg-[#f8fbfa] text-xs font-bold text-[#52645e] hover:border-[#9fcdbd] hover:text-[#087d5a]">
           {desktopSidebarCollapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>Collapse</span></>}
