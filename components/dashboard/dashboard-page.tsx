@@ -471,7 +471,7 @@ function MobileStatCard({
 function DesktopCommandRail({ categories, monthExpense, todayExpense, walletBalance }: Readonly<{ categories: Array<{ name: string; value: number; fill: string }>; monthExpense: number; todayExpense: number; walletBalance: number }>) {
   return (
     <aside className="desktop-command-rail -my-5 hidden min-h-[calc(100vh-72px)] border-l border-[#dfe7e4] bg-white xl:block">
-      <div className="sticky top-[72px] p-5">
+      <div className="sticky top-[72px] p-4 2xl:p-5">
         <p className="text-xs font-black uppercase tracking-[0.12em] text-[#6d7d77]">Financial command center</p>
         <div className="mt-4 divide-y divide-[#e8eeeb] text-sm">
           <div className="flex items-center justify-between py-3"><span className="text-[#65746f]">This month</span><strong className="text-[#14231e]">{takaShort(monthExpense)}</strong></div>
@@ -530,7 +530,7 @@ function DesktopDashboard({
   const latestEntries = entries.slice().sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)).slice(0, 5);
 
   return (
-    <div className="hidden lg:grid xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="hidden lg:grid xl:grid-cols-[minmax(0,1fr)_248px] 2xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="grid min-w-0 gap-5 xl:pr-5">
       <div className="flex items-center justify-between gap-5">
         <div>
