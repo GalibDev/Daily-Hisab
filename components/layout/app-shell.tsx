@@ -73,6 +73,13 @@ const nav = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+const DESKTOP_SIDEBAR_WIDTH_KEY = "daily-hisab.desktop-sidebar-width.v1";
+const DESKTOP_SIDEBAR_COLLAPSED_KEY = "daily-hisab.desktop-sidebar-collapsed.v1";
+const DESKTOP_SIDEBAR_MIN = 188;
+const DESKTOP_SIDEBAR_MAX = 340;
+const DESKTOP_SIDEBAR_DEFAULT = 228;
+const DESKTOP_SIDEBAR_COLLAPSED = 76;
+
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
