@@ -79,6 +79,7 @@ import { useFinance } from "@/components/state/finance-store";
 import { FloatingPet } from "@/components/pet/floating-pet";
 import { useWallet } from "@/components/state/wallet-store";
 import { budgets, paymentMethods } from "@/data/mock-data";
+import { getDefaultCategoryIcon } from "@/lib/category-icon-defaults";
 import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, countExpenseDaysInMonth, summarizeEntries } from "@/lib/finance";
 import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
 import type { Entry, EntryType, PaymentMethod, Reminder } from "@/types";
@@ -750,7 +751,9 @@ function MobileDashboard({
   }
 
   function getCategoryIcon(category: string) {
-    const iconName = categoryIconMap[category] ?? allExpenseShortcuts.find((item) => item.category === category)?.iconName ?? "receipt";
+    const iconName = categoryIconMap[category]
+      ?? allExpenseShortcuts.find((item) => item.category === category)?.iconName
+      ?? getDefaultCategoryIcon(category);
     return categoryIconOptions.find((option) => option.name === iconName) ?? getShortcutIcon("receipt");
   }
 
