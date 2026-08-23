@@ -543,9 +543,9 @@ function DesktopDashboard({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Today’s expense", value: taka(todaySummary.expense), meta: todaySummary.entries ? `${todaySummary.entries} entries today` : "No spending recorded", icon: Wallet, tone: "bg-[#eef2ff] text-[#3452bb]" },
-          { label: "Personal balance", value: taka(wallet.personalBalance), meta: wallet.personalEnabled ? "Wallet is active" : "Wallet is paused", icon: CircleDollarSign, tone: "bg-[#ecfdf5] text-[#059669]" },
-          { label: "Family balance", value: taka(Math.max(0, combinedFamilyDeposits - wallet.familyExpenseTotal)), meta: family.expenseSharingEnabled ? "Shared expenses on" : "Shared expenses off", icon: HandCoins, tone: "bg-[#fff7ed] text-[#ea580c]" },
-          { label: "Daily average", value: taka(activeDays ? monthExpense / activeDays : 0), meta: `${activeDays} active days this month`, icon: TrendingUp, tone: "bg-[#f5efff] text-[#7c3aed]" },
+          { label: "This month income", value: taka(monthIncome), meta: "Income recorded this month", icon: TrendingUp, tone: "bg-[#e8f8f0] text-[#087d5a]" },
+          { label: "Total expense", value: taka(monthExpense), meta: `${activeDays} active expense days`, icon: Receipt, tone: "bg-[#f3f5f4] text-[#41534d]" },
+          { label: "Wallet balance", value: taka(wallet.personalBalance), meta: wallet.personalEnabled ? "Personal wallet active" : "Personal wallet paused", icon: CircleDollarSign, tone: "bg-[#f3f5f4] text-[#41534d]" },
         ].map(({ label, value, meta, icon: Icon, tone }) => (
           <Card key={label} className="group relative overflow-hidden border-[#e8ecf5] p-5 shadow-[0_14px_34px_rgba(20,35,90,0.06)] transition hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(20,35,90,0.10)]"><div className="flex items-start justify-between gap-3"><span className={`grid size-11 place-items-center rounded-2xl ${tone}`}><Icon size={21} /></span><ArrowUpRight size={17} className="text-[#b0b8ca] transition group-hover:text-[#11298f]" /></div><p className="mt-5 text-xs font-bold text-[#69718a]">{label}</p><strong className="mt-1 block text-2xl font-black tracking-[-0.04em] text-[#111936]">{value}</strong><p className="mt-2 text-[11px] font-semibold text-[#8b93a8]">{meta}</p></Card>
         ))}
