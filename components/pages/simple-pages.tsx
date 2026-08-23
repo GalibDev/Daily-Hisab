@@ -778,7 +778,7 @@ function MobileReportsAnalytics({
       <section id="reports-filter" className="rounded-[18px] border border-[#e7eaf3] bg-white p-4 shadow-[0_10px_28px_rgba(20,35,90,0.06)]">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div><h2 className="text-base font-extrabold text-[#111936]">Quick Filters</h2><p className="mt-0.5 text-[11px] font-semibold text-[#7a8298]">সব রিপোর্ট একসাথে আপডেট করুন</p></div>
-          <span className="rounded-full bg-[#eef2ff] px-3 py-1 text-[10px] font-extrabold text-[#11298f]">{filterLabel}</span>
+          <span aria-live="polite" className="rounded-full bg-[#eef2ff] px-3 py-1 text-[10px] font-extrabold text-[#11298f]">{filterLabel}</span>
         </div>
         <div className="grid grid-cols-4 gap-2">
           {([
@@ -786,7 +786,7 @@ function MobileReportsAnalytics({
             ["lastMonth", "Last Month"],
             ["thisYear", "This Year"],
             ["custom", "Custom"],
-          ] as Array<[AnalyticsFilter, string]>).map(([key, item]) => <button key={key} type="button" onClick={() => setAnalyticsFilter(key)} className={analyticsFilter === key ? "min-h-12 rounded-xl bg-[#11298f] px-1 text-[10px] font-extrabold text-white shadow-[0_8px_18px_rgba(17,41,143,0.20)]" : "min-h-12 rounded-xl border border-[#e4e8f2] bg-[#fbfcff] px-1 text-[10px] font-extrabold text-[#111936]"}><CalendarDays size={15} className="mx-auto mb-1" />{item}</button>)}
+          ] as Array<[AnalyticsFilter, string]>).map(([key, item]) => <button key={key} type="button" aria-pressed={analyticsFilter === key} aria-label={`Filter reports by ${item}`} onClick={() => setAnalyticsFilter(key)} className={analyticsFilter === key ? "min-h-12 rounded-xl bg-[#11298f] px-1 text-[10px] font-extrabold text-white shadow-[0_8px_18px_rgba(17,41,143,0.20)]" : "min-h-12 rounded-xl border border-[#e4e8f2] bg-[#fbfcff] px-1 text-[10px] font-extrabold text-[#111936]"}><CalendarDays size={15} aria-hidden="true" className="mx-auto mb-1" />{item}</button>)}
         </div>
         {analyticsFilter === "custom" && <input type="month" className={`${inputClass} mt-3`} value={customMonth} onChange={(event) => setCustomMonth(event.target.value || today.slice(0, 7))} />}
       </section>
