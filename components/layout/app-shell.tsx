@@ -423,7 +423,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </div>
         )}
         <WebCalculator open={calculatorOpen && pathname === "/add-expense"} onClose={() => setCalculatorOpen(false)} />
-        <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-transparent lg:px-8 lg:py-5">
+        <div className="mx-auto max-w-[480px] bg-white px-6 py-3 md:px-7 lg:max-w-none lg:bg-[#f5f7f6] lg:px-4 lg:py-5">
           {syncStatus === "loading" ? <div className="grid animate-pulse gap-4" aria-label="Loading your financial data"><div className="h-8 w-56 rounded-xl bg-[#e8ebf4]" /><div className="h-52 rounded-[24px] bg-[#e8ebf4]" /><div className="grid grid-cols-3 gap-3"><div className="h-28 rounded-2xl bg-[#edf0f6]" /><div className="h-28 rounded-2xl bg-[#edf0f6]" /><div className="h-28 rounded-2xl bg-[#edf0f6]" /></div><span className="sr-only">Loading data from Firebase</span></div> : children}
         </div>
       </main>
