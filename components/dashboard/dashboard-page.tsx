@@ -533,11 +533,10 @@ function DesktopDashboard({
   return (
     <div className="hidden lg:grid xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="grid min-w-0 gap-5 xl:pr-5">
-      <div className="flex items-end justify-between gap-6">
+      <div className="flex items-center justify-between gap-5">
         <div>
-          <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#7b84a0]">Financial command center</p>
-          <h1 className="text-3xl font-black tracking-[-0.04em] text-[#111936] xl:text-[40px]">Good morning, {todaySummary.entries > 0 ? "let’s stay on track" : "let’s plan today"}.</h1>
-          <p className="mt-2 text-sm font-medium text-[#69718a]">A calm view of your money, spending and wallet health.</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#70817b]">Dashboard overview</p>
+          <h1 className="mt-1 text-xl font-black tracking-[-0.03em] text-[#14231e]">Good morning, {todaySummary.entries > 0 ? "your finances are updated" : "let’s plan today"}.</h1>
         </div>
         <div className="flex shrink-0 gap-3">
           <Link href="/reports" className="hidden items-center gap-2 rounded-2xl border border-[#e5e9f4] bg-white px-4 py-3 text-sm font-extrabold text-[#24305a] shadow-[0_8px_20px_rgba(20,35,90,0.04)] xl:flex"><Download size={17} /> Export</Link>
