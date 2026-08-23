@@ -400,16 +400,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Bell size={18} />
               {pwaInstall.available && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-[#EF4444]" />}
             </button>
-            <div className="hidden items-center gap-3 md:flex">
-              <div className="relative grid size-11 place-items-center overflow-hidden rounded-full bg-[#f0d3c1] text-sm font-bold">
-                <User size={24} />
-                {profilePhoto && <Image key={profilePhoto} src={profilePhoto} alt="Profile" width={44} height={44} className="absolute inset-0 size-full object-cover" unoptimized onError={(event) => { event.currentTarget.style.display = "none"; }} />}
-              </div>
-              <div>
-                <p className="text-sm font-bold">{profileName}</p>
-                <p className="text-xs text-[#22C55E]">Free Plan</p>
-              </div>
-            </div>
+            <Link href="/add-expense" className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#087d5a] px-4 text-xs font-extrabold text-white shadow-[0_8px_18px_rgba(8,125,90,0.18)] hover:bg-[#076f50]"><Plus size={17} /> Add New Entry</Link>
           </div>
         </header>
         {notificationOpen && (
