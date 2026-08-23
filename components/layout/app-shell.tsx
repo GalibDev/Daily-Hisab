@@ -345,7 +345,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       </aside>
 
       <main style={{ "--desktop-sidebar-width": `${effectiveDesktopSidebarWidth}px` } as React.CSSProperties} className="desktop-main pb-[calc(9rem+env(safe-area-inset-bottom))] lg:pb-0">
-        <header className="sticky top-0 z-20 bg-white px-6 py-4 md:px-7 lg:border-b lg:border-[#ece8ff]/80 lg:bg-[#F8F7FF]/90 lg:px-8 lg:py-4 lg:backdrop-blur">
+        <header className="sticky top-0 z-20 bg-white px-6 py-4 md:px-7 lg:border-b lg:border-[#dfe7e4] lg:bg-white lg:px-4 lg:py-2.5">
           <div className="flex items-center gap-2 sm:gap-4 lg:hidden">
             {pathname !== "/settings" && (
               isHome ? (
