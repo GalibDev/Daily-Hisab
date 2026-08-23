@@ -229,4 +229,20 @@ html.dark textarea {
     margin-left: var(--desktop-sidebar-width);
     transition: margin-left 180ms ease;
   }
+
+  .desktop-sidebar-resizer::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 5px;
+    width: 2px;
+    background: transparent;
+    transition: background 160ms ease, box-shadow 160ms ease;
+  }
+
+  .desktop-sidebar-resizer:hover::after,
+  .desktop-sidebar.is-resizing .desktop-sidebar-resizer::after {
+    background: #07885f;
+    box-shadow: 0 0 0 3px rgba(7, 136, 95, .12);
+  }
 }
