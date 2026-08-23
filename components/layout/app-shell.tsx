@@ -265,7 +265,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         <SyncIcon size={14} className={syncUi.spin ? "animate-spin" : ""} />
         <span>{syncUi.label}</span>
       </div>
-      <aside className="thin-scrollbar fixed left-0 top-0 z-30 hidden h-screen w-[228px] flex-col overflow-y-auto border-r border-[#ece8ff] bg-white px-5 py-7 lg:flex">
+      <aside style={{ width: effectiveDesktopSidebarWidth }} className={cn("desktop-sidebar thin-scrollbar fixed left-0 top-0 z-30 hidden h-screen flex-col overflow-y-auto border-r border-[#dfe7e4] bg-white py-5 lg:flex", desktopSidebarCollapsed ? "px-3" : "px-4", desktopSidebarResizing && "is-resizing")}>
         <Link href="/" className="mb-8 flex items-center gap-3">
           <span className="grid size-12 place-items-center rounded-xl bg-[#6C4CF1] text-white shadow-lg shadow-[#6C4CF1]/25">
             <Wallet size={24} />
