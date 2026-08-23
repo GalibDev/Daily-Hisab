@@ -471,13 +471,13 @@ function MobileStatCard({
 
 function DesktopCommandRail({ monthExpense, todayExpense, walletBalance }: Readonly<{ monthExpense: number; todayExpense: number; walletBalance: number }>) {
   return (
-    <aside className="desktop-command-rail hidden border-l border-[#dfe7e4] bg-white xl:block">
+    <aside className="desktop-command-rail -my-5 hidden min-h-[calc(100vh-72px)] border-l border-[#dfe7e4] bg-white xl:block">
       <div className="sticky top-[72px] p-5">
         <p className="text-xs font-black uppercase tracking-[0.12em] text-[#6d7d77]">Financial command center</p>
-        <div className="mt-4 grid gap-3 text-sm">
-          <div className="flex items-center justify-between"><span className="text-[#65746f]">This month</span><strong className="text-[#14231e]">{takaShort(monthExpense)}</strong></div>
-          <div className="flex items-center justify-between"><span className="text-[#65746f]">Today</span><strong className="text-[#14231e]">{takaShort(todayExpense)}</strong></div>
-          <div className="flex items-center justify-between"><span className="text-[#65746f]">Wallet balance</span><strong className="text-[#14231e]">{takaShort(walletBalance)}</strong></div>
+        <div className="mt-4 divide-y divide-[#e8eeeb] text-sm">
+          <div className="flex items-center justify-between py-3"><span className="text-[#65746f]">This month</span><strong className="text-[#14231e]">{takaShort(monthExpense)}</strong></div>
+          <div className="flex items-center justify-between py-3"><span className="text-[#65746f]">Today</span><strong className="text-[#14231e]">{takaShort(todayExpense)}</strong></div>
+          <div className="flex items-center justify-between py-3"><span className="text-[#65746f]">Wallet balance</span><strong className="text-[#14231e]">{takaShort(walletBalance)}</strong></div>
         </div>
       </div>
     </aside>
