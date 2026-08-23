@@ -391,9 +391,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
           <div className="hidden items-center gap-4 lg:flex">
             <Link href="/calendar" className="flex h-10 w-[210px] shrink-0 items-center gap-3 rounded-lg border border-[#dfe7e4] bg-white px-3 text-xs font-bold text-[#273b34] hover:bg-[#f7faf9]"><CalendarDays size={17} className="text-[#087d5a]" /><span className="flex-1 truncate">{new Date(`${today.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span><ChevronRight size={14} /></Link>
-            <div className="hidden h-12 w-[260px] items-center gap-2 rounded-xl border border-[#ece8ff] bg-white px-4 md:flex">
-              <input className="min-w-0 flex-1 text-sm outline-none placeholder:text-[#a9a2ba]" placeholder="Search anything..." />
-              <Search size={18} />
+            <div className="hidden h-10 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[#e1e8e5] bg-[#f4f7f6] px-3 md:flex">
+              <Search size={16} className="text-[#73847e]" />
+              <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#899993]" placeholder="Search transactions, reports or settings..." />
             </div>
             <button className="hidden h-12 items-center gap-3 rounded-xl border border-[#ece8ff] bg-white px-4 text-sm font-semibold md:flex">
               <CalendarDays size={18} /> {displayDateLong(today)}
