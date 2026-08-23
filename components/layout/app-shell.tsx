@@ -144,6 +144,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     : syncStatus === "error" ? { label: "Sync failed", icon: CloudOff, tone: "text-[#c52949] bg-[#ffedf1]", spin: false }
     : { label: "Local data", icon: Cloud, tone: "text-[#59627a] bg-[#f1f3f8]", spin: false };
   const SyncIcon = syncUi.icon;
+  const effectiveDesktopSidebarWidth = desktopSidebarCollapsed ? DESKTOP_SIDEBAR_COLLAPSED : desktopSidebarWidth;
 
   function openMobileMenu() {
     setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
