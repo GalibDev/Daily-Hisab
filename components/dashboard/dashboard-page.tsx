@@ -486,6 +486,7 @@ function DesktopCommandRail({ categories, monthExpense, todayExpense, walletBala
               const percent = monthExpense > 0 ? Math.round((category.value / monthExpense) * 100) : 0;
               return <div key={category.name}><div className="mb-1.5 flex justify-between text-[11px] font-bold"><span className="truncate text-[#52635d]">{category.name}</span><span className="text-[#71817b]">{percent}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-[#e8eeeb]"><div className="h-full rounded-full" style={{ width: `${percent}%`, background: category.fill }} /></div></div>;
             })}
+            {categories.length === 0 && <p className="rounded-lg bg-[#f5f8f7] p-3 text-xs font-semibold leading-5 text-[#71817b]">Add expenses to see category health.</p>}
           </div>
         </div>
       </div>
