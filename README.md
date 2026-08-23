@@ -160,12 +160,23 @@ Use a **text/chat** group in WalkAI. Do not use image-only groups such as `ç”Ÿå›
 
 `WALKAI_BASE_URL` should contain only the base URL. The server appends `/models` and `/chat/completions` automatically.
 
+For a Gemini-compatible endpoint, set these server-only variables instead:
+
+```env
+AI_PROVIDER=gemini
+GOOGLE_GEMINI_BASE_URL=https://st.walkcoding.top
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+The server appends `/v1beta/models/{model}:generateContent` automatically. Never expose `GEMINI_API_KEY` with a `NEXT_PUBLIC_` prefix or commit it to Git.
+
 ## Deployment
 
 The project is ready for Vercel:
 
 1. Import the repository into Vercel.
-2. Add the Firebase and WalkAI environment variables.
+2. Add the Firebase and selected AI provider environment variables.
 3. Deploy the `main` branch.
 4. Verify `/`, `/categories`, `/expense-details/<category>` and `/ai-helper` on mobile.
 
