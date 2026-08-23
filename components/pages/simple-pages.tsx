@@ -9,6 +9,7 @@ import { ProfileImageUploader } from "@/components/auth/profile-image-uploader";
 import { AppShell } from "@/components/layout/app-shell";
 import { CategorySelect } from "@/components/entries/category-select";
 import { useFinance } from "@/components/state/finance-store";
+import { getDefaultCategoryIcon } from "@/lib/category-icon-defaults";
 import { useTheme } from "@/components/state/theme-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -416,7 +417,7 @@ export function CategoriesPage() {
   }, [categoryIconMap]);
 
   function getCategoryIconStyle(category: string) {
-    const iconName = categoryIconMap[category] ?? "receipt";
+    const iconName = categoryIconMap[category] ?? getDefaultCategoryIcon(category);
     return categoryIconStyles.find((style) => style.name === iconName) ?? categoryIconStyles[0];
   }
 
@@ -449,7 +450,7 @@ export function CategoriesPage() {
 
     setEditingCategory(category);
     setEditCategoryName(category);
-    setEditCategoryIcon(categoryIconMap[category] ?? "receipt");
+    setEditCategoryIcon(categoryIconMap[category] ?? getDefaultCategoryIcon(category));
   }
 
   function saveEditedCategory() {
