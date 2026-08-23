@@ -546,9 +546,10 @@ function DesktopDashboard({
           { label: "This month income", value: taka(monthIncome), meta: "Income recorded this month", icon: TrendingUp, tone: "bg-[#e8f8f0] text-[#087d5a]" },
           { label: "Total expense", value: taka(monthExpense), meta: `${activeDays} active expense days`, icon: Receipt, tone: "bg-[#f3f5f4] text-[#41534d]" },
           { label: "Wallet balance", value: taka(wallet.personalBalance), meta: wallet.personalEnabled ? "Personal wallet active" : "Personal wallet paused", icon: CircleDollarSign, tone: "bg-[#f3f5f4] text-[#41534d]" },
-        ].map(({ label, value, meta, icon: Icon, tone }) => (
-          <Card key={label} className={`group relative min-h-[132px] overflow-hidden rounded-xl border-[#dfe7e4] p-4 shadow-[0_5px_16px_rgba(35,58,49,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(35,58,49,0.09)] ${label === "Today’s expense" ? "bg-[#fff1f1]" : "bg-white"}`}><div className="flex items-start justify-between gap-3"><span className={`grid size-9 place-items-center rounded-lg ${tone}`}><Icon size={18} /></span><ArrowUpRight size={15} className="text-[#a5b2ad] transition group-hover:text-[#087d5a]" /></div><p className="mt-3 text-[11px] font-bold text-[#65756f]">{label}</p><strong className="mt-1 block text-xl font-black tracking-[-0.03em] text-[#14231e]">{value}</strong><p className="mt-1 text-[10px] font-semibold text-[#899892]">{meta}</p></Card>
-        ))}
+        ].map(({ label, value, meta, icon: Icon, tone }) => {
+          const cardBackground = label === "Today’s expense" ? "bg-[#fff1f1]" : label === "This month income" ? "bg-[#eaf9f2]" : "bg-white";
+          return <Card key={label} className={`group relative min-h-[132px] overflow-hidden rounded-xl border-[#dfe7e4] p-4 shadow-[0_5px_16px_rgba(35,58,49,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(35,58,49,0.09)] ${cardBackground}`}><div className="flex items-start justify-between gap-3"><span className={`grid size-9 place-items-center rounded-lg ${tone}`}><Icon size={18} /></span><ArrowUpRight size={15} className="text-[#a5b2ad] transition group-hover:text-[#087d5a]" /></div><p className="mt-3 text-[11px] font-bold text-[#65756f]">{label}</p><strong className="mt-1 block text-xl font-black tracking-[-0.03em] text-[#14231e]">{value}</strong><p className="mt-1 text-[10px] font-semibold text-[#899892]">{meta}</p></Card>;
+        })}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
