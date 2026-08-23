@@ -225,6 +225,16 @@ html.dark textarea {
 }
 
 @media (min-width: 1024px) {
+  .desktop-sidebar {
+    transition: width 180ms ease, padding 180ms ease, box-shadow 180ms ease;
+  }
+
+  .desktop-sidebar.is-resizing {
+    user-select: none;
+    transition: none;
+    box-shadow: 8px 0 22px rgba(25, 61, 48, .08);
+  }
+
   .desktop-main {
     margin-left: var(--desktop-sidebar-width);
     transition: margin-left 180ms ease;
