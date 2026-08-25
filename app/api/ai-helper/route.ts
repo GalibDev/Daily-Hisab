@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { answerDailyHisabHelp, DAILY_HISAB_APP_KNOWLEDGE } from "@/lib/ai-app-knowledge";
 import { requestGeminiCompatible } from "@/lib/ai-gemini-client";
 import { requestOpenAiCompatible, type AiChatMessage } from "@/lib/ai-openai-client";
 import { getAiProviderConfig } from "@/lib/ai-provider-config";
