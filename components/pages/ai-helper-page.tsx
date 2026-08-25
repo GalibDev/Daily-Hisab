@@ -87,6 +87,7 @@ export function AiHelperPage() {
           <div className="border-t border-[#eef0f8] p-3">
             <input ref={attachmentInputRef} type="file" accept={AI_ATTACHMENT_ACCEPT} multiple className="hidden" onChange={(event) => void addAttachments(event.target.files)} />
             <AiAttachmentList attachments={attachments} onRemove={removeAttachment} />
+            {attachments.length > 0 && <p className="mb-2 text-[11px] font-semibold text-[#69718a]">শুধু AI analysis-এর জন্য পাঠানো হবে; Daily Hisab storage-এ save হবে না।</p>}
             {attachmentError && <p className="mb-2 text-xs font-bold text-[#dc2626]">{attachmentError}</p>}
             <div className="mb-3 flex gap-2 overflow-x-auto">{suggestions.map((item) => <button key={item} type="button" onClick={() => setQuestion(item)} className="shrink-0 rounded-full border border-[#dbe4ff] bg-[#f7f9ff] px-3 py-2 text-[11px] font-bold text-[#11298f]">{item}</button>)}</div>
             <form onSubmit={askAi} className="flex gap-2">
