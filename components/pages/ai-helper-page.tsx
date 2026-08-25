@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { buildAiFinanceContext } from "@/lib/ai-finance-context";
 import { AI_ATTACHMENT_ACCEPT, AI_ATTACHMENT_MAX_COUNT, createAiAttachment, type AiAttachment } from "@/lib/ai-attachments";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; attachments?: AiAttachment[] };
 
 export function AiHelperPage() {
   const { getIdToken, loading: authLoading, user } = useAuth();
@@ -51,7 +51,7 @@ export function AiHelperPage() {
     event.preventDefault();
     const content = question.trim() || (attachments.length ? "সংযুক্ত file বিশ্লেষণ করুন।" : "");
     if (!content || loading) return;
-    const nextMessages = [...messages, { role: "user" as const, content }];
+    const nextMessages = [...messages, { role: "user" as const, content, attachments: sentAttachments }];
     const sentAttachments = attachments;
     setMessages(nextMessages);
     setQuestion("");
