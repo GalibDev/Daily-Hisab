@@ -40,6 +40,11 @@ export function AiFloatingHelper() {
     }
   }
 
+  function removeAttachment(id: string) {
+    setAttachments((current) => current.filter((attachment) => attachment.id !== id));
+    setAttachmentError("");
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = question.trim();
