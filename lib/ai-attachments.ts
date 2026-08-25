@@ -36,3 +36,17 @@ function readAsText(file: File) {
     reader.readAsText(file);
   });
 }
+
+export async function createAiAttachment(file: File): Promise<AiAttachment> {
+  const validationError = validateAiAttachment(file);
+  if (validationError) throw new Error(validationError);
+  const isText = /\.(txt|md|csv|json)$/i.test(file.name);
+  return {
+    id: crypto.randomUUID(),
+    name: file.name,
+    mimeType: file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "text/plain"),
+    size: file.size,
+    dataUrl: isText ? undefined : await readAsDataUrl(file),
+    text: isText ? (await readAsText(file)).slice(0, 20000) : undefined,
+  };
+}
