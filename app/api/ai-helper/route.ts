@@ -48,8 +48,8 @@ export async function POST(request: Request) {
 
   const systemPrompt = buildSystemPrompt(body.context);
   const result = config.format === "gemini"
-    ? await requestGeminiCompatible(config, messages, systemPrompt)
-    : await requestOpenAiCompatible(config, messages, systemPrompt);
+    ? await requestGeminiCompatible(config, messages, systemPrompt, attachments)
+    : await requestOpenAiCompatible(config, messages, systemPrompt, attachments);
 
   return result.reply
     ? NextResponse.json({ reply: result.reply })
