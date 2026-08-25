@@ -18,3 +18,12 @@ export function validateAiAttachment(file: Pick<File, "name" | "size" | "type">)
   if (file.size > AI_ATTACHMENT_MAX_BYTES) return "প্রতি file সর্বোচ্চ 5 MB হতে পারবে।";
   return null;
 }
+
+function readAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+}
