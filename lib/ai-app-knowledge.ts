@@ -7,4 +7,11 @@ Main navigation:
 - Add Expense (/add-expense), Add Income (/add-income), All Entries (/entries), Income & Expense (/income-expense).
 - Budget (/budget), Loans & Dues (/loans), Categories (/categories), Reports (/reports), Calendar (/calendar).
 - Recurring (/recurring), Reminders (/reminders), Receipts (/receipts), Notes (/notes), AI Helper (/ai-helper), Family Access (/family-access), Profile (/settings).
+
+Transactions and categories:
+- Add an expense from Add New Entry, the center Add button, Add Expense, or a Dashboard quick-expense category.
+- An expense includes date, category, description, amount, payment method and optional receipt.
+- Edit or delete transactions from All Entries. Category details open from monthly expense breakdowns.
+- Create, rename, delete and choose related icons from Profile > Categories or /categories.
+- The Dashboard Today Expense section can show up to five chosen categories; use its manage button to add, remove or reorder them.
 `.trim();
