@@ -22,6 +22,9 @@ export function AiHelperPage() {
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "আসসালামু আলাইকুম! আপনার খরচ, বাজেট বা সঞ্চয় নিয়ে কী জানতে চান?" }]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attachments, setAttachments] = useState<AiAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const context = useMemo(() => buildAiFinanceContext(entries), [entries]);
 
   async function askAi(event: FormEvent<HTMLFormElement>) {
