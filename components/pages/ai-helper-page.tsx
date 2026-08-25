@@ -42,6 +42,11 @@ export function AiHelperPage() {
     }
   }
 
+  function removeAttachment(id: string) {
+    setAttachments((current) => current.filter((attachment) => attachment.id !== id));
+    setAttachmentError("");
+  }
+
   async function askAi(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = question.trim();
