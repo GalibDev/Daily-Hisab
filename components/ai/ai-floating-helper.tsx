@@ -11,7 +11,7 @@ import { useFinance } from "@/components/state/finance-store";
 import { buildAiFinanceContext } from "@/lib/ai-finance-context";
 import { AI_ATTACHMENT_ACCEPT, AI_ATTACHMENT_MAX_COUNT, createAiAttachment, type AiAttachment } from "@/lib/ai-attachments";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; attachments?: AiAttachment[] };
 
 export function AiFloatingHelper() {
   const { getIdToken, user } = useAuth();
@@ -50,7 +50,7 @@ export function AiFloatingHelper() {
     const content = question.trim() || (attachments.length ? "সংযুক্ত file বিশ্লেষণ করুন।" : "");
     if (!content || loading) return;
     const sentAttachments = attachments;
-    const next = [...messages, { role: "user" as const, content }];
+    const next = [...messages, { role: "user" as const, content, attachments: sentAttachments }];
     setMessages(next);
     setQuestion("");
     setAttachments([]);
