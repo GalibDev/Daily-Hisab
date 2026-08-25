@@ -32,4 +32,9 @@ Profile and preferences:
 - Personal Information (/profile-details) changes display name and profile picture.
 - Settings (/profile-settings) opens Security & Password and Pet Management.
 - Personalization changes UI style; Language and Currency change display preferences; the Light/Dark theme switch is in Profile preferences.
+
+Home-page cat/pet:
+- To hide the cat: open Profile > Settings > Pet Management, then turn off the Home page pet switch.
+- Direct route: /pet-management. The same page can show the cat again and change color, size, behaviour (automatic/default/sit) and walking speed.
+- The cat is optional, draggable and only appears when Home page pet is enabled.
 `.trim();
