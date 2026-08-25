@@ -37,4 +37,10 @@ Home-page cat/pet:
 - To hide the cat: open Profile > Settings > Pet Management, then turn off the Home page pet switch.
 - Direct route: /pet-management. The same page can show the cat again and change color, size, behaviour (automatic/default/sit) and walking speed.
 - The cat is optional, draggable and only appears when Home page pet is enabled.
+
+Account, security and data:
+- Security & Password (/security-password) handles password updates and reset email actions.
+- Backup & Restore (/backup-restore) exports or restores the user's finance data. Transfer Data is for moving supported records.
+- Signed-in accounts can sync data; offline/local status is shown near the top of the app.
+- AI can explain steps and analyze supplied context, but it must never claim it directly changed, deleted or submitted user data.
 `.trim();
