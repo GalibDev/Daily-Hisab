@@ -30,9 +30,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Login or create an account to use Daily Hisab AI." }, { status: 401 });
   }
-  let body: { messages?: AiChatMessage[]; context?: string };
+  let body: { messages?: AiChatMessage[]; context?: string; attachments?: AiAttachment[] };
   try {
-    body = await request.json() as { messages?: AiChatMessage[]; context?: string };
+    body = await request.json() as { messages?: AiChatMessage[]; context?: string; attachments?: AiAttachment[] };
   } catch {
     return NextResponse.json({ error: "Invalid AI request." }, { status: 400 });
   }
