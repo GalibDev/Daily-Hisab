@@ -2,6 +2,14 @@ import type { AiProviderConfig } from "@/lib/ai-provider-config";
 import type { AiAttachment } from "@/lib/ai-attachments";
 import type { AiChatMessage, AiProviderResult } from "@/lib/ai-openai-client";
 
+function geminiAttachmentParts(attachments: AiAttachment[]) {
+  return attachments.flatMap((item) => {
+    if (item.text) return [{ text: `Attached text file: ${item.name}\n${item.text}` }];
+    const encoded = item.dataUrl?.split(",", 2)[1];
+    return encoded ? [{ inlineData: { mimeType: item.mimeType, data: encoded } }] : [];
+  });
+}
+
 export async function requestGeminiCompatible(config: AiProviderConfig, messages: AiChatMessage[], systemPrompt: string, attachments: AiAttachment[] = []): Promise<AiProviderResult> {
   const baseUrl = config.baseUrls[0];
   const apiRoot = /\/v1beta$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1beta`;
