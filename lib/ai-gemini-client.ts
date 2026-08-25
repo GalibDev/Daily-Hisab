@@ -1,7 +1,8 @@
 import type { AiProviderConfig } from "@/lib/ai-provider-config";
+import type { AiAttachment } from "@/lib/ai-attachments";
 import type { AiChatMessage, AiProviderResult } from "@/lib/ai-openai-client";
 
-export async function requestGeminiCompatible(config: AiProviderConfig, messages: AiChatMessage[], systemPrompt: string): Promise<AiProviderResult> {
+export async function requestGeminiCompatible(config: AiProviderConfig, messages: AiChatMessage[], systemPrompt: string, attachments: AiAttachment[] = []): Promise<AiProviderResult> {
   const baseUrl = config.baseUrls[0];
   const apiRoot = /\/v1beta$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1beta`;
   const model = config.model || "gemini-2.0-flash";
