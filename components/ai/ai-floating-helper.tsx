@@ -25,6 +25,21 @@ export function AiFloatingHelper() {
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "হ্যালো! খরচ বা বাজেট নিয়ে আমাকে প্রশ্ন করুন।" }]);
   const context = useMemo(() => buildAiFinanceContext(entries), [entries]);
 
+  async function addAttachments(files: FileList | null) {
+    if (!files?.length) return;
+    setAttachmentError("");
+    try {
+      const available = Math.max(0, AI_ATTACHMENT_MAX_COUNT - attachments.length);
+      const next = await Promise.all(Array.from(files).slice(0, available).map(createAiAttachment));
+      setAttachments((current) => [...current, ...next]);
+      if (files.length > available) setAttachmentError(`একসাথে সর্বোচ্চ ${AI_ATTACHMENT_MAX_COUNT}টি file যোগ করা যাবে।`);
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : "File যোগ করা যায়নি।");
+    } finally {
+      if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = question.trim();
