@@ -27,3 +27,12 @@ function readAsDataUrl(file: File) {
     reader.readAsDataURL(file);
   });
 }
+
+function readAsText(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.readAsText(file);
+  });
+}
