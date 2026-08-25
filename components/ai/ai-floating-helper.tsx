@@ -19,6 +19,9 @@ export function AiFloatingHelper() {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attachments, setAttachments] = useState<AiAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "হ্যালো! খরচ বা বাজেট নিয়ে আমাকে প্রশ্ন করুন।" }]);
   const context = useMemo(() => buildAiFinanceContext(entries), [entries]);
 
