@@ -1,7 +1,12 @@
 import type { AiProviderConfig } from "@/lib/ai-provider-config";
+import type { AiAttachment } from "@/lib/ai-attachments";
 
 export type AiChatMessage = { role: "user" | "assistant"; content: string };
 export type AiProviderResult = { reply?: string; error?: string; status: number };
+
+function attachmentText(attachments: AiAttachment[]) {
+  return attachments.flatMap((item) => item.text ? [`\n\nAttached text file: ${item.name}\n${item.text}`] : item.mimeType === "application/pdf" ? [`\n\nAttached PDF: ${item.name}`] : []).join("");
+}
 
 async function resolveChatModel(baseUrl: string, apiKey: string, configuredModel: string) {
   try {
