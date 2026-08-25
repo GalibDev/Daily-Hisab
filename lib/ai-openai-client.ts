@@ -27,6 +27,16 @@ async function resolveChatModel(baseUrl: string, apiKey: string, configuredModel
 export async function requestOpenAiCompatible(config: AiProviderConfig, messages: AiChatMessage[], systemPrompt: string, attachments: AiAttachment[] = []): Promise<AiProviderResult> {
   let lastError = "AI provider request failed.";
   let lastStatus = 502;
+  const providerMessages: Array<{ role: string; content: unknown }> = messages.map((message, index) => {
+    if (index !== messages.length - 1 || message.role !== "user" || !attachments.length) return message;
+    const content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
+      { type: "text", text: message.content + attachmentText(attachments) },
+    ];
+    attachments.forEach((item) => {
+      if (item.mimeType.startsWith("image/") && item.dataUrl) content.push({ type: "image_url", image_url: { url: item.dataUrl } });
+    });
+    return { ...message, content };
+  });
 
   for (const baseUrl of config.baseUrls) {
     try {
@@ -42,7 +52,7 @@ export async function requestOpenAiCompatible(config: AiProviderConfig, messages
         body: JSON.stringify({
           model,
           temperature: 0.4,
-          messages: [{ role: "system", content: systemPrompt }, ...messages],
+          messages: [{ role: "system", content: systemPrompt }, ...providerMessages],
         }),
         cache: "no-store",
       });
