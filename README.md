@@ -65,6 +65,10 @@ The category icon picker is organized by real-life use instead of one long icon 
 
 - Floating assistant available from the app shell
 - Concise Bengali-friendly budgeting guidance
+- Verified in-app help for navigation, settings, wallets, categories, exports, themes and Pet Management
+- Image, receipt, PDF and text-file attachments with previews, validation and removal controls
+- Multimodal requests for OpenAI-compatible and Gemini-compatible providers
+- Attachments are sent for the active analysis only and are not stored in Daily Hisab
 - Server-side WalkAI proxy at `/api/ai-helper`
 - Provider errors are surfaced clearly without exposing API keys in the browser
 
