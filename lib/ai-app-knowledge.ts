@@ -55,5 +55,6 @@ export function answerDailyHisabHelp(question: string) {
   if (/(name|নাম|photo|ছবি|profile picture)/i.test(normalized) && /(change|edit|বদল|পরিবর্তন|add|যোগ)/i.test(normalized)) return "নাম বা profile picture বদলাতে Profile → Personal Information খুলুন। সরাসরি /profile-details page-এও যেতে পারেন।";
   if (/(category|ক্যাটাগরি|কেটাগরি)/i.test(normalized) && /(add|edit|delete|যোগ|বদল|মুছ)/i.test(normalized)) return "Category manage করতে Profile → Categories খুলুন। সেখানে category add, edit, delete এবং related icon নির্বাচন করা যায়।";
   if (/(pdf|excel|export|download|ডাউনলোড)/i.test(normalized)) return "PDF বা Excel নিতে Reports & Analytics খুলুন, প্রয়োজনীয় date filter দিন, তারপর Export/Download option ব্যবহার করুন।";
+  if (/(file|image|photo|ছবি|ফাইল|receipt)/i.test(normalized) && /(upload|attach|যোগ|দিব|পাঠাব)/i.test(normalized)) return "Daily Hisab AI-তে message box-এর পাশে paperclip button চাপুন। সর্বোচ্চ ৩টি image, PDF বা text file (প্রতিটি ৫ MB পর্যন্ত) বেছে নিয়ে Send করুন; পাঠানোর আগে preview থেকে remove-ও করা যায়।";
   return null;
 }

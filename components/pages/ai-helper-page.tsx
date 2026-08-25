@@ -51,8 +51,8 @@ export function AiHelperPage() {
     event.preventDefault();
     const content = question.trim() || (attachments.length ? "সংযুক্ত file বিশ্লেষণ করুন।" : "");
     if (!content || loading) return;
-    const nextMessages = [...messages, { role: "user" as const, content, attachments: sentAttachments }];
     const sentAttachments = attachments;
+    const nextMessages = [...messages, { role: "user" as const, content, attachments: sentAttachments }];
     setMessages(nextMessages);
     setQuestion("");
     setAttachments([]);

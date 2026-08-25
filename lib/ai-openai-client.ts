@@ -28,14 +28,14 @@ export async function requestOpenAiCompatible(config: AiProviderConfig, messages
   let lastError = "AI provider request failed.";
   let lastStatus = 502;
   const providerMessages: Array<{ role: string; content: unknown }> = messages.map((message, index) => {
-    if (index !== messages.length - 1 || message.role !== "user" || !attachments.length) return message;
+    if (index !== messages.length - 1 || message.role !== "user" || !attachments.length) return { role: message.role, content: message.content };
     const content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
       { type: "text", text: message.content + attachmentText(attachments) },
     ];
     attachments.forEach((item) => {
       if (item.mimeType.startsWith("image/") && item.dataUrl) content.push({ type: "image_url", image_url: { url: item.dataUrl } });
     });
-    return { ...message, content };
+    return { role: message.role, content };
   });
 
   for (const baseUrl of config.baseUrls) {
