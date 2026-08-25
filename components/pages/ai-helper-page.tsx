@@ -49,15 +49,17 @@ export function AiHelperPage() {
 
   async function askAi(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const content = question.trim();
+    const content = question.trim() || (attachments.length ? "সংযুক্ত file বিশ্লেষণ করুন।" : "");
     if (!content || loading) return;
     const nextMessages = [...messages, { role: "user" as const, content }];
+    const sentAttachments = attachments;
     setMessages(nextMessages);
     setQuestion("");
+    setAttachments([]);
     setLoading(true);
     try {
       const token = await getIdToken();
-      const response = await fetch("/api/ai-helper", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ messages: nextMessages.slice(1), context }) });
+      const response = await fetch("/api/ai-helper", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ messages: nextMessages.slice(1), context, attachments: sentAttachments }) });
       const data = await response.json() as { reply?: string; error?: string };
       setMessages((current) => [...current, { role: "assistant", content: data.reply || data.error || "AI response পাওয়া যায়নি।" }]);
     } catch {
