@@ -24,7 +24,7 @@ async function resolveChatModel(baseUrl: string, apiKey: string, configuredModel
   }
 }
 
-export async function requestOpenAiCompatible(config: AiProviderConfig, messages: AiChatMessage[], systemPrompt: string): Promise<AiProviderResult> {
+export async function requestOpenAiCompatible(config: AiProviderConfig, messages: AiChatMessage[], systemPrompt: string, attachments: AiAttachment[] = []): Promise<AiProviderResult> {
   let lastError = "AI provider request failed.";
   let lastStatus = 502;
 
