@@ -26,4 +26,10 @@ Reports and planning:
 - PDF and Excel downloads are started from Reports; browser downloads should not require a popup window.
 - Budget sets category limits and progress. Loans & Dues tracks borrowed/lent money and repayments.
 - Recurring stores repeating costs; Reminders stores dated tasks; Calendar groups records by date.
+
+Profile and preferences:
+- Profile (/settings) contains Personal Information, Categories, Hero Management, Security, Payment Methods, Backup & Restore and Family Access.
+- Personal Information (/profile-details) changes display name and profile picture.
+- Settings (/profile-settings) opens Security & Password and Pet Management.
+- Personalization changes UI style; Language and Currency change display preferences; the Light/Dark theme switch is in Profile preferences.
 `.trim();
