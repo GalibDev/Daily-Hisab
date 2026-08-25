@@ -24,6 +24,9 @@ export async function POST(request: Request) {
   const messages = (body.messages ?? []).filter((item) => item.content?.trim()).slice(-10);
   if (!messages.length) return NextResponse.json({ error: "Write a question first." }, { status: 400 });
 
+  const localHelpAnswer = answerDailyHisabHelp(messages[messages.length - 1].content);
+  if (localHelpAnswer) return NextResponse.json({ reply: localHelpAnswer, source: "app-knowledge" });
+
   const config = getAiProviderConfig();
   if (!config.apiKey) return NextResponse.json({ error: `${config.name} API key is not configured.` }, { status: 503 });
 
