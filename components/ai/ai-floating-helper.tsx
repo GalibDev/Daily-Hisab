@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { MessageCircle, Send, X } from "lucide-react";
+import { MessageCircle, Paperclip, Send, X } from "lucide-react";
+import { AiAttachmentList } from "@/components/ai/ai-attachment-list";
 import { AiLogo } from "@/components/ai/ai-logo";
 import { AiMessageContent } from "@/components/ai/ai-message-content";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useFinance } from "@/components/state/finance-store";
 import { buildAiFinanceContext } from "@/lib/ai-finance-context";
+import { AI_ATTACHMENT_ACCEPT, AI_ATTACHMENT_MAX_COUNT, createAiAttachment, type AiAttachment } from "@/lib/ai-attachments";
 
 type Message = { role: "user" | "assistant"; content: string };
 
