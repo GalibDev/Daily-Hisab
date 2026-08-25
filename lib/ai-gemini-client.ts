@@ -21,9 +21,9 @@ export async function requestGeminiCompatible(config: AiProviderConfig, messages
       headers: { "Content-Type": "application/json", "x-goog-api-key": config.apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: messages.map((message) => ({
+        contents: messages.map((message, index) => ({
           role: message.role === "assistant" ? "model" : "user",
-          parts: [{ text: message.content }],
+          parts: [{ text: message.content }, ...(index === messages.length - 1 && message.role === "user" ? geminiAttachmentParts(attachments) : [])],
         })),
         generationConfig: { temperature: 0.4 },
       }),
