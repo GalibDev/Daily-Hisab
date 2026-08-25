@@ -44,3 +44,11 @@ Account, security and data:
 - Signed-in accounts can sync data; offline/local status is shown near the top of the app.
 - AI can explain steps and analyze supplied context, but it must never claim it directly changed, deleted or submitted user data.
 `.trim();
+
+export function answerDailyHisabHelp(question: string) {
+  const normalized = question.toLocaleLowerCase("bn-BD");
+  if (/(বিড়াল|বিড়াল|cat|pet)/i.test(normalized) && /(off|বন্ধ|hide|সরাব|remove)/i.test(normalized)) {
+    return "বিড়ালটি বন্ধ করতে Profile → Settings → Pet Management-এ যান। তারপর ‘Home page pet’ switch-টি Off করুন। সরাসরি /pet-management page-ও খুলতে পারেন।";
+  }
+  return null;
+}
