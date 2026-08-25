@@ -20,4 +20,10 @@ Wallets and family:
 - Add Money records deposits. A wallet's on/off switch decides whether new expenses are deducted from it.
 - Remaining balance is deposited money minus deducted expenses. Family Access controls guardian connections, deposit requests and shared-expense behavior.
 - Payment Methods (/payment-methods) manages how Cash, bKash, Nagad, Card or Bank appear in entries.
+
+Reports and planning:
+- Reports & Analytics (/reports) contains overview, expense, income and budget views plus quick date filters.
+- PDF and Excel downloads are started from Reports; browser downloads should not require a popup window.
+- Budget sets category limits and progress. Loans & Dues tracks borrowed/lent money and repayments.
+- Recurring stores repeating costs; Reminders stores dated tasks; Calendar groups records by date.
 `.trim();
