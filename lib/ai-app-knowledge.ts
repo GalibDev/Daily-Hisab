@@ -14,4 +14,10 @@ Transactions and categories:
 - Edit or delete transactions from All Entries. Category details open from monthly expense breakdowns.
 - Create, rename, delete and choose related icons from Profile > Categories or /categories.
 - The Dashboard Today Expense section can show up to five chosen categories; use its manage button to add, remove or reorder them.
+
+Wallets and family:
+- Personal and Family wallets are configured from Profile > Hero Management (/hero-management).
+- Add Money records deposits. A wallet's on/off switch decides whether new expenses are deducted from it.
+- Remaining balance is deposited money minus deducted expenses. Family Access controls guardian connections, deposit requests and shared-expense behavior.
+- Payment Methods (/payment-methods) manages how Cash, bKash, Nagad, Card or Bank appear in entries.
 `.trim();
