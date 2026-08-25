@@ -50,5 +50,9 @@ export function answerDailyHisabHelp(question: string) {
   if (/(বিড়াল|বিড়াল|cat|pet)/i.test(normalized) && /(off|বন্ধ|hide|সরাব|remove)/i.test(normalized)) {
     return "বিড়ালটি বন্ধ করতে Profile → Settings → Pet Management-এ যান। তারপর ‘Home page pet’ switch-টি Off করুন। সরাসরি /pet-management page-ও খুলতে পারেন।";
   }
+  if (/(dark|light|theme|থিম|ডার্ক|লাইট)/i.test(normalized)) return "Theme বদলাতে Profile খুলে Preferences section-এর Light/Dark switch ব্যবহার করুন।";
+  if (/(name|নাম|photo|ছবি|profile picture)/i.test(normalized) && /(change|edit|বদল|পরিবর্তন|add|যোগ)/i.test(normalized)) return "নাম বা profile picture বদলাতে Profile → Personal Information খুলুন। সরাসরি /profile-details page-এও যেতে পারেন।";
+  if (/(category|ক্যাটাগরি|কেটাগরি)/i.test(normalized) && /(add|edit|delete|যোগ|বদল|মুছ)/i.test(normalized)) return "Category manage করতে Profile → Categories খুলুন। সেখানে category add, edit, delete এবং related icon নির্বাচন করা যায়।";
+  if (/(pdf|excel|export|download|ডাউনলোড)/i.test(normalized)) return "PDF বা Excel নিতে Reports & Analytics খুলুন, প্রয়োজনীয় date filter দিন, তারপর Export/Download option ব্যবহার করুন।";
   return null;
 }
