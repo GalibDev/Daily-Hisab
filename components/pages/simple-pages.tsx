@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertTriangle, Baby, BadgeDollarSign, BadgeHelp, Banknote, Beef, Bell, BookOpen, BookOpenCheck, Bot, BriefcaseBusiness, Bus, CakeSlice, CalendarDays, Camera, Candy, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, Cookie, CookingPot, Copy, CreditCard, Crown, CupSoda, Download, Drumstick, Dumbbell, Edit2, EggFried, ExternalLink, Eye, EyeOff, FileSpreadsheet, Fish, Folder, Fuel, Gamepad2, Gift, GlassWater, GraduationCap, Grid2X2, HeartPulse, Home, IceCreamBowl, Languages, Lightbulb, LogOut, Mail, MessageCircle, Milk, Moon, Palette, PawPrint, Pencil, Pizza, Plane, Plus, Popcorn, Receipt, RotateCcw, Salad, Sandwich, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Soup, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench } from "lucide-react";
+import { AlertTriangle, Baby, BadgeDollarSign, BadgeHelp, Banknote, Beef, Bell, BookOpen, BookOpenCheck, Bot, BriefcaseBusiness, Bus, CakeSlice, CalendarDays, Camera, Candy, Car, CheckCircle2, ChevronRight, CloudDownload, CloudUpload, Coffee, Cookie, CookingPot, Copy, CreditCard, Crown, CupSoda, Download, Drumstick, Dumbbell, Edit2, EggFried, ExternalLink, Eye, EyeOff, FileSpreadsheet, Fish, Folder, Fuel, Gamepad2, Gift, GlassWater, GraduationCap, Grid2X2, HeartPulse, Home, IceCreamBowl, Languages, Lightbulb, LogOut, Mail, Maximize2, MessageCircle, Milk, Moon, Palette, PawPrint, Pencil, Pizza, Plane, Plus, Popcorn, Receipt, RotateCcw, Salad, Sandwich, ShieldCheck, ShoppingBag, ShoppingCart, Smartphone, Soup, Target, Trash2, TrendingUp, Upload, User, UsersRound, Utensils, Wallet, Wifi, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -18,8 +18,9 @@ import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
 import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_MODE_KEY, PET_SETTINGS_EVENT, PET_SIZE_KEY, PET_SPEED_KEY, type PetColor, type PetMode, type PetSize, type PetSpeed } from "@/components/pet/floating-pet";
-import { budgets, paymentMethods } from "@/data/mock-data";
+import { paymentMethods } from "@/data/mock-data";
 import { exportDataJson, exportEntriesCsv, exportExpenseSheetCsv, exportExpenseSheetPdf } from "@/lib/export-data";
+import { BUDGET_TARGET_UPDATED_EVENT, calculateBudgetTargetStatus, filterEntriesForBudgetTarget, getBudgetPeriodLabel, readSavedBudgetTarget, saveBudgetTarget as persistBudgetTarget, type BudgetPeriod, type SavedBudgetTarget } from "@/lib/budget-target";
 import {
   buildCategoryExpense,
   buildExpenseTrend,
@@ -36,7 +37,6 @@ import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from
 
 type EntryFormMode = "expense" | "income";
 const CATEGORY_ICON_STORAGE_KEY = "daily-hisab.category-icons.v1";
-const BUDGET_TARGET_STORAGE_KEY = "daily-hisab.budget-target.v1";
 const PAYMENT_METHOD_STORAGE_KEY = "daily-hisab.default-payment-method.v1";
 const LANGUAGE_STORAGE_KEY = "daily-hisab.language.v1";
 const CURRENCY_STORAGE_KEY = "daily-hisab.currency.v1";
@@ -181,23 +181,16 @@ export function BudgetPage() {
   const { categories, entries } = useFinance();
   const { notify } = useToast();
   const today = getTodayIso();
-  type BudgetPeriod = "daily" | "monthly" | "yearly" | "custom";
-  type SavedBudgetTarget = { period?: BudgetPeriod; target?: number; startDate?: string; endDate?: string };
-  const readSavedBudget = () => {
-    if (typeof window === "undefined") return {} as SavedBudgetTarget;
-    try { return JSON.parse(window.localStorage.getItem(BUDGET_TARGET_STORAGE_KEY) || "{}") as SavedBudgetTarget; }
-    catch { return {} as SavedBudgetTarget; }
-  };
-  const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>(() => readSavedBudget().period ?? "monthly");
-  const [formPeriod, setFormPeriod] = useState<BudgetPeriod>(() => readSavedBudget().period ?? "monthly");
-  const [budgetTarget, setBudgetTarget] = useState<number>(() => Number(readSavedBudget().target ?? 0));
-  const [customStartDate, setCustomStartDate] = useState(() => readSavedBudget().startDate || today);
-  const [customEndDate, setCustomEndDate] = useState(() => readSavedBudget().endDate || today);
-  const [formStartDate, setFormStartDate] = useState(() => readSavedBudget().startDate || today);
-  const [formEndDate, setFormEndDate] = useState(() => readSavedBudget().endDate || today);
-  const scopedEntries = useMemo(() => budgetPeriod === "custom"
-    ? entries.filter((entry) => entry.date >= customStartDate && entry.date <= customEndDate)
-    : filterEntriesByReportPeriod(entries, budgetPeriod, today), [budgetPeriod, customEndDate, customStartDate, entries, today]);
+  const readBudget = () => readSavedBudgetTarget();
+  const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>(() => readBudget().period);
+  const [formPeriod, setFormPeriod] = useState<BudgetPeriod>(() => readBudget().period);
+  const [budgetTarget, setBudgetTarget] = useState<number>(() => readBudget().target);
+  const [customStartDate, setCustomStartDate] = useState(() => readBudget().startDate || today);
+  const [customEndDate, setCustomEndDate] = useState(() => readBudget().endDate || today);
+  const [formStartDate, setFormStartDate] = useState(() => readBudget().startDate || today);
+  const [formEndDate, setFormEndDate] = useState(() => readBudget().endDate || today);
+  const savedBudget = useMemo<SavedBudgetTarget>(() => ({ period: budgetPeriod, target: budgetTarget, startDate: customStartDate, endDate: customEndDate }), [budgetPeriod, budgetTarget, customEndDate, customStartDate]);
+  const scopedEntries = useMemo(() => filterEntriesForBudgetTarget(entries, savedBudget, today), [entries, savedBudget, today]);
   const spentByCategory = useMemo(() => buildCategoryExpense(scopedEntries, categories), [categories, scopedEntries]);
   const spent = scopedEntries.filter((entry) => entry.type === "expense").reduce((sum, entry) => sum + entry.amount, 0);
   const remaining = budgetTarget - spent;
@@ -219,11 +212,11 @@ export function BudgetPage() {
   })();
   const averageAllowed = Math.max(remaining, 0) / Math.max(daysLeft, 1);
   const alertTone = budgetTarget <= 0 ? "info" : remaining < 0 ? "danger" : percent >= 85 ? "warning" : "good";
-  const periodLabel = budgetPeriod === "daily" ? "Daily" : budgetPeriod === "monthly" ? "Monthly" : budgetPeriod === "yearly" ? "Yearly" : "Custom";
+  const periodLabel = getBudgetPeriodLabel(budgetPeriod);
 
   useEffect(() => {
-    window.localStorage.setItem(BUDGET_TARGET_STORAGE_KEY, JSON.stringify({ period: budgetPeriod, target: budgetTarget, startDate: customStartDate, endDate: customEndDate }));
-  }, [budgetPeriod, budgetTarget, customEndDate, customStartDate]);
+    persistBudgetTarget(savedBudget);
+  }, [savedBudget]);
 
   function saveBudgetTarget(formData: FormData) {
     const nextPeriod = String(formData.get("period")) as BudgetPeriod;
@@ -668,6 +661,32 @@ function MobileReportsAnalytics({
   const [customMonth, setCustomMonth] = useState(today.slice(0, 7));
   const [showCategoryDetails, setShowCategoryDetails] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
+  const [showExpandedTrend, setShowExpandedTrend] = useState(false);
+  const [savedBudgetTarget, setSavedBudgetTarget] = useState<SavedBudgetTarget>(() => readSavedBudgetTarget());
+
+  useEffect(() => {
+    const syncBudgetTarget = () => setSavedBudgetTarget(readSavedBudgetTarget());
+    window.addEventListener("storage", syncBudgetTarget);
+    window.addEventListener(BUDGET_TARGET_UPDATED_EVENT, syncBudgetTarget);
+    return () => {
+      window.removeEventListener("storage", syncBudgetTarget);
+      window.removeEventListener(BUDGET_TARGET_UPDATED_EVENT, syncBudgetTarget);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showExpandedTrend) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowExpandedTrend(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showExpandedTrend]);
   const filteredEntries = useMemo(() => {
     const currentDate = new Date(`${today}T00:00:00`);
     const currentMonth = today.slice(0, 7);
@@ -742,13 +761,19 @@ function MobileReportsAnalytics({
   const topCategory = categoryData[0];
   const incomeEntries = filteredEntries.filter((entry) => entry.type === "income");
   const expenseEntries = filteredEntries.filter((entry) => entry.type === "expense");
-  const budgetRows = budgets.map((budget) => {
-    const dynamicSpent = categoryData.find((item) => budget.category.includes(item.name) || item.name.includes(budget.category))?.value;
-    const spent = dynamicSpent ?? 0;
-    const percent = budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0;
-    return { ...budget, spent, percent };
-  });
+  const budgetStatus = useMemo(() => calculateBudgetTargetStatus(entries, savedBudgetTarget, today), [entries, savedBudgetTarget, today]);
+  const budgetScopedEntries = useMemo(() => filterEntriesForBudgetTarget(entries, savedBudgetTarget, today), [entries, savedBudgetTarget, today]);
+  const budgetCategoryData = useMemo(() => buildCategoryExpense(budgetScopedEntries, categories), [budgetScopedEntries, categories]);
+  const topBudgetCategory = budgetCategoryData.reduce<(typeof budgetCategoryData)[number] | undefined>((highest, item) => !highest || item.value > highest.value ? item : highest, undefined);
+  const budgetRows = budgetStatus.isConfigured ? [{
+    category: budgetStatus.name,
+    spent: budgetStatus.spent,
+    limit: budgetStatus.target,
+    percent: budgetStatus.percent,
+    color: "#11298f",
+  }] : [];
   const overBudgetCount = budgetRows.filter((budget) => budget.percent > 100).length;
+  const overBudgetNames = budgetRows.filter((budget) => budget.percent > 100).map((budget) => budget.category);
   const filterLabels: Record<AnalyticsFilter, string> = {
     thisMonth: "This Month",
     lastMonth: "Last Month",
@@ -841,7 +866,7 @@ function MobileReportsAnalytics({
 
       {(analyticsTab === "overview" || analyticsTab === "expense") && (
         <Card className="overflow-hidden rounded-[22px] border-[#e6e9f1] p-5 shadow-[0_16px_38px_rgba(20,35,90,0.08)]">
-          <div className="mb-1 flex items-center justify-between"><h2 className="text-lg font-extrabold text-[#111936]">Expense Trend</h2><span className="text-sm font-bold text-[#59627a]">{filterLabel}</span></div>
+          <div className="mb-1 flex items-center justify-between gap-3"><h2 className="text-lg font-extrabold text-[#111936]">Expense Trend</h2><div className="flex items-center gap-2"><span className="text-sm font-bold text-[#59627a]">{filterLabel}</span><button type="button" onClick={() => setShowExpandedTrend(true)} aria-label="Expand expense trend graph" className="grid size-9 place-items-center rounded-xl border border-[#dfe4f1] text-[#11298f]"><Maximize2 size={17} /></button></div></div>
           <p className="mb-1 text-[11px] font-semibold text-[#8a92a6]">দিন অনুযায়ী আপনার খরচের পরিবর্তন</p>
           <ExpenseTrendChart data={trendData} monthLabel={new Intl.DateTimeFormat("en-US", { month: "short" }).format(selectedDate)} />
         </Card>
@@ -873,6 +898,7 @@ function MobileReportsAnalytics({
                 <div className="h-2 rounded-full bg-[#eef0f8]"><div className="h-full rounded-full" style={{ width: `${Math.min(budget.percent, 100)}%`, background: budget.percent > 100 ? "#ef4444" : budget.color }} /></div>
               </div>
             ))}
+            {budgetRows.length === 0 && <div className="rounded-xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-semibold text-[#59627a]">No budget target is saved yet. Set one from the Budget page.</div>}
           </div>
         </Card>
       )}
@@ -893,8 +919,26 @@ function MobileReportsAnalytics({
         <Card className="grid gap-3 rounded-[18px] border-[#eef0f8] p-5 text-sm font-semibold text-[#59627a]">
           <p><b className="text-[#111936]">Best focus:</b> {topCategory?.name ?? "No category"} is your highest expense area.</p>
           <p><b className="text-[#111936]">Cash flow:</b> income minus expense is {takaShort(summary.balance)} for {filterLabel.toLowerCase()}.</p>
-          <p><b className="text-[#111936]">Budget:</b> {overBudgetCount > 0 ? `${overBudgetCount} category over budget.` : "All tracked budgets are within limit."}</p>
+          <p className={budgetStatus.isOverBudget ? "text-[#c62828]" : ""}><b className="text-[#111936]">Budget:</b> {!budgetStatus.isConfigured
+            ? "No saved budget target."
+            : budgetStatus.isOverBudget
+              ? `${overBudgetNames.join(", ")} is over by ${takaShort(budgetStatus.overBy)} — spent ${takaShort(budgetStatus.spent)} of ${takaShort(budgetStatus.target)}.${topBudgetCategory ? ` Highest spend: ${topBudgetCategory.name} (${takaShort(topBudgetCategory.value)}).` : ""}`
+              : `${budgetStatus.name} is within limit — ${takaShort(Math.max(budgetStatus.remaining, 0))} remaining.`}</p>
         </Card>
+      )}
+
+      {showExpandedTrend && (
+        <div className="fixed inset-0 z-[140] flex flex-col bg-white" role="dialog" aria-modal="true" aria-labelledby="expanded-expense-trend-title">
+          <div className="flex items-center justify-between border-b border-[#e7eaf3] px-4 py-3">
+            <div><h2 id="expanded-expense-trend-title" className="text-lg font-extrabold text-[#111936]">Expense Trend — Expanded</h2><p className="text-xs font-semibold text-[#72798d]">দুই আঙুলে pinch করে zoom করুন, একসাথে টেনে graph সরান</p></div>
+            <button type="button" onClick={() => setShowExpandedTrend(false)} aria-label="Close expanded expense trend graph" className="grid size-11 place-items-center rounded-xl border border-[#dfe4f1] text-[#111936]"><X size={22} /></button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
+            <div className="h-full min-h-[420px] rounded-[22px] border border-[#e6e9f1] bg-white p-3 shadow-[0_16px_38px_rgba(20,35,90,0.08)] sm:p-5">
+              <ExpenseTrendChart data={trendData} monthLabel={new Intl.DateTimeFormat("en-US", { month: "short" }).format(selectedDate)} height={560} />
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
