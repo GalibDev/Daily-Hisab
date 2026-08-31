@@ -5,6 +5,7 @@ import { FinanceProvider } from "@/components/state/finance-store";
 import { ThemeProvider } from "@/components/state/theme-store";
 import { WalletProvider } from "@/components/state/wallet-store";
 import { LoanProvider } from "@/components/state/loan-store";
+import { LanguageProvider } from "@/components/state/language-store";
 import { PwaInstall } from "@/components/pwa/pwa-install";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
@@ -121,6 +122,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
         />
+        <LanguageProvider>
         <ThemeProvider>
           <ToastProvider>
             <AuthProvider>
@@ -134,6 +136,7 @@ export default function RootLayout({
             </AuthProvider>
           </ToastProvider>
         </ThemeProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
