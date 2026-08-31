@@ -24,7 +24,7 @@ export function LanguageProvider({ children }: Readonly<{ children: React.ReactN
   const [language, setLanguageState] = useState<AppLanguage>(DEFAULT_LANGUAGE);
 
   useEffect(() => {
-    setLanguageState(getStoredLanguage());
+    const initialSync = window.setTimeout(() => setLanguageState(getStoredLanguage()), 0);
 
     const syncLanguage = (event: Event) => {
       const requested = (event as CustomEvent<AppLanguage>).detail;
@@ -37,6 +37,7 @@ export function LanguageProvider({ children }: Readonly<{ children: React.ReactN
     window.addEventListener(LANGUAGE_CHANGE_EVENT, syncLanguage);
     window.addEventListener("storage", syncStorage);
     return () => {
+      window.clearTimeout(initialSync);
       window.removeEventListener(LANGUAGE_CHANGE_EVENT, syncLanguage);
       window.removeEventListener("storage", syncStorage);
     };

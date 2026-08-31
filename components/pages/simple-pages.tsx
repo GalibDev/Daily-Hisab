@@ -1716,6 +1716,7 @@ export function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const { categories, entries, hiddenSummaryDates, recurringExpenses, reminders, resetAllData, syncEnabled, syncError } = useFinance();
   const { notify } = useToast();
+  const { language, t } = useLanguage();
   const mobileProfileInputRef = useRef<HTMLInputElement>(null);
   const [mobileProfileUploading, setMobileProfileUploading] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
@@ -1723,7 +1724,6 @@ export function SettingsPage() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [localProfileName, setLocalProfileName] = useState("Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState("");
-  const [languagePreference, setLanguagePreference] = useState<AppLanguage>("default");
   const [currencyPreference, setCurrencyPreference] = useState<AppCurrency>("BDT");
   const [petEnabled, setPetEnabled] = useState(false);
   const [petColor, setPetColor] = useState<PetColor>("default");
@@ -1750,7 +1750,7 @@ export function SettingsPage() {
   const preferenceItems = [
     { href: "/reminders", icon: <Bell size={20} />, label: "Notifications", tone: "bg-[#fff2e8] text-[#f97316]" },
     { onClick: toggleTheme, icon: theme === "dark" ? <Moon size={20} /> : <Palette size={20} />, label: "Theme", meta: theme === "dark" ? "Dark" : "Light", tone: "bg-[#f5efff] text-[#7c3aed]" },
-    { href: "/language", icon: <Languages size={20} />, label: "Language", meta: languagePreference === "bangla" ? "বাংলা" : languagePreference === "english" ? "English" : "Default", tone: "bg-[#eafbf0] text-[#07825c]" },
+    { href: "/language", icon: <Languages size={20} />, label: t("language.title"), meta: language === "bangla" ? t("language.bangla") : t("language.english"), tone: "bg-[#eafbf0] text-[#07825c]" },
     { href: "/currency", icon: <BadgeDollarSign size={20} />, label: "Currency", meta: currencyPreference, tone: "bg-[#eef4ff] text-[#1d4ed8]" },
   ];
   const supportItems = [
@@ -1763,8 +1763,6 @@ export function SettingsPage() {
     queueMicrotask(() => {
       setLocalProfileName(window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
       setLocalProfilePhoto(window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
-      const savedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      setLanguagePreference((savedLanguage === "bangla" || savedLanguage === "english" ? savedLanguage : "default") as AppLanguage);
       setCurrencyPreference(window.localStorage.getItem(CURRENCY_STORAGE_KEY) === "USD" ? "USD" : "BDT");
       setStatusVisible(window.localStorage.getItem(PROFILE_STATUS_VISIBLE_KEY) !== "0");
       setPetEnabled(window.localStorage.getItem(PET_ENABLED_KEY) !== "0");
