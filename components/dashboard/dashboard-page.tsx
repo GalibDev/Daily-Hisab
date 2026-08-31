@@ -78,6 +78,7 @@ import { useFamilyAccess } from "@/components/state/family-access-store";
 import { useFinance } from "@/components/state/finance-store";
 import { FloatingPet } from "@/components/pet/floating-pet";
 import { useWallet } from "@/components/state/wallet-store";
+import { useLanguage } from "@/components/state/language-store";
 import { budgets, paymentMethods } from "@/data/mock-data";
 import { getDefaultCategoryIcon } from "@/lib/category-icon-defaults";
 import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, countExpenseDaysInMonth, summarizeEntries } from "@/lib/finance";
@@ -524,6 +525,7 @@ function DesktopDashboard({
 }>) {
   const wallet = useWallet();
   const family = useFamilyAccess();
+  const { t } = useLanguage();
   const monthIncome = entries.filter((entry) => entry.type === "income" && entry.date.startsWith(today.slice(0, 7))).reduce((sum, entry) => sum + entry.amount, 0);
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
   const activeDays = new Set(entries.filter((entry) => entry.type === "expense" && entry.date.startsWith(today.slice(0, 7))).map((entry) => entry.date)).size;
@@ -535,20 +537,19 @@ function DesktopDashboard({
       <div className="grid min-w-0 gap-5 xl:pr-5">
       <div className="flex items-center justify-between gap-5">
         <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#70817b]">Dashboard overview</p>
-          <h1 className="mt-1 text-xl font-black tracking-[-0.03em] text-[#14231e]">Good morning, {todaySummary.entries > 0 ? "your finances are updated" : "let’s plan today"}.</h1>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#70817b]">{t("dashboard.overview")}</p>
+          <h1 className="mt-1 text-xl font-black tracking-[-0.03em] text-[#14231e]">{t(todaySummary.entries > 0 ? "dashboard.goodMorningUpdated" : "dashboard.goodMorningPlan")}</h1>
         </div>
-        <span className="rounded-full border border-[#dfe7e4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#62736d]">Updated today</span>
+        <span className="rounded-full border border-[#dfe7e4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#62736d]">{t("dashboard.updatedToday")}</span>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Today’s expense", value: taka(todaySummary.expense), meta: todaySummary.entries ? `${todaySummary.entries} entries today` : "No spending recorded", icon: Wallet, tone: "bg-[#eef2ff] text-[#3452bb]" },
-          { label: "This month income", value: taka(monthIncome), meta: "Income recorded this month", icon: TrendingUp, tone: "bg-[#e8f8f0] text-[#087d5a]" },
-          { label: "Total expense", value: taka(monthExpense), meta: `${activeDays} active expense days`, icon: Receipt, tone: "bg-[#f3f5f4] text-[#41534d]" },
-          { label: "Wallet balance", value: taka(wallet.personalBalance), meta: wallet.personalEnabled ? "Personal wallet active" : "Personal wallet paused", icon: CircleDollarSign, tone: "bg-[#f3f5f4] text-[#41534d]" },
-        ].map(({ label, value, meta, icon: Icon, tone }) => {
-          const cardBackground = label === "Today’s expense" ? "bg-[#fff1f1]" : label === "This month income" ? "bg-[#eaf9f2]" : "bg-white";
+          { label: t("dashboard.todayExpense"), value: taka(todaySummary.expense), meta: todaySummary.entries ? t("dashboard.entriesToday", { count: todaySummary.entries }) : t("dashboard.noSpending"), icon: Wallet, tone: "bg-[#eef2ff] text-[#3452bb]", background: "bg-[#fff1f1]" },
+          { label: t("dashboard.monthIncome"), value: taka(monthIncome), meta: t("dashboard.incomeRecorded"), icon: TrendingUp, tone: "bg-[#e8f8f0] text-[#087d5a]", background: "bg-[#eaf9f2]" },
+          { label: t("dashboard.totalExpense"), value: taka(monthExpense), meta: t("dashboard.activeDays", { count: activeDays }), icon: Receipt, tone: "bg-[#f3f5f4] text-[#41534d]", background: "bg-white" },
+          { label: t("dashboard.walletBalance"), value: taka(wallet.personalBalance), meta: t(wallet.personalEnabled ? "dashboard.personalActive" : "dashboard.personalPaused"), icon: CircleDollarSign, tone: "bg-[#f3f5f4] text-[#41534d]", background: "bg-white" },
+        ].map(({ label, value, meta, icon: Icon, tone, background: cardBackground }) => {
           return <Card key={label} className={`group relative min-h-[132px] overflow-hidden rounded-xl border-[#dfe7e4] p-4 shadow-[0_5px_16px_rgba(35,58,49,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(35,58,49,0.09)] ${cardBackground}`}><div className="flex items-start justify-between gap-3"><span className={`grid size-9 place-items-center rounded-lg ${tone}`}><Icon size={18} /></span><ArrowUpRight size={15} className="text-[#a5b2ad] transition group-hover:text-[#087d5a]" /></div><p className="mt-3 text-[11px] font-bold text-[#65756f]">{label}</p><strong className="mt-1 block text-xl font-black tracking-[-0.03em] text-[#14231e]">{value}</strong><p className="mt-1 text-[10px] font-semibold text-[#899892]">{meta}</p></Card>;
         })}
       </div>
