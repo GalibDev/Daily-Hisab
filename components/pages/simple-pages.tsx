@@ -11,6 +11,7 @@ import { CategorySelect } from "@/components/entries/category-select";
 import { useFinance } from "@/components/state/finance-store";
 import { getDefaultCategoryIcon } from "@/lib/category-icon-defaults";
 import { useTheme } from "@/components/state/theme-store";
+import { useLanguage } from "@/components/state/language-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
@@ -38,10 +39,8 @@ import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from
 type EntryFormMode = "expense" | "income";
 const CATEGORY_ICON_STORAGE_KEY = "daily-hisab.category-icons.v1";
 const PAYMENT_METHOD_STORAGE_KEY = "daily-hisab.default-payment-method.v1";
-const LANGUAGE_STORAGE_KEY = "daily-hisab.language.v1";
 const CURRENCY_STORAGE_KEY = "daily-hisab.currency.v1";
 const PROFILE_STATUS_VISIBLE_KEY = "daily-hisab.profile-status-visible.v1";
-type AppLanguage = "default" | "bangla" | "english";
 type AppCurrency = "BDT" | "USD";
 
 function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
@@ -1662,24 +1661,17 @@ export function PersonalizationPage() {
 
 export function LanguageSettingsPage() {
   const { notify } = useToast();
-  const [language, setLanguage] = useState<AppLanguage>(() => {
-    if (typeof window === "undefined") return "default";
-    const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    return saved === "bangla" || saved === "english" ? saved : "default";
-  });
-  const options: Array<{ value: AppLanguage; title: string; subtitle: string; sample: string }> = [
-    { value: "default", title: "Default", subtitle: "বর্তমান বাংলা ও English mixed interface", sample: "বাংলা + English" },
-    { value: "bangla", title: "বাংলা", subtitle: "বাংলা ভাষাকে interface preference হিসেবে ব্যবহার করুন", sample: "দৈনিক হিসাব" },
-    { value: "english", title: "English", subtitle: "Use English as your interface preference", sample: "Daily Hisab" },
+  const { language, setLanguage, t } = useLanguage();
+  const options = [
+    { value: "bangla" as const, title: t("language.bangla"), subtitle: t("language.banglaDescription"), sample: "দৈনিক হিসাব" },
+    { value: "english" as const, title: t("language.english"), subtitle: t("language.englishDescription"), sample: "Daily Hisab" },
   ];
-  function choose(value: AppLanguage) {
+  function choose(value: "bangla" | "english") {
     setLanguage(value);
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
-    document.documentElement.setAttribute("lang", value === "english" ? "en" : "bn");
-    window.dispatchEvent(new CustomEvent("daily-hisab:language-change", { detail: value }));
-    notify(`${options.find((item) => item.value === value)?.title} language selected`, "success");
+    const selected = options.find((item) => item.value === value)?.title ?? value;
+    notify(t("language.selected", { language: selected }), "success");
   }
-  return <AppShell><PageTitle title="Language" subtitle="Choose how Daily Hisab should present its interface" /><Card className="mx-auto max-w-2xl overflow-hidden rounded-[22px] border-[#e7ebf4] p-0 shadow-[0_16px_40px_rgba(20,35,90,0.08)]"><div className="border-b border-[#edf0f7] bg-gradient-to-r from-[#eef4ff] to-white p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#11298f] text-white"><Languages size={24} /></span><h2 className="mt-4 text-lg font-extrabold text-[#111936]">Language preference</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">Your choice is saved on this device.</p></div><div className="grid gap-3 p-4 sm:p-5">{options.map((option) => { const active = language === option.value; return <button key={option.value} type="button" onClick={() => choose(option.value)} className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition ${active ? "border-[#7f95ef] bg-[#f1f5ff] shadow-[0_8px_24px_rgba(17,41,143,0.10)]" : "border-[#e8ebf4] bg-white"}`}><span className={`grid size-12 shrink-0 place-items-center rounded-xl text-sm font-black ${active ? "bg-[#11298f] text-white" : "bg-[#f1f4fa] text-[#59627a]"}`}>{option.value === "bangla" ? "বাং" : option.value === "english" ? "EN" : "A/অ"}</span><span className="min-w-0 flex-1"><strong className="block text-sm font-extrabold text-[#111936]">{option.title}</strong><span className="mt-1 block text-xs font-semibold leading-5 text-[#69718a]">{option.subtitle}</span><span className="mt-1 block text-[11px] font-bold text-[#11298f]">{option.sample}</span></span><CheckCircle2 size={22} className={active ? "text-[#11298f]" : "text-[#cbd1df]"} /></button>; })}</div></Card></AppShell>;
+  return <AppShell><PageTitle title={t("language.title")} subtitle={t("language.subtitle")} /><Card className="mx-auto max-w-2xl overflow-hidden rounded-[22px] border-[#e7ebf4] p-0 shadow-[0_16px_40px_rgba(20,35,90,0.08)]"><div className="border-b border-[#edf0f7] bg-gradient-to-r from-[#eef4ff] to-white p-5"><span className="grid size-12 place-items-center rounded-2xl bg-[#11298f] text-white"><Languages size={24} /></span><h2 className="mt-4 text-lg font-extrabold text-[#111936]">{t("language.preference")}</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">{t("language.saved")}</p></div><div className="grid gap-3 p-4 sm:p-5">{options.map((option) => { const active = language === option.value; return <button key={option.value} type="button" aria-pressed={active} onClick={() => choose(option.value)} className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition ${active ? "border-[#7f95ef] bg-[#f1f5ff] shadow-[0_8px_24px_rgba(17,41,143,0.10)]" : "border-[#e8ebf4] bg-white"}`}><span className={`grid size-12 shrink-0 place-items-center rounded-xl text-sm font-black ${active ? "bg-[#11298f] text-white" : "bg-[#f1f4fa] text-[#59627a]"}`}>{option.value === "bangla" ? "বাং" : "EN"}</span><span className="min-w-0 flex-1"><strong className="block text-sm font-extrabold text-[#111936]">{option.title}</strong><span className="mt-1 block text-xs font-semibold leading-5 text-[#69718a]">{option.subtitle}</span><span className="mt-1 block text-[11px] font-bold text-[#11298f]">{option.sample}</span></span><CheckCircle2 size={22} className={active ? "text-[#11298f]" : "text-[#cbd1df]"} /></button>; })}</div></Card></AppShell>;
 }
 
 export function CurrencySettingsPage() {
