@@ -230,36 +230,36 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const drawerGroups = [
     {
       items: [
-        { href: "/", icon: Home, label: "Dashboard", tone: "text-[#11298f]" },
-        { href: "/entries", icon: ClipboardList, label: "All Expenses", tone: "text-[#59627a]" },
-        { href: "/categories", icon: Folder, label: "Categories", tone: "text-[#f97316]" },
-        { href: "/budget", icon: Target, label: "Budget Management", tone: "text-[#ec4899]" },
-        { href: "/loans", icon: HandCoins, label: "Loans & Dues", tone: "text-[#0f8b6d]" },
+        { href: "/", icon: Home, label: t("nav.dashboard"), tone: "text-[#11298f]" },
+        { href: "/entries", icon: ClipboardList, label: t("shell.allExpenses"), tone: "text-[#59627a]" },
+        { href: "/categories", icon: Folder, label: t("nav.categories"), tone: "text-[#f97316]" },
+        { href: "/budget", icon: Target, label: t("shell.budgetManagement"), tone: "text-[#ec4899]" },
+        { href: "/loans", icon: HandCoins, label: t("nav.loans"), tone: "text-[#0f8b6d]" },
       ],
-      title: "MAIN",
+      title: t("shell.main"),
     },
     {
       items: [
-        { href: "/reports", icon: BarChart3, label: "Reports & Analytics", tone: "text-[#16a34a]" },
-        { href: "/calendar", icon: CalendarDays, label: "Calendar View", tone: "text-[#7c3aed]" },
+        { href: "/reports", icon: BarChart3, label: t("shell.reportsAnalytics"), tone: "text-[#16a34a]" },
+        { href: "/calendar", icon: CalendarDays, label: t("shell.calendarView"), tone: "text-[#7c3aed]" },
       ],
     },
     {
       items: [
-        { href: "/ai-helper", icon: Bot, label: "AI Helper", tone: "text-[#2563eb]" },
-        { href: "/backup-restore", icon: CloudUpload, label: "Backup & Restore", tone: "text-[#2563eb]" },
-        { href: "/family-access", icon: UsersRound, label: "ফ্যামিলি অ্যাক্সেস", tone: "text-[#11298f]" },
-        { href: "/reminders", icon: Bell, label: "Notifications", tone: "text-[#f59e0b]" },
+        { href: "/ai-helper", icon: Bot, label: t("nav.aiHelper"), tone: "text-[#2563eb]" },
+        { href: "/backup-restore", icon: CloudUpload, label: t("shell.backupRestore"), tone: "text-[#2563eb]" },
+        { href: "/family-access", icon: UsersRound, label: t("nav.familyAccess"), tone: "text-[#11298f]" },
+        { href: "/reminders", icon: Bell, label: t("shell.notifications"), tone: "text-[#f59e0b]" },
       ],
-      title: "TOOLS",
+      title: t("shell.tools"),
     },
     {
       items: [
-        { href: "/settings", icon: HelpCircle, label: "Help Center", tone: "text-[#7c3aed]" },
-        { href: "/settings", icon: Star, label: "Rate App", tone: "text-[#f59e0b]" },
-        { href: "/privacy-policy", icon: Shield, label: "Privacy Policy", tone: "text-[#2563eb]" },
+        { href: "/settings", icon: HelpCircle, label: t("shell.helpCenter"), tone: "text-[#7c3aed]" },
+        { href: "/settings", icon: Star, label: t("shell.rateApp"), tone: "text-[#f59e0b]" },
+        { href: "/privacy-policy", icon: Shield, label: t("shell.privacyPolicy"), tone: "text-[#2563eb]" },
       ],
-      title: "SUPPORT & MORE",
+      title: t("shell.support"),
     },
   ];
 
@@ -442,14 +442,14 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               </div>
               <div className="min-w-0">
                 <h2 className="truncate text-xl font-extrabold text-[#111936]">{profileName}</h2>
-                <p className="mt-1 truncate text-sm font-semibold text-[#59627a]">{user?.email ?? "Login to sync your data"}</p>
+                <p className="mt-1 truncate text-sm font-semibold text-[#59627a]">{user?.email ?? t("shell.loginToSync")}</p>
               </div>
             </div>
 
             <Link href="/reports" onClick={() => setMobileMenuOpen(false)} className="mb-8 flex items-center gap-4 rounded-[18px] bg-[#f3f6ff] p-4">
               <span className="grid size-12 shrink-0 place-items-center rounded-xl text-[#11298f]"><Wallet size={29} /></span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-extrabold text-[#111936]">This Month Expense</span>
+                <span className="block text-sm font-extrabold text-[#111936]">{t("shell.thisMonthExpense")}</span>
                 <strong className="mt-1 block text-2xl text-[#11298f]">৳ {monthExpense.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong>
               </span>
               <ChevronRight size={25} className="text-[#11298f]" />
@@ -480,12 +480,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               {user ? (
                 <button type="button" onClick={() => { setMobileMenuOpen(false); void signOut(); }} className="flex items-center gap-4 px-4 py-3 text-[17px] font-extrabold text-[#dc2626]">
                   <LogOut size={24} />
-                  Logout
+                  {t("shell.logout")}
                 </button>
               ) : (
                 <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 text-[17px] font-extrabold text-[#dc2626]">
                   <LogOut size={24} />
-                  Login
+                  {t("shell.login")}
                 </Link>
               )}
               <p className="mt-8 text-center text-sm font-semibold text-[#59627a]">Version 7.0</p>
