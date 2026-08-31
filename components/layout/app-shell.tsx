@@ -89,7 +89,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const { signOut, user } = useAuth();
   const { entries, syncError, syncStatus } = useFinance();
   const { setTheme, theme } = useTheme();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [uiTheme, setUiTheme] = useState<UiTheme>(getStoredUiTheme);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -393,7 +393,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </div>
 
           <div className="hidden items-center gap-4 lg:flex">
-            <Link href="/calendar" className="flex h-10 w-[210px] shrink-0 items-center gap-3 rounded-lg border border-[#dfe7e4] bg-white px-3 text-xs font-bold text-[#273b34] hover:bg-[#f7faf9]"><CalendarDays size={17} className="text-[#087d5a]" /><span className="flex-1 truncate">{new Date(`${today.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span><ChevronRight size={14} /></Link>
+            <Link href="/calendar" className="flex h-10 w-[210px] shrink-0 items-center gap-3 rounded-lg border border-[#dfe7e4] bg-white px-3 text-xs font-bold text-[#273b34] hover:bg-[#f7faf9]"><CalendarDays size={17} className="text-[#087d5a]" /><span className="flex-1 truncate">{new Date(`${today.slice(0, 7)}-01T00:00:00`).toLocaleDateString(language === "bangla" ? "bn-BD" : "en-US", { month: "long", year: "numeric" })}</span><ChevronRight size={14} /></Link>
             <div className="hidden h-10 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[#e1e8e5] bg-[#f4f7f6] px-3 md:flex">
               <Search size={16} className="text-[#73847e]" />
               <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#899993]" placeholder={t("shell.search")} />
@@ -498,11 +498,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
       <nav className="mobile-bottom-navigation fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-40 mx-auto grid max-w-[440px] grid-cols-5 items-center rounded-[22px] border border-[#eef0f8] bg-white px-3 pb-3 pt-3 shadow-[0_-8px_28px_rgba(20,35,90,0.10)] sm:px-5 lg:hidden">
         {[
-          { href: "/", label: "Home", icon: Home },
-          { href: "/reports", label: "Reports", icon: BarChart3 },
-          { href: "/add-expense", label: "Add", icon: Plus, primary: true },
-          { href: "/calendar", label: "Calendar", icon: CalendarDays },
-          { href: "/settings", label: "Profile", icon: User },
+          { href: "/", label: t("nav.home"), icon: Home },
+          { href: "/reports", label: t("nav.reports"), icon: BarChart3 },
+          { href: "/add-expense", label: t("nav.add"), icon: Plus, primary: true },
+          { href: "/calendar", label: t("nav.calendar"), icon: CalendarDays },
+          { href: "/settings", label: t("nav.profile"), icon: User },
         ].map((item) => {
           const Icon = item.icon;
           const profileRoutes = ["/settings", "/profile-settings", "/profile-details", "/security-password", "/pet-management", "/payment-methods", "/premium", "/language", "/currency", "/contact", "/about", "/personalization"];
