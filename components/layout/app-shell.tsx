@@ -276,8 +276,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </span>
           {!desktopSidebarCollapsed && <span><strong className="block text-base text-[#10231d]">DailyHisab</strong><small className="text-[#6f7f79]">{t("shell.financeWorkspace")}</small></span>}
         </Link>
-        <button type="button" onClick={() => setDesktopSidebarCollapsed((value) => !value)} aria-label={desktopSidebarCollapsed ? "Expand desktop sidebar" : "Collapse desktop sidebar"} className="mb-4 flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe7e4] bg-[#f8fbfa] text-xs font-bold text-[#52645e] hover:border-[#9fcdbd] hover:text-[#087d5a]">
-          {desktopSidebarCollapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>Collapse</span></>}
+        <button type="button" onClick={() => setDesktopSidebarCollapsed((value) => !value)} aria-label={desktopSidebarCollapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")} className="mb-4 flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe7e4] bg-[#f8fbfa] text-xs font-bold text-[#52645e] hover:border-[#9fcdbd] hover:text-[#087d5a]">
+          {desktopSidebarCollapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>{t("shell.collapse")}</span></>}
         </button>
 
         <nav className="space-y-1 pr-1">
@@ -305,20 +305,20 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
         {!desktopSidebarCollapsed && <div className="mt-6 space-y-5">
           <div className="rounded-xl border border-[#ece8ff] bg-white p-4">
-            <div className="mb-2 text-sm font-bold">Premium Plan</div>
-            <p className="mb-3 text-xs text-[#7c758d]">Unlock all premium features</p>
+            <div className="mb-2 text-sm font-bold">{t("shell.premiumPlan")}</div>
+            <p className="mb-3 text-xs text-[#7c758d]">{t("shell.unlockPremium")}</p>
             <Link href="/premium" className="block">
-              <Button variant="outline" className="w-full text-xs">Upgrade Now</Button>
+              <Button variant="outline" className="w-full text-xs">{t("shell.upgradeNow")}</Button>
             </Link>
           </div>
 
           <div className="grid gap-2 rounded-xl border border-[#ece8ff] bg-white p-3">
             <button onClick={() => setTheme("light")} className="flex items-center justify-between rounded-lg px-2 py-2 text-sm text-[#5c566d]">
-              <span className="flex items-center gap-2"><Sun size={16} />Light Mode</span>
+              <span className="flex items-center gap-2"><Sun size={16} />{t("shell.lightMode")}</span>
               <span>{theme === "light" ? "✓" : "›"}</span>
             </button>
             <button onClick={() => setTheme("dark")} className="flex items-center justify-between rounded-lg px-2 py-2 text-sm text-[#5c566d]">
-              <span className="flex items-center gap-2"><Moon size={16} />Dark Mode</span>
+              <span className="flex items-center gap-2"><Moon size={16} />{t("shell.darkMode")}</span>
               <span>{theme === "dark" ? "✓" : "›"}</span>
             </button>
           </div>
@@ -327,19 +327,19 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             <div className="mx-auto mb-3 grid size-16 place-items-center rounded-2xl bg-[#6C4CF1] text-white">
               <Wallet />
             </div>
-            <p className="mb-3 text-sm font-medium">Manage your money smartly and save more every day.</p>
+            <p className="mb-3 text-sm font-medium">{t("shell.moneyTip")}</p>
             <Link href="/add-expense" className="block">
-              <Button className="w-full"><Plus size={16} /> Add Expense</Button>
+              <Button className="w-full"><Plus size={16} /> {t("nav.addExpense")}</Button>
             </Link>
           </div>
 
           {user ? (
             <button onClick={() => void signOut()} className="flex items-center gap-2 text-sm text-[#5c566d]">
-              <LogOut size={17} /> Logout
+              <LogOut size={17} /> {t("shell.logout")}
             </button>
           ) : (
             <Link href="/login" className="flex items-center gap-2 text-sm text-[#5c566d]">
-              <LogOut size={17} /> Login
+              <LogOut size={17} /> {t("shell.login")}
             </Link>
           )}
         </div>}
