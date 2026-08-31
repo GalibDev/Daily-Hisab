@@ -141,12 +141,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const mobileActionLabel = pathname === "/categories" ? "Add category" : pathname === "/budget" ? "Add expense" : pathname === "/reminders" ? "Add reminder" : pathname === "/backup-restore" ? "Backup information" : pathname === "/calendar" || pathname === "/reports" ? "Open date filters" : "Open reminders";
   const profileName = user?.name ?? localProfileName;
   const profilePhoto = user?.photoUrl || localProfilePhoto;
-  const syncUi = syncStatus === "loading" ? { label: "Loading data…", icon: LoaderCircle, tone: "text-[#3152b8] bg-[#eef3ff]", spin: true }
-    : syncStatus === "saving" ? { label: "Saving…", icon: LoaderCircle, tone: "text-[#8a5a00] bg-[#fff7e8]", spin: true }
-    : syncStatus === "synced" ? { label: "Synced", icon: CheckCircle2, tone: "text-[#16824a] bg-[#eaf9f0]", spin: false }
-    : syncStatus === "offline" ? { label: "Offline · saved on device", icon: CloudOff, tone: "text-[#a34915] bg-[#fff1e8]", spin: false }
-    : syncStatus === "error" ? { label: "Sync failed", icon: CloudOff, tone: "text-[#c52949] bg-[#ffedf1]", spin: false }
-    : { label: "Local data", icon: Cloud, tone: "text-[#59627a] bg-[#f1f3f8]", spin: false };
+  const syncUi = syncStatus === "loading" ? { label: t("sync.loading"), icon: LoaderCircle, tone: "text-[#3152b8] bg-[#eef3ff]", spin: true }
+    : syncStatus === "saving" ? { label: t("sync.saving"), icon: LoaderCircle, tone: "text-[#8a5a00] bg-[#fff7e8]", spin: true }
+    : syncStatus === "synced" ? { label: t("sync.synced"), icon: CheckCircle2, tone: "text-[#16824a] bg-[#eaf9f0]", spin: false }
+    : syncStatus === "offline" ? { label: t("sync.offline"), icon: CloudOff, tone: "text-[#a34915] bg-[#fff1e8]", spin: false }
+    : syncStatus === "error" ? { label: t("sync.failed"), icon: CloudOff, tone: "text-[#c52949] bg-[#ffedf1]", spin: false }
+    : { label: t("sync.local"), icon: Cloud, tone: "text-[#59627a] bg-[#f1f3f8]", spin: false };
   const SyncIcon = syncUi.icon;
   const effectiveDesktopSidebarWidth = desktopSidebarCollapsed ? DESKTOP_SIDEBAR_COLLAPSED : desktopSidebarWidth;
 
