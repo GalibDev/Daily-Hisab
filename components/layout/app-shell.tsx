@@ -54,25 +54,26 @@ import { useTheme } from "@/components/state/theme-store";
 import { cn, getTodayIso } from "@/lib/utils";
 import { WebCalculator } from "@/components/calculator/web-calculator";
 import { getStoredUiTheme, UI_THEME_EVENT, type UiTheme } from "@/lib/personalization";
+import { useLanguage } from "@/components/state/language-store";
 
 const nav = [
-  { href: "/", label: "Dashboard", icon: Home },
-  { href: "/add-expense", label: "Add Expense", icon: Wallet },
-  { href: "/add-income", label: "Add Income", icon: CreditCard },
-  { href: "/entries", label: "All Entries", icon: ClipboardList },
-  { href: "/income-expense", label: "Income & Expense", icon: ChartColumn },
-  { href: "/budget", label: "Budget", icon: CalendarDays },
-  { href: "/loans", label: "Loans & Dues", icon: HandCoins },
-  { href: "/categories", label: "Categories", icon: Grid2X2 },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/recurring", label: "Recurring", icon: RefreshCcw },
-  { href: "/reminders", label: "Reminders", icon: Bell },
-  { href: "/receipts", label: "Receipts", icon: Receipt },
-  { href: "/notes", label: "Notes", icon: NotebookPen },
-  { href: "/ai-helper", label: "AI Helper", icon: Bot },
-  { href: "/family-access", label: "ফ্যামিলি অ্যাক্সেস", icon: UsersRound },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/", labelKey: "nav.dashboard" as const, icon: Home },
+  { href: "/add-expense", labelKey: "nav.addExpense" as const, icon: Wallet },
+  { href: "/add-income", labelKey: "nav.addIncome" as const, icon: CreditCard },
+  { href: "/entries", labelKey: "nav.allEntries" as const, icon: ClipboardList },
+  { href: "/income-expense", labelKey: "nav.incomeExpense" as const, icon: ChartColumn },
+  { href: "/budget", labelKey: "nav.budget" as const, icon: CalendarDays },
+  { href: "/loans", labelKey: "nav.loans" as const, icon: HandCoins },
+  { href: "/categories", labelKey: "nav.categories" as const, icon: Grid2X2 },
+  { href: "/reports", labelKey: "nav.reports" as const, icon: FileText },
+  { href: "/calendar", labelKey: "nav.calendar" as const, icon: CalendarDays },
+  { href: "/recurring", labelKey: "nav.recurring" as const, icon: RefreshCcw },
+  { href: "/reminders", labelKey: "nav.reminders" as const, icon: Bell },
+  { href: "/receipts", labelKey: "nav.receipts" as const, icon: Receipt },
+  { href: "/notes", labelKey: "nav.notes" as const, icon: NotebookPen },
+  { href: "/ai-helper", labelKey: "nav.aiHelper" as const, icon: Bot },
+  { href: "/family-access", labelKey: "nav.familyAccess" as const, icon: UsersRound },
+  { href: "/settings", labelKey: "nav.settings" as const, icon: Settings },
 ];
 
 const DESKTOP_SIDEBAR_WIDTH_KEY = "daily-hisab.desktop-sidebar-width.v1";
@@ -88,6 +89,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const { signOut, user } = useAuth();
   const { entries, syncError, syncStatus } = useFinance();
   const { setTheme, theme } = useTheme();
+  const { t } = useLanguage();
   const [uiTheme, setUiTheme] = useState<UiTheme>(getStoredUiTheme);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -133,7 +135,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     "/personalization": "Personalization",
     "/privacy-policy": "Privacy Policy",
   };
-  const mobileTitle = mobileTitles[pathname] ?? current?.label ?? "Daily Hisab";
+  const mobileTitle = mobileTitles[pathname] ?? (current ? t(current.labelKey) : "Daily Hisab");
   const isHome = pathname === "/";
   const mobileActionHref = pathname === "/budget" ? "/add-expense" : pathname === "/reminders" ? "#new-reminder" : pathname === "/calendar" ? "/calendar" : pathname === "/categories" ? "#add-category" : pathname === "/backup-restore" ? "#backup-info" : pathname === "/reports" ? "#reports-filter" : "/reminders";
   const mobileActionLabel = pathname === "/categories" ? "Add category" : pathname === "/budget" ? "Add expense" : pathname === "/reminders" ? "Add reminder" : pathname === "/backup-restore" ? "Backup information" : pathname === "/calendar" || pathname === "/reports" ? "Open date filters" : "Open reminders";
@@ -272,7 +274,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#087d5a] text-white shadow-lg shadow-[#087d5a]/20">
             <Wallet size={24} />
           </span>
-          {!desktopSidebarCollapsed && <span><strong className="block text-base text-[#10231d]">DailyHisab</strong><small className="text-[#6f7f79]">Finance workspace</small></span>}
+          {!desktopSidebarCollapsed && <span><strong className="block text-base text-[#10231d]">DailyHisab</strong><small className="text-[#6f7f79]">{t("shell.financeWorkspace")}</small></span>}
         </Link>
         <button type="button" onClick={() => setDesktopSidebarCollapsed((value) => !value)} aria-label={desktopSidebarCollapsed ? "Expand desktop sidebar" : "Collapse desktop sidebar"} className="mb-4 flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe7e4] bg-[#f8fbfa] text-xs font-bold text-[#52645e] hover:border-[#9fcdbd] hover:text-[#087d5a]">
           {desktopSidebarCollapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>Collapse</span></>}
@@ -287,7 +289,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Link
                 key={item.href}
                 href={item.href}
-                title={desktopSidebarCollapsed ? item.label : undefined}
+                title={desktopSidebarCollapsed ? t(item.labelKey) : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-[#40534d] transition",
                   desktopSidebarCollapsed && "justify-center px-2",
@@ -295,7 +297,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 )}
               >
                 <Icon size={18} className="shrink-0" />
-                {!desktopSidebarCollapsed && <span className="truncate">{item.label}</span>}
+                {!desktopSidebarCollapsed && <span className="truncate">{t(item.labelKey)}</span>}
               </Link>
             );
           })}
