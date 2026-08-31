@@ -585,7 +585,7 @@ function MobileDashboard({
   const wallet = useWallet();
   const family = useFamilyAccess();
   const { notify } = useToast();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const today = getTodayIso();
   const [activeDailySlot, setActiveDailySlot] = useState<string | null>(null);
   const [shortcutPanelOpen, setShortcutPanelOpen] = useState(false);
@@ -987,11 +987,11 @@ function MobileDashboard({
 
       <Card className="rounded-[18px] border-[#eef0f8] p-4 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="mb-4 flex items-center justify-between gap-3 border-b border-[#eef0f8] pb-4">
-          <h2 className="text-sm font-extrabold text-[#111936]">Quick Add</h2>
+          <h2 className="text-sm font-extrabold text-[#111936]">{t("dashboard.quickAdd")}</h2>
           <div className="flex gap-2">
-            <Link href="/add-expense" className="rounded-xl bg-[#eef2ff] px-3 py-2 text-xs font-extrabold text-[#11298f]">+ Expense</Link>
-            <Link href="/add-income" className="rounded-xl bg-[#eafbf0] px-3 py-2 text-xs font-extrabold text-[#15803d]">+ Income</Link>
-            <Link href="/loans" className="rounded-xl bg-[#fff3e8] px-3 py-2 text-xs font-extrabold text-[#c65b0a]">Loans</Link>
+            <Link href="/add-expense" className="rounded-xl bg-[#eef2ff] px-3 py-2 text-xs font-extrabold text-[#11298f]">+ {t("dashboard.expense")}</Link>
+            <Link href="/add-income" className="rounded-xl bg-[#eafbf0] px-3 py-2 text-xs font-extrabold text-[#15803d]">+ {t("dashboard.income")}</Link>
+            <Link href="/loans" className="rounded-xl bg-[#fff3e8] px-3 py-2 text-xs font-extrabold text-[#c65b0a]">{t("dashboard.loans")}</Link>
           </div>
         </div>
         <div className="grid grid-cols-5 gap-2">
@@ -1093,22 +1093,22 @@ function MobileDashboard({
       </Card>
 
       <div className="grid grid-cols-3 gap-3">
-        <MobileStatCard onClick={() => setStatDetails("monthly")} icon={<Wallet size={22} />} label="Total Expense" value={takaShort(monthExpense)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Tap for details</span></>} />
-        <MobileStatCard onClick={() => setStatDetails("today")} icon={<CalendarCheck size={22} />} label="Total Days" value={totalDaysLabel} meta={<><span>This month</span><br /><span>Tap for details</span></>} />
-        <MobileStatCard onClick={() => setStatDetails("average")} icon={<TrendingUp size={22} />} label="Daily Average" value={takaShort(dailyAverage)} meta={<><span>This Month</span><br /><span className="font-bold text-[#10b981]">Tap for details</span></>} />
+        <MobileStatCard onClick={() => setStatDetails("monthly")} icon={<Wallet size={22} />} label={t("dashboard.totalExpense")} value={takaShort(monthExpense)} meta={<><span>{t("dashboard.thisMonth")}</span><br /><span className="font-bold text-[#10b981]">{t("dashboard.tapDetails")}</span></>} />
+        <MobileStatCard onClick={() => setStatDetails("today")} icon={<CalendarCheck size={22} />} label={t("dashboard.totalDays")} value={totalDaysLabel} meta={<><span>{t("dashboard.thisMonth")}</span><br /><span>{t("dashboard.tapDetails")}</span></>} />
+        <MobileStatCard onClick={() => setStatDetails("average")} icon={<TrendingUp size={22} />} label={t("dashboard.dailyAverage")} value={takaShort(dailyAverage)} meta={<><span>{t("dashboard.thisMonth")}</span><br /><span className="font-bold text-[#10b981]">{t("dashboard.tapDetails")}</span></>} />
       </div>
 
       {statDetails && (() => {
         const rows = statDetails === "today" ? todayCategoryRows : monthlyCategoryRows;
-        const title = statDetails === "monthly" ? "This Month Expenses" : statDetails === "today" ? "Today's Expenses" : "Daily Average by Category";
+        const title = statDetails === "monthly" ? t("dashboard.monthExpenses") : statDetails === "today" ? t("dashboard.todayExpenses") : t("dashboard.averageByCategory");
         const total = statDetails === "monthly" ? monthExpense : statDetails === "today" ? todayExpenseTotal : dailyAverage;
         return (
           <div className="fixed inset-0 z-[90] flex items-end justify-center bg-[#07122f]/45 p-3" role="presentation">
-            <button type="button" className="absolute inset-0" aria-label="Close expense details" onClick={() => setStatDetails(null)} />
+            <button type="button" className="absolute inset-0" aria-label={t("dashboard.closeDetails")} onClick={() => setStatDetails(null)} />
             <section role="dialog" aria-modal="true" aria-label={title} className="stat-sheet relative z-10 max-h-[78vh] w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-[0_28px_80px_rgba(5,15,50,0.30)]">
               <div className="flex items-center justify-between border-b border-[#eef0f8] px-5 py-4">
-                <div><h2 className="font-extrabold text-[#111936]">{title}</h2><p className="mt-0.5 text-xs text-[#69718a]">Icon, category and amount</p></div>
-                <button type="button" onClick={() => setStatDetails(null)} aria-label="Close" className="grid size-9 place-items-center rounded-full bg-[#f2f5fc] text-[#111936]"><X size={18} /></button>
+                <div><h2 className="font-extrabold text-[#111936]">{title}</h2><p className="mt-0.5 text-xs text-[#69718a]">{t("dashboard.detailsLegend")}</p></div>
+                <button type="button" onClick={() => setStatDetails(null)} aria-label={t("dashboard.close")} className="grid size-9 place-items-center rounded-full bg-[#f2f5fc] text-[#111936]"><X size={18} /></button>
               </div>
               <div className="max-h-[56vh] overflow-y-auto px-5">
                 {rows.map((item) => {
@@ -1122,9 +1122,9 @@ function MobileDashboard({
                     <div key={item.category} className="flex items-center gap-3 border-b border-[#f0f2f8] py-3 last:border-0">{row}</div>
                   );
                 })}
-                {rows.length === 0 && <p className="py-10 text-center text-sm font-semibold text-[#69718a]">No expenses added today</p>}
+                {rows.length === 0 && <p className="py-10 text-center text-sm font-semibold text-[#69718a]">{t("dashboard.noExpensesToday")}</p>}
               </div>
-              <div className="flex items-center justify-between bg-[#f5f7ff] px-5 py-4"><span className="text-sm font-extrabold text-[#20263a]">{statDetails === "average" ? "Overall daily average" : "Total expense"}</span><strong className="text-lg text-[#11298f]">{takaShort(total)}</strong></div>
+              <div className="flex items-center justify-between bg-[#f5f7ff] px-5 py-4"><span className="text-sm font-extrabold text-[#20263a]">{statDetails === "average" ? t("dashboard.overallAverage") : t("dashboard.totalExpense")}</span><strong className="text-lg text-[#11298f]">{takaShort(total)}</strong></div>
             </section>
           </div>
         );
@@ -1224,13 +1224,13 @@ function MobileDashboard({
 
       <Card className="rounded-[18px] border-[#eef0f8] p-5 shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-extrabold text-[#111936]">This Month Overview</h2>
-          <span className="text-xs font-semibold text-[#69718a]">{new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span>
+          <h2 className="text-base font-extrabold text-[#111936]">{t("dashboard.monthOverview")}</h2>
+          <span className="text-xs font-semibold text-[#69718a]">{new Date().toLocaleDateString(language === "bangla" ? "bn-BD" : "en-US", { month: "long", year: "numeric" })}</span>
         </div>
         {categoryData.length > 0 ? (
           <div className="grid grid-cols-[150px_1fr] items-center gap-3">
             <div className="relative grid aspect-square place-items-center rounded-full" style={{ background: `conic-gradient(${categoryData.map((item, index) => { const start = categoryData.slice(0, index).reduce((sum, cat) => sum + (cat.value / totalCategoryValue) * 100, 0); const end = categoryData.slice(0, index + 1).reduce((sum, cat) => sum + (cat.value / totalCategoryValue) * 100, 0); return `${item.fill} ${start}% ${end}%`; }).join(", ")})` }}>
-              <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-inner"><span><b className="block text-lg">{takaShort(totalCategoryValue)}</b><small>Total</small></span></div>
+              <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-inner"><span><b className="block text-lg">{takaShort(totalCategoryValue)}</b><small>{t("dashboard.total")}</small></span></div>
             </div>
             <div className="grid gap-3 text-xs">
               {categoryData.slice(0, 5).map((item) => {
@@ -1240,7 +1240,7 @@ function MobileDashboard({
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-medium text-[#69718a]">No overview data yet.</div>
+          <div className="rounded-2xl border border-dashed border-[#d8dff2] p-5 text-center text-sm font-medium text-[#69718a]">{t("dashboard.noOverview")}</div>
         )}
       </Card>
     </div>
