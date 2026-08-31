@@ -409,19 +409,19 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         {notificationOpen && (
           <div className="fixed right-4 top-[72px] z-[90] w-[min(360px,calc(100vw-2rem))] rounded-2xl border border-[#dfe3f5] bg-white p-3 shadow-2xl lg:right-8 lg:top-[82px]">
             <div className="flex items-center justify-between px-2 py-1">
-              <strong className="text-sm text-[#111936]">Notifications</strong>
-              <button type="button" onClick={() => setNotificationOpen(false)} className="text-xs font-bold text-[#59627a]">Close</button>
+              <strong className="text-sm text-[#111936]">{t("shell.notifications")}</strong>
+              <button type="button" onClick={() => setNotificationOpen(false)} className="text-xs font-bold text-[#59627a]">{t("shell.close")}</button>
             </div>
             {pwaInstall.available ? (
               <button type="button" onClick={requestPwaInstall} className="mt-2 flex w-full items-center gap-3 rounded-xl bg-[#f2f4ff] p-3 text-left">
                 <img src="/icon-192.png" alt="" className="size-11 rounded-xl" />
                 <span>
-                  <strong className="block text-sm text-[#111936]">Install Daily Hisab</strong>
-                  <small className="text-xs text-[#59627a]">{pwaInstall.ios ? "Add to iPhone Home Screen" : "Use it like a mobile app"}</small>
+                  <strong className="block text-sm text-[#111936]">{t("shell.install")}</strong>
+                  <small className="text-xs text-[#59627a]">{pwaInstall.ios ? t("shell.installIos") : t("shell.installApp")}</small>
                 </span>
               </button>
             ) : (
-              <p className="p-4 text-center text-xs font-semibold text-[#69718a]">No new notifications</p>
+              <p className="p-4 text-center text-xs font-semibold text-[#69718a]">{t("shell.noNotifications")}</p>
             )}
           </div>
         )}
