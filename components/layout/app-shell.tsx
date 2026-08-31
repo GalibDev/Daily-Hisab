@@ -109,26 +109,26 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     .reduce((sum, entry) => sum + entry.amount, 0);
   const mobileTitles: Record<string, string> = {
     "/": "Daily Hisab",
-    "/add-expense": "Add New Expense",
-    "/add-income": "Add Income",
-    "/ai-helper": "AI Helper",
-    "/backup-restore": "Backup & Restore",
-    "/budget": "Category Budget",
-    "/calendar": "Calendar",
-    "/categories": "Categories",
-    "/entries": "Today's Entries",
-    "/family-access": "ফ্যামিলি অ্যাক্সেস",
+    "/add-expense": t("nav.addExpense"),
+    "/add-income": t("nav.addIncome"),
+    "/ai-helper": t("nav.aiHelper"),
+    "/backup-restore": t("shell.backupRestore"),
+    "/budget": t("nav.budget"),
+    "/calendar": t("nav.calendar"),
+    "/categories": t("nav.categories"),
+    "/entries": t("nav.allEntries"),
+    "/family-access": t("nav.familyAccess"),
     "/hero-management": "Hero Management",
-    "/loans": "Loans & Dues",
-    "/reports": "Reports",
-    "/settings": "Profile",
-    "/profile-settings": "Settings",
+    "/loans": t("nav.loans"),
+    "/reports": t("nav.reports"),
+    "/settings": t("nav.profile"),
+    "/profile-settings": t("nav.settings"),
     "/profile-details": "Profile Details",
     "/security-password": "Security & Password",
     "/pet-management": "Pet Management",
     "/payment-methods": "Payment Methods",
     "/premium": "Premium Plan",
-    "/language": "Language",
+    "/language": t("language.title"),
     "/currency": "Currency",
     "/contact": "Contact Us",
     "/about": "About Daily Hisab",
@@ -352,11 +352,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <div className="flex items-center gap-2 sm:gap-4 lg:hidden">
             {pathname !== "/settings" && (
               isHome ? (
-                <button type="button" onClick={openMobileMenu} aria-label="Open menu" className="grid size-11 place-items-center rounded-lg text-[#111936]">
+                <button type="button" onClick={openMobileMenu} aria-label={t("shell.openMenu")} className="grid size-11 place-items-center rounded-lg text-[#111936]">
                   <Menu size={21} />
                 </button>
               ) : (
-                <button type="button" onClick={() => router.back()} aria-label="Go to previous page" className="grid size-11 place-items-center rounded-lg text-[#111936]">
+                <button type="button" onClick={() => router.back()} aria-label={t("shell.goBack")} className="grid size-11 place-items-center rounded-lg text-[#111936]">
                   <ArrowLeft size={21} />
                 </button>
               )
@@ -368,7 +368,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 </span>
                 <span className="min-w-0">
                   <strong className="block truncate text-[22px] leading-6 text-[#111936]">Daily <span className="text-[#f97316]">hisab</span></strong>
-                  <small className="block truncate text-[11px] font-semibold text-[#59627a]">Your Daily Expense Tracker</small>
+                  <small className="block truncate text-[11px] font-semibold text-[#59627a]">{t("shell.expenseTracker")}</small>
                 </span>
               </Link>
             ) : (
@@ -377,7 +377,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               </div>
             )}
             {pathname === "/add-expense" && (
-              <button type="button" aria-label="Open calculator" onClick={() => setCalculatorOpen((open) => !open)} className="grid size-11 place-items-center rounded-lg text-[#11298f]">
+              <button type="button" aria-label={t("shell.openCalculator")} onClick={() => setCalculatorOpen((open) => !open)} className="grid size-11 place-items-center rounded-lg text-[#11298f]">
                 <Calculator size={21} />
               </button>
             )}
@@ -396,14 +396,14 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             <Link href="/calendar" className="flex h-10 w-[210px] shrink-0 items-center gap-3 rounded-lg border border-[#dfe7e4] bg-white px-3 text-xs font-bold text-[#273b34] hover:bg-[#f7faf9]"><CalendarDays size={17} className="text-[#087d5a]" /><span className="flex-1 truncate">{new Date(`${today.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span><ChevronRight size={14} /></Link>
             <div className="hidden h-10 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[#e1e8e5] bg-[#f4f7f6] px-3 md:flex">
               <Search size={16} className="text-[#73847e]" />
-              <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#899993]" placeholder="Search transactions, reports or settings..." />
+              <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#899993]" placeholder={t("shell.search")} />
             </div>
-            <Link href="/about" aria-label="Help" className="grid size-10 place-items-center rounded-lg text-[#44564f] hover:bg-[#f1f6f4] hover:text-[#087d5a]"><HelpCircle size={18} /></Link>
+            <Link href="/about" aria-label={t("shell.help")} className="grid size-10 place-items-center rounded-lg text-[#44564f] hover:bg-[#f1f6f4] hover:text-[#087d5a]"><HelpCircle size={18} /></Link>
             <button type="button" onClick={() => setNotificationOpen((open) => !open)} className="relative grid size-10 place-items-center rounded-lg text-[#44564f] hover:bg-[#f1f6f4] hover:text-[#087d5a]">
               <Bell size={18} />
               {pwaInstall.available && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-[#EF4444]" />}
             </button>
-            <Link href="/add-expense" className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#087d5a] px-4 text-xs font-extrabold text-white shadow-[0_8px_18px_rgba(8,125,90,0.18)] hover:bg-[#076f50]"><Plus size={17} /> Add New Entry</Link>
+            <Link href="/add-expense" className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#087d5a] px-4 text-xs font-extrabold text-white shadow-[0_8px_18px_rgba(8,125,90,0.18)] hover:bg-[#076f50]"><Plus size={17} /> {t("shell.addNewEntry")}</Link>
           </div>
         </header>
         {notificationOpen && (
