@@ -585,6 +585,7 @@ function MobileDashboard({
   const wallet = useWallet();
   const family = useFamilyAccess();
   const { notify } = useToast();
+  const { t } = useLanguage();
   const today = getTodayIso();
   const [activeDailySlot, setActiveDailySlot] = useState<string | null>(null);
   const [shortcutPanelOpen, setShortcutPanelOpen] = useState(false);
@@ -920,20 +921,20 @@ function MobileDashboard({
             setSummarySlideIndex(Math.min(2, Math.max(0, nextIndex)));
           }}
           className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          aria-label="Summary slider"
+          aria-label={t("dashboard.summarySlider")}
         >
         <section className="hero-live relative w-full shrink-0 snap-start overflow-hidden bg-[linear-gradient(135deg,#07194e_0%,#123aa8_54%,#0ea5e9_135%)] p-5 text-white">
           <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-cyan-300/15" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">TODAY&apos;S OVERVIEW</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">{t("dashboard.todayOverview")}</span>
               <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><TrendingUp size={23} /></span>
             </div>
-            <p className="mt-5 text-xs font-semibold text-white/72">Today&apos;s expense</p>
+            <p className="mt-5 text-xs font-semibold text-white/72">{t("dashboard.todayExpense")}</p>
             <strong className="mt-1 block text-[38px] font-extrabold leading-tight">{taka(todayExpenseTotal)}</strong>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">THIS MONTH</span><b className="mt-1 block text-sm">{takaShort(monthExpense)}</b></div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ALL EXPENSE</span><b className="mt-1 block text-sm">{takaShort(expenseEntries.reduce((sum, entry) => sum + entry.amount, 0))}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">{t("dashboard.thisMonth")}</span><b className="mt-1 block text-sm">{takaShort(monthExpense)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">{t("dashboard.allExpense")}</span><b className="mt-1 block text-sm">{takaShort(expenseEntries.reduce((sum, entry) => sum + entry.amount, 0))}</b></div>
             </div>
           </div>
         </section>
@@ -942,14 +943,14 @@ function MobileDashboard({
           <div className="hero-orb absolute -right-12 -top-16 size-44 rounded-full bg-white/10" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">INCOME OVERVIEW</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">{t("dashboard.incomeOverview")}</span>
               <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><Banknote size={23} /></span>
             </div>
-            <p className="mt-5 text-xs font-semibold text-white/72">This month income</p>
+            <p className="mt-5 text-xs font-semibold text-white/72">{t("dashboard.monthIncome")}</p>
             <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(monthlyIncome)}</strong>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">ALL INCOME</span><b className="mt-1 block text-sm">{takaShort(allIncome)}</b></div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">DEDUCTED</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">{t("dashboard.allIncome")}</span><b className="mt-1 block text-sm">{takaShort(allIncome)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">{t("dashboard.deducted")}</span><b className="mt-1 block text-sm">{takaShort(wallet.personalExpenseTotal)}</b></div>
             </div>
           </div>
         </section>
@@ -958,27 +959,27 @@ function MobileDashboard({
           <div className="hero-orb absolute -bottom-16 -right-10 size-44 rounded-full bg-[#fb923c]/25" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">FAMILY WALLET</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold tracking-[0.16em]">{t("dashboard.familyWalletOverview")}</span>
               <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><HandCoins size={24} /></span>
             </div>
-            <p className="mt-5 text-xs font-semibold text-white/72">Available balance</p>
+            <p className="mt-5 text-xs font-semibold text-white/72">{t("dashboard.availableBalance")}</p>
             <strong className="mt-1 block text-[34px] font-extrabold leading-tight">{taka(familyRemainingBalance)}</strong>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">TOTAL ADDED</span><b className="mt-1 block text-sm">{takaShort(combinedFamilyDeposits)}</b></div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">DEDUCTED</span><b className="mt-1 block text-sm">{takaShort(wallet.familyExpenseTotal)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">{t("dashboard.totalAdded")}</span><b className="mt-1 block text-sm">{takaShort(combinedFamilyDeposits)}</b></div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><span className="text-[10px] font-bold text-white/70">{t("dashboard.deducted")}</span><b className="mt-1 block text-sm">{takaShort(wallet.familyExpenseTotal)}</b></div>
             </div>
           </div>
         </section>
         </div>
       </div>
 
-      <div className="flex justify-center gap-2" aria-label="Slider pages">
+      <div className="flex justify-center gap-2" aria-label={t("dashboard.sliderPages")}>
         {[0, 1, 2].map((index) => (
           <button
             key={index}
             type="button"
             onClick={() => scrollSummarySlider(index)}
-            aria-label={`Go to slide ${index + 1}`}
+            aria-label={t("dashboard.goToSlide", { number: index + 1 })}
             className={summarySlideIndex === index ? "h-2.5 w-6 rounded-full bg-[#11298f]" : "size-2.5 rounded-full bg-[#cfd6e8]"}
           />
         ))}
