@@ -11,6 +11,7 @@ export const PET_MODE_KEY = "daily-hisab.home-pet-mode";
 export const PET_SPEED_KEY = "daily-hisab.home-pet-speed";
 export const PET_VARIANT_KEY = "daily-hisab.home-pet-variant";
 export const PET_SETTINGS_EVENT = "daily-hisab-pet-settings";
+const PET_MEWMEW_DEFAULT_MIGRATION_KEY = "daily-hisab.pet-mewmew-default-migrated.v1";
 
 export type PetColor = "brown" | "default" | "black" | "white";
 export type PetSize = "small" | "medium" | "large";
@@ -18,6 +19,17 @@ export type PetMode = "automatic" | "default" | "sit";
 export type PetSpeed = "slow" | "normal" | "fast";
 export type PetVariant = "classic" | "mewmew" | "both";
 type PetKind = "classic" | "mewmew";
+
+export function getStoredPetVariant(): PetVariant {
+  if (typeof window === "undefined") return "mewmew";
+  if (localStorage.getItem(PET_MEWMEW_DEFAULT_MIGRATION_KEY) !== "1") {
+    localStorage.setItem(PET_VARIANT_KEY, "mewmew");
+    localStorage.setItem(PET_MEWMEW_DEFAULT_MIGRATION_KEY, "1");
+    return "mewmew";
+  }
+  const savedVariant = localStorage.getItem(PET_VARIANT_KEY);
+  return savedVariant === "classic" || savedVariant === "both" ? savedVariant : "mewmew";
+}
 
 type PetActorProps = { kind: PetKind; sizePx: number; mode: PetMode; speed: PetSpeed; animationData: object | null };
 
@@ -120,7 +132,7 @@ export function FloatingPet() {
       const savedSize = localStorage.getItem(PET_SIZE_KEY); setPetSize((["small", "medium", "large"].includes(savedSize || "") ? savedSize : "medium") as PetSize);
       const savedMode = localStorage.getItem(PET_MODE_KEY); setPetMode((["automatic", "default", "sit"].includes(savedMode || "") ? savedMode : "default") as PetMode);
       const savedSpeed = localStorage.getItem(PET_SPEED_KEY); setPetSpeed((["slow", "normal", "fast"].includes(savedSpeed || "") ? savedSpeed : "normal") as PetSpeed);
-      const savedVariant = localStorage.getItem(PET_VARIANT_KEY); setPetVariant(savedVariant === "classic" || savedVariant === "both" ? savedVariant : "mewmew");
+      setPetVariant(getStoredPetVariant());
     };
     load(); window.addEventListener(PET_SETTINGS_EVENT, load); return () => window.removeEventListener(PET_SETTINGS_EVENT, load);
   }, []);

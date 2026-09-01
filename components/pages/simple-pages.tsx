@@ -18,7 +18,7 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete";
 import { Field, inputClass, textareaClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { CategoryPieChart, ExpenseTrendChart } from "@/components/dashboard/charts";
-import { PET_COLOR_KEY, PET_ENABLED_KEY, PET_MODE_KEY, PET_SETTINGS_EVENT, PET_SIZE_KEY, PET_SPEED_KEY, PET_VARIANT_KEY, type PetColor, type PetMode, type PetSize, type PetSpeed, type PetVariant } from "@/components/pet/floating-pet";
+import { getStoredPetVariant, PET_COLOR_KEY, PET_ENABLED_KEY, PET_MODE_KEY, PET_SETTINGS_EVENT, PET_SIZE_KEY, PET_SPEED_KEY, PET_VARIANT_KEY, type PetColor, type PetMode, type PetSize, type PetSpeed, type PetVariant } from "@/components/pet/floating-pet";
 import { paymentMethods } from "@/data/mock-data";
 import { exportDataJson, exportEntriesCsv, exportExpenseSheetCsv, exportExpenseSheetPdf } from "@/lib/export-data";
 import { BUDGET_TARGET_UPDATED_EVENT, calculateBudgetTargetStatus, filterEntriesForBudgetTarget, getBudgetPeriodLabel, readSavedBudgetTarget, saveBudgetTarget as persistBudgetTarget, type BudgetPeriod, type SavedBudgetTarget } from "@/lib/budget-target";
@@ -1539,8 +1539,7 @@ export function PetManagementPage() {
   const [speed, setSpeed] = useState<PetSpeed>("normal");
   useEffect(() => {
     setEnabled(localStorage.getItem(PET_ENABLED_KEY) !== "0");
-    const savedVariant = localStorage.getItem(PET_VARIANT_KEY);
-    setVariant(savedVariant === "classic" || savedVariant === "both" ? savedVariant : "mewmew");
+    setVariant(getStoredPetVariant());
     setColor((localStorage.getItem(PET_COLOR_KEY) as PetColor) || "default");
     setSize((localStorage.getItem(PET_SIZE_KEY) as PetSize) || "medium");
     setMode((localStorage.getItem(PET_MODE_KEY) as PetMode) || "default");
