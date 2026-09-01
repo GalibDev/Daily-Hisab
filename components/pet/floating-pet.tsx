@@ -110,7 +110,7 @@ export function FloatingPet() {
   const [petSize, setPetSize] = useState<PetSize>("medium");
   const [petMode, setPetMode] = useState<PetMode>("default");
   const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
-  const [petVariant, setPetVariant] = useState<PetVariant>("both");
+  const [petVariant, setPetVariant] = useState<PetVariant>("mewmew");
   const [animationData, setAnimationData] = useState<object | null>(null);
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export function FloatingPet() {
       const savedSize = localStorage.getItem(PET_SIZE_KEY); setPetSize((["small", "medium", "large"].includes(savedSize || "") ? savedSize : "medium") as PetSize);
       const savedMode = localStorage.getItem(PET_MODE_KEY); setPetMode((["automatic", "default", "sit"].includes(savedMode || "") ? savedMode : "default") as PetMode);
       const savedSpeed = localStorage.getItem(PET_SPEED_KEY); setPetSpeed((["slow", "normal", "fast"].includes(savedSpeed || "") ? savedSpeed : "normal") as PetSpeed);
-      const savedVariant = localStorage.getItem(PET_VARIANT_KEY); setPetVariant(savedVariant === "classic" || savedVariant === "mewmew" ? savedVariant : "both");
+      const savedVariant = localStorage.getItem(PET_VARIANT_KEY); setPetVariant(savedVariant === "classic" || savedVariant === "both" ? savedVariant : "mewmew");
     };
     load(); window.addEventListener(PET_SETTINGS_EVENT, load); return () => window.removeEventListener(PET_SETTINGS_EVENT, load);
   }, []);

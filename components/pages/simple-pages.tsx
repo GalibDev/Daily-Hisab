@@ -1532,7 +1532,7 @@ export function SecurityPasswordPage() {
 
 export function PetManagementPage() {
   const [enabled, setEnabled] = useState(false);
-  const [variant, setVariant] = useState<PetVariant>("both");
+  const [variant, setVariant] = useState<PetVariant>("mewmew");
   const [color, setColor] = useState<PetColor>("default");
   const [size, setSize] = useState<PetSize>("medium");
   const [mode, setMode] = useState<PetMode>("default");
@@ -1540,7 +1540,7 @@ export function PetManagementPage() {
   useEffect(() => {
     setEnabled(localStorage.getItem(PET_ENABLED_KEY) !== "0");
     const savedVariant = localStorage.getItem(PET_VARIANT_KEY);
-    setVariant(savedVariant === "classic" || savedVariant === "mewmew" ? savedVariant : "both");
+    setVariant(savedVariant === "classic" || savedVariant === "both" ? savedVariant : "mewmew");
     setColor((localStorage.getItem(PET_COLOR_KEY) as PetColor) || "default");
     setSize((localStorage.getItem(PET_SIZE_KEY) as PetSize) || "medium");
     setMode((localStorage.getItem(PET_MODE_KEY) as PetMode) || "default");
@@ -1560,7 +1560,7 @@ export function PetManagementPage() {
       <Card className="mx-auto max-w-2xl rounded-[20px] p-5">
         <div className="flex items-center gap-3 pb-4">
           <span className="grid size-12 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={24} /></span>
-          <div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pets</h2><p className="text-xs text-[#69718a]">Both pets are on by default; turn them off whenever you want</p></div>
+          <div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pets</h2><p className="text-xs text-[#69718a]">MewMew is on by default; choose Classic or Both whenever you want</p></div>
           <button type="button" role="switch" aria-checked={enabled} onClick={() => { const next = !enabled; setEnabled(next); save(PET_ENABLED_KEY, next ? "1" : "0"); }} className={`relative h-7 w-12 rounded-full ${enabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${enabled ? "left-6" : "left-1"}`} /></button>
         </div>
         {enabled && <>
