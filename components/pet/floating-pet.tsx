@@ -17,7 +17,7 @@ export type PetColor = "brown" | "default" | "black" | "white";
 export type PetSize = "small" | "medium" | "large";
 export type PetMode = "automatic" | "default" | "sit";
 export type PetSpeed = "slow" | "normal" | "fast";
-export type PetVariant = "classic" | "mewmew";
+export type PetVariant = "classic" | "mewmew" | "both";
 
 export function FloatingPet() {
   const [enabled, setEnabled] = useState(false);
@@ -25,9 +25,10 @@ export function FloatingPet() {
   const [petSize, setPetSize] = useState<PetSize>("medium");
   const [petMode, setPetMode] = useState<PetMode>("default");
   const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
-  const [petVariant, setPetVariant] = useState<PetVariant>("classic");
+  const [petVariant, setPetVariant] = useState<PetVariant>("both");
   const [animationData, setAnimationData] = useState<object | null>(null);
   const [reaction, setReaction] = useState(false);
+  const [facingRight, setFacingRight] = useState(false);
   const [position, setPosition] = useState({ x: 24, y: 150 });
   const positionRef = useRef(position);
   const dragging = useRef<{ pointerId: number; dx: number; dy: number } | null>(null);
@@ -36,9 +37,10 @@ export function FloatingPet() {
   const autoDirection = useRef(-1);
   // MewMew's source GIF has a large transparent canvas, so it needs a larger
   // render box for Small/Medium/Large to match the visible Classic Cat sizes.
-  const sizePx = petVariant === "mewmew"
-    ? petSize === "small" ? 120 : petSize === "large" ? 240 : 180
-    : petSize === "small" ? 72 : petSize === "large" ? 124 : 92;
+  const classicSizePx = petSize === "small" ? 72 : petSize === "large" ? 124 : 92;
+  const mewMewSizePx = petSize === "small" ? 120 : petSize === "large" ? 240 : 180;
+  const sizePx = petVariant === "mewmew" ? mewMewSizePx : petVariant === "both" ? classicSizePx + mewMewSizePx : classicSizePx;
+  const heightPx = petVariant === "mewmew" || petVariant === "both" ? mewMewSizePx : classicSizePx;
 
   useEffect(() => {
     const load = () => {
@@ -52,7 +54,7 @@ export function FloatingPet() {
       const savedSpeed = localStorage.getItem(PET_SPEED_KEY);
       setPetSpeed((["slow", "normal", "fast"].includes(savedSpeed || "") ? savedSpeed : "normal") as PetSpeed);
       const savedVariant = localStorage.getItem(PET_VARIANT_KEY);
-      setPetVariant(savedVariant === "mewmew" ? "mewmew" : "classic");
+      setPetVariant(savedVariant === "classic" || savedVariant === "mewmew" ? savedVariant : "both");
       try {
         const saved = JSON.parse(localStorage.getItem(PET_POSITION_KEY) || "null") as { x?: number; y?: number } | null;
         if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
@@ -73,7 +75,6 @@ export function FloatingPet() {
 
   useEffect(() => {
     if (petVariant === "mewmew") {
-      setAnimationData(null);
       return;
     }
     const suffix = color === "default" ? "" : `-${color}`;
@@ -97,8 +98,8 @@ export function FloatingPet() {
       }
       setPosition((current) => {
         let x = current.x + autoDirection.current * step;
-        if (x <= 8) { x = 8; autoDirection.current = 1; }
-        if (x >= window.innerWidth - sizePx) { x = window.innerWidth - sizePx; autoDirection.current = -1; }
+        if (x <= 8) { x = 8; autoDirection.current = 1; setFacingRight(true); }
+        if (x >= window.innerWidth - sizePx) { x = window.innerWidth - sizePx; autoDirection.current = -1; setFacingRight(false); }
         const next = { ...current, x };
         positionRef.current = next;
         return next;
@@ -141,10 +142,11 @@ export function FloatingPet() {
       aria-label="Interactive Daily Hisab pet cat"
     >
       {reaction && <span className="pet-heart absolute -right-1 -top-5 text-2xl text-[#ef476f]">♥</span>}
-      <div className={`pet-body pet-mode-${petMode} ${reaction ? "pet-loved" : ""} grid place-items-center`} style={{ width: sizePx, height: sizePx }}>
-        {petVariant === "mewmew" ? (
-          <Image src="/pet/mewmew.gif" alt="MewMew pixel cat" width={sizePx} height={sizePx} unoptimized draggable={false} className="mewmew-pet" style={{ width: sizePx, height: sizePx, transform: autoDirection.current > 0 ? "scaleX(-1)" : "none" }} />
-        ) : animationData && <Lottie lottieRef={lottieRef} animationData={animationData} loop autoplay style={{ width: sizePx, height: sizePx, transform: autoDirection.current > 0 ? "scaleX(-1)" : "none" }} />}
+      <div className={`pet-body pet-mode-${petMode} ${reaction ? "pet-loved" : ""} flex items-end justify-center`} style={{ width: sizePx, height: heightPx }}>
+        {(petVariant === "classic" || petVariant === "both") && animationData && <Lottie lottieRef={lottieRef} animationData={animationData} loop autoplay style={{ flex: "none", width: classicSizePx, height: classicSizePx, transform: facingRight ? "scaleX(-1)" : "none" }} />}
+        {(petVariant === "mewmew" || petVariant === "both") && (
+          <Image src="/pet/mewmew.gif" alt="MewMew pixel cat" width={mewMewSizePx} height={mewMewSizePx} unoptimized draggable={false} className="mewmew-pet" style={{ flex: "none", width: mewMewSizePx, height: mewMewSizePx, transform: facingRight ? "scaleX(-1)" : "none" }} />
+        )}
       </div>
       <style jsx>{`
         .pet-body { transform-origin: 50% 100%; }

@@ -1532,14 +1532,15 @@ export function SecurityPasswordPage() {
 
 export function PetManagementPage() {
   const [enabled, setEnabled] = useState(false);
-  const [variant, setVariant] = useState<PetVariant>("classic");
+  const [variant, setVariant] = useState<PetVariant>("both");
   const [color, setColor] = useState<PetColor>("default");
   const [size, setSize] = useState<PetSize>("medium");
   const [mode, setMode] = useState<PetMode>("default");
   const [speed, setSpeed] = useState<PetSpeed>("normal");
   useEffect(() => {
     setEnabled(localStorage.getItem(PET_ENABLED_KEY) !== "0");
-    setVariant(localStorage.getItem(PET_VARIANT_KEY) === "mewmew" ? "mewmew" : "classic");
+    const savedVariant = localStorage.getItem(PET_VARIANT_KEY);
+    setVariant(savedVariant === "classic" || savedVariant === "mewmew" ? savedVariant : "both");
     setColor((localStorage.getItem(PET_COLOR_KEY) as PetColor) || "default");
     setSize((localStorage.getItem(PET_SIZE_KEY) as PetSize) || "medium");
     setMode((localStorage.getItem(PET_MODE_KEY) as PetMode) || "default");
@@ -1547,7 +1548,43 @@ export function PetManagementPage() {
   }, []);
   function save(key: string, value: string) { localStorage.setItem(key, value); window.dispatchEvent(new Event(PET_SETTINGS_EVENT)); }
   const group = <T extends string>(label: string, values: readonly T[], selected: T, update: (value: T) => void) => <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf0f7] py-4 first:border-0"><span className="text-sm font-extrabold text-[#27304b]">{label}</span><div className="flex flex-wrap rounded-xl bg-[#f1f3f8] p-1">{values.map((value) => <button key={value} type="button" onClick={() => update(value)} className={`rounded-lg px-3 py-2 text-xs font-extrabold capitalize ${selected === value ? "bg-white text-[#11298f] shadow-sm" : "text-[#69718a]"}`}>{value}</button>)}</div></div>;
-  return <AppShell><PageTitle title="Pet Management" subtitle="Control your Home page companion" /><Card className="mx-auto max-w-2xl rounded-[20px] p-5"><div className="flex items-center gap-3 pb-4"><span className="grid size-12 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={24} /></span><div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pet</h2><p className="text-xs text-[#69718a]">Show or hide your interactive cat</p></div><button type="button" role="switch" aria-checked={enabled} onClick={() => { const next = !enabled; setEnabled(next); save(PET_ENABLED_KEY, next ? "1" : "0"); }} className={`relative h-7 w-12 rounded-full ${enabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${enabled ? "left-6" : "left-1"}`} /></button></div>{enabled && <><div className="border-t border-[#edf0f7] py-4"><span className="text-sm font-extrabold text-[#27304b]">Choose your pet</span><div className="mt-3 grid grid-cols-2 gap-3">{([{ id: "classic", name: "Classic Cat" }, { id: "mewmew", name: "MewMew" }] as const).map((pet) => <button key={pet.id} type="button" onClick={() => { setVariant(pet.id); save(PET_VARIANT_KEY, pet.id); }} className={`relative flex min-h-28 flex-col items-center justify-center rounded-2xl border p-3 transition ${variant === pet.id ? "border-[#11298f] bg-[#f2f5ff] ring-2 ring-[#11298f]/15" : "border-[#e4e8f2] bg-white"}`}>{pet.id === "mewmew" ? <Image src="/pet/mewmew.gif" alt="MewMew pixel cat" width={72} height={72} unoptimized className="size-16 object-contain [image-rendering:pixelated]" /> : <span className="grid size-16 place-items-center rounded-full bg-[#eef2ff] text-[#11298f]"><PawPrint size={32} /></span>}<span className="mt-2 text-xs font-extrabold text-[#27304b]">{pet.name}</span>{variant === pet.id && <CheckCircle2 size={17} className="absolute right-2 top-2 text-[#11298f]" />}</button>)}</div></div>{variant === "classic" && group("Color", ["brown", "default", "black", "white"] as const, color, (value) => { setColor(value); save(PET_COLOR_KEY, value); })}{group(variant === "mewmew" ? "MewMew size" : "Size", ["small", "medium", "large"] as const, size, (value) => { setSize(value); save(PET_SIZE_KEY, value); })}{group("Behaviour", ["automatic", "default", "sit"] as const, mode, (value) => { setMode(value); save(PET_MODE_KEY, value); })}{group("Walk speed", ["slow", "normal", "fast"] as const, speed, (value) => { setSpeed(value); save(PET_SPEED_KEY, value); })}</>}</Card></AppShell>;
+  const pets = [
+    { id: "classic", name: "Classic", description: "Original walking cat" },
+    { id: "mewmew", name: "MewMew", description: "Pixel animation" },
+    { id: "both", name: "Both", description: "Show both together" },
+  ] as const;
+
+  return (
+    <AppShell>
+      <PageTitle title="Pet Management" subtitle="Control your Home page companions" />
+      <Card className="mx-auto max-w-2xl rounded-[20px] p-5">
+        <div className="flex items-center gap-3 pb-4">
+          <span className="grid size-12 place-items-center rounded-xl bg-[#fff2e8] text-[#f97316]"><PawPrint size={24} /></span>
+          <div className="min-w-0 flex-1"><h2 className="font-extrabold text-[#111936]">Home page pets</h2><p className="text-xs text-[#69718a]">Both pets are on by default; turn them off whenever you want</p></div>
+          <button type="button" role="switch" aria-checked={enabled} onClick={() => { const next = !enabled; setEnabled(next); save(PET_ENABLED_KEY, next ? "1" : "0"); }} className={`relative h-7 w-12 rounded-full ${enabled ? "bg-[#11298f]" : "bg-[#cbd1df]"}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all ${enabled ? "left-6" : "left-1"}`} /></button>
+        </div>
+        {enabled && <>
+          <div className="border-t border-[#edf0f7] py-4">
+            <span className="text-sm font-extrabold text-[#27304b]">Choose pets</span>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {pets.map((pet) => (
+                <button key={pet.id} type="button" onClick={() => { setVariant(pet.id); save(PET_VARIANT_KEY, pet.id); }} className={`relative flex min-h-32 flex-col items-center justify-center rounded-2xl border p-2 transition ${variant === pet.id ? "border-[#11298f] bg-[#f2f5ff] ring-2 ring-[#11298f]/15" : "border-[#e4e8f2] bg-white"}`}>
+                  {pet.id === "mewmew" ? <Image src="/pet/mewmew.gif" alt="MewMew pixel cat" width={64} height={64} unoptimized className="size-14 object-contain [image-rendering:pixelated]" /> : pet.id === "both" ? <span className="flex items-center -space-x-2"><span className="grid size-11 place-items-center rounded-full bg-[#eef2ff] text-[#11298f]"><PawPrint size={23} /></span><Image src="/pet/mewmew.gif" alt="Classic and MewMew cats" width={48} height={48} unoptimized className="size-11 object-contain [image-rendering:pixelated]" /></span> : <span className="grid size-14 place-items-center rounded-full bg-[#eef2ff] text-[#11298f]"><PawPrint size={28} /></span>}
+                  <span className="mt-2 text-xs font-extrabold text-[#27304b]">{pet.name}</span>
+                  <span className="mt-0.5 text-center text-[9px] font-semibold text-[#7a8298]">{pet.description}</span>
+                  {variant === pet.id && <CheckCircle2 size={16} className="absolute right-1.5 top-1.5 text-[#11298f]" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(variant === "classic" || variant === "both") && group("Classic color", ["brown", "default", "black", "white"] as const, color, (value) => { setColor(value); save(PET_COLOR_KEY, value); })}
+          {group(variant === "mewmew" ? "MewMew size" : variant === "both" ? "Both pets size" : "Size", ["small", "medium", "large"] as const, size, (value) => { setSize(value); save(PET_SIZE_KEY, value); })}
+          {group("Behaviour", ["automatic", "default", "sit"] as const, mode, (value) => { setMode(value); save(PET_MODE_KEY, value); })}
+          {group("Walk speed", ["slow", "normal", "fast"] as const, speed, (value) => { setSpeed(value); save(PET_SPEED_KEY, value); })}
+        </>}
+      </Card>
+    </AppShell>
+  );
 }
 
 export function PaymentMethodsPage() {
