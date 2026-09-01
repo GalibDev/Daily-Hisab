@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import Lottie, { type LottieRefCurrentProps } from "lottie-react";
+import Image from "next/image";
 
 export const PET_ENABLED_KEY = "daily-hisab.home-pet-enabled";
 export const PET_COLOR_KEY = "daily-hisab.home-pet-color";
 export const PET_SIZE_KEY = "daily-hisab.home-pet-size";
 export const PET_MODE_KEY = "daily-hisab.home-pet-mode";
 export const PET_SPEED_KEY = "daily-hisab.home-pet-speed";
+export const PET_VARIANT_KEY = "daily-hisab.home-pet-variant";
 const PET_POSITION_KEY = "daily-hisab.home-pet-position.v2";
 export const PET_SETTINGS_EVENT = "daily-hisab-pet-settings";
 
@@ -15,6 +17,7 @@ export type PetColor = "brown" | "default" | "black" | "white";
 export type PetSize = "small" | "medium" | "large";
 export type PetMode = "automatic" | "default" | "sit";
 export type PetSpeed = "slow" | "normal" | "fast";
+export type PetVariant = "classic" | "mewmew";
 
 export function FloatingPet() {
   const [enabled, setEnabled] = useState(false);
@@ -22,6 +25,7 @@ export function FloatingPet() {
   const [petSize, setPetSize] = useState<PetSize>("medium");
   const [petMode, setPetMode] = useState<PetMode>("default");
   const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
+  const [petVariant, setPetVariant] = useState<PetVariant>("classic");
   const [animationData, setAnimationData] = useState<object | null>(null);
   const [reaction, setReaction] = useState(false);
   const [position, setPosition] = useState({ x: 24, y: 150 });
@@ -43,6 +47,8 @@ export function FloatingPet() {
       setPetMode((["automatic", "default", "sit"].includes(savedMode || "") ? savedMode : "default") as PetMode);
       const savedSpeed = localStorage.getItem(PET_SPEED_KEY);
       setPetSpeed((["slow", "normal", "fast"].includes(savedSpeed || "") ? savedSpeed : "normal") as PetSpeed);
+      const savedVariant = localStorage.getItem(PET_VARIANT_KEY);
+      setPetVariant(savedVariant === "mewmew" ? "mewmew" : "classic");
       try {
         const saved = JSON.parse(localStorage.getItem(PET_POSITION_KEY) || "null") as { x?: number; y?: number } | null;
         if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
@@ -62,9 +68,13 @@ export function FloatingPet() {
   }, []);
 
   useEffect(() => {
+    if (petVariant === "mewmew") {
+      setAnimationData(null);
+      return;
+    }
     const suffix = color === "default" ? "" : `-${color}`;
     fetch(`/pet/walking-cat${suffix}.json`).then((response) => response.json()).then((data: object) => setAnimationData(data)).catch(() => setAnimationData(null));
-  }, [color]);
+  }, [color, petVariant]);
 
   useEffect(() => {
     const speed = petMode === "sit" ? .22 : petSpeed === "slow" ? .65 : petSpeed === "fast" ? 1.55 : 1;
@@ -128,7 +138,9 @@ export function FloatingPet() {
     >
       {reaction && <span className="pet-heart absolute -right-1 -top-5 text-2xl text-[#ef476f]">♥</span>}
       <div className={`pet-body pet-mode-${petMode} ${reaction ? "pet-loved" : ""} grid place-items-center`} style={{ width: sizePx, height: sizePx }}>
-        {animationData && <Lottie lottieRef={lottieRef} animationData={animationData} loop autoplay style={{ width: sizePx, height: sizePx, transform: autoDirection.current > 0 ? "scaleX(-1)" : "none" }} />}
+        {petVariant === "mewmew" ? (
+          <Image src="/pet/mewmew.gif" alt="MewMew pixel cat" width={sizePx} height={sizePx} unoptimized draggable={false} className="mewmew-pet" style={{ width: sizePx, height: sizePx, transform: autoDirection.current > 0 ? "scaleX(-1)" : "none" }} />
+        ) : animationData && <Lottie lottieRef={lottieRef} animationData={animationData} loop autoplay style={{ width: sizePx, height: sizePx, transform: autoDirection.current > 0 ? "scaleX(-1)" : "none" }} />}
       </div>
       <style jsx>{`
         .pet-body { transform-origin: 50% 100%; }
@@ -136,6 +148,7 @@ export function FloatingPet() {
         .pet-mode-sit { transform: scaleY(.8) translateY(12%); }
         .pet-loved { animation: petPlay .38s ease-in-out 4 alternate; }
         .pet-heart { animation: petHeart 1.3s ease-out forwards; }
+        .mewmew-pet { object-fit: contain; image-rendering: pixelated; user-select: none; pointer-events: none; }
         @keyframes petTravel { from { transform: translateX(-14px); } to { transform: translateX(14px); } }
         @keyframes petPlay { from { transform: rotate(-10deg) translateY(0); } to { transform: rotate(10deg) translateY(-7px); } }
         @keyframes petHeart { to { transform: translateY(-20px) scale(1.25); opacity: 0; } }
