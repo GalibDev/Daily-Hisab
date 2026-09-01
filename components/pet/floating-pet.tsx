@@ -34,7 +34,11 @@ export function FloatingPet() {
   const moved = useRef(false);
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const autoDirection = useRef(-1);
-  const sizePx = petSize === "small" ? 72 : petSize === "large" ? 124 : 92;
+  // MewMew's source GIF has a large transparent canvas, so it needs a larger
+  // render box for Small/Medium/Large to match the visible Classic Cat sizes.
+  const sizePx = petVariant === "mewmew"
+    ? petSize === "small" ? 120 : petSize === "large" ? 240 : 180
+    : petSize === "small" ? 72 : petSize === "large" ? 124 : 92;
 
   useEffect(() => {
     const load = () => {
