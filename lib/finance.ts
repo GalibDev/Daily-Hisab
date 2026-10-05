@@ -17,13 +17,18 @@ export function summarizeEntries(entries: Entry[], date?: string) {
   };
 }
 
-export function countExpenseDaysInMonth(entries: Entry[], monthPrefix: string) {
-  const expenseDates = entries
-    .filter((entry) => entry.type === "expense")
-    .map((entry) => entry.date.trim().slice(0, 10))
-    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date.startsWith(monthPrefix));
-
-  return new Set(expenseDates).size;
+export function countExpenseDaysInMonth(entries: Entry[], monthPrefix: string, today = getTodayIso()) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthPrefix)) return 0;
+  const currentMonth = today.slice(0, 7);
+  if (monthPrefix > currentMonth) return 0;
+  if (monthPrefix < currentMonth) {
+    const [year, month] = monthPrefix.split("-").map(Number);
+    return new Date(year, month, 0).getDate();
+  }
+  // Completed calendar days count as zero-spend days without creating transactions.
+  const completedDays = Number(today.slice(8, 10)) - 1;
+  const hasExpenseToday = entries.some((entry) => entry.type === "expense" && entry.date.trim().slice(0, 10) === today);
+  return completedDays + (hasExpenseToday ? 1 : 0);
 }
 
 export function buildCategoryExpense(entries: Entry[], categories = defaultCategories) {

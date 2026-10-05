@@ -83,6 +83,7 @@ import { budgets, paymentMethods } from "@/data/mock-data";
 import { getDefaultCategoryIcon } from "@/lib/category-icon-defaults";
 import { buildCategoryExpense, buildExpenseTrend, buildSummaryRowsFromEntries, countExpenseDaysInMonth, summarizeEntries } from "@/lib/finance";
 import { displayDate, displayDateLong, getTodayIso, taka, takaShort } from "@/lib/utils";
+import { useTodayIso } from "@/lib/use-today-iso";
 import type { Entry, EntryType, PaymentMethod, Reminder } from "@/types";
 import { CategoryPieChart, ExpenseTrendChart } from "./charts";
 
@@ -528,7 +529,7 @@ function DesktopDashboard({
   const { language, t } = useLanguage();
   const monthIncome = entries.filter((entry) => entry.type === "income" && entry.date.startsWith(today.slice(0, 7))).reduce((sum, entry) => sum + entry.amount, 0);
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
-  const activeDays = new Set(entries.filter((entry) => entry.type === "expense" && entry.date.startsWith(today.slice(0, 7))).map((entry) => entry.date)).size;
+  const activeDays = countExpenseDaysInMonth(entries, today.slice(0, 7), today);
   const topCategories = categoryData.slice().sort((a, b) => b.value - a.value).slice(0, 5);
   const latestEntries = entries.slice().sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)).slice(0, 5);
 
@@ -586,7 +587,7 @@ function MobileDashboard({
   const family = useFamilyAccess();
   const { notify } = useToast();
   const { language, t } = useLanguage();
-  const today = getTodayIso();
+  const today = useTodayIso();
   const [activeDailySlot, setActiveDailySlot] = useState<string | null>(null);
   const [shortcutPanelOpen, setShortcutPanelOpen] = useState(false);
   const [selectedShortcutCategory, setSelectedShortcutCategory] = useState<string | null>(null);
@@ -650,7 +651,7 @@ function MobileDashboard({
   const monthlyExpenseEntries = expenseEntries.filter((entry) => entry.date.startsWith(monthPrefix));
   const monthlyIncome = incomeEntries.filter((entry) => entry.date.startsWith(monthPrefix)).reduce((sum, entry) => sum + entry.amount, 0);
   const allIncome = incomeEntries.reduce((sum, entry) => sum + entry.amount, 0);
-  const daysWithExpense = countExpenseDaysInMonth(entries, monthPrefix);
+  const daysWithExpense = countExpenseDaysInMonth(entries, monthPrefix, today);
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
   const familyRemainingBalance = Math.max(0, combinedFamilyDeposits - wallet.familyExpenseTotal);
@@ -1249,11 +1250,11 @@ function MobileDashboard({
 
 export function DashboardPage() {
   const { categories, entries, hiddenSummaryDates } = useFinance();
-  const today = getTodayIso();
+  const today = useTodayIso();
   const monthPrefix = today.slice(0, 7);
   const currentMonthEntries = useMemo(
-    () => entries.filter((entry) => entry.date.startsWith(monthPrefix)),
-    [entries, monthPrefix],
+    () => entries.filter((entry) => entry.date.startsWith(monthPrefix) && entry.date.slice(0, 10) <= today),
+    [entries, monthPrefix, today],
   );
   const todaySummary = useMemo(() => summarizeEntries(entries, today), [entries, today]);
   const categoryData = useMemo(() => buildCategoryExpense(currentMonthEntries, categories), [categories, currentMonthEntries]);

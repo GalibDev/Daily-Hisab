@@ -623,7 +623,10 @@ private fun HomeScreen(
     val today = LocalDate.now()
     val currentMonth = YearMonth.from(today)
     val monthEntries = expenses.filter { item ->
-        runCatching { YearMonth.from(LocalDate.parse(item.date)) == currentMonth }.getOrDefault(false)
+        runCatching {
+            val date = LocalDate.parse(item.date)
+            YearMonth.from(date) == currentMonth && !date.isAfter(today)
+        }.getOrDefault(false)
     }
     val todaySpent = expenses.filter { !it.income && it.date == today.toString() }.sumOf { it.amount }
     val monthSpent = monthEntries.filterNot { it.income }.sumOf { it.amount }
@@ -645,8 +648,8 @@ private fun HomeScreen(
         }.getOrDefault(false)
     }.sumOf { it.amount }
     val allSpent = expenses.filterNot { it.income }.sumOf { it.amount }
-    val activeExpenseDays = monthEntries.filterNot { it.income }.map { it.date }.distinct().size.coerceAtLeast(1)
-    val dailyAverage = (monthSpent.toDouble() / activeExpenseDays).toInt()
+    val activeExpenseDays = today.dayOfMonth - 1 + if (monthEntries.any { !it.income && it.date == today.toString() }) 1 else 0
+    val dailyAverage = if (activeExpenseDays > 0) (monthSpent.toDouble() / activeExpenseDays).toInt() else 0
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
             item { AppHeader(subtitle = "Your Daily Expense Tracker") }

@@ -1,0 +1,26 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const ts = require("typescript");
+const source = fs.readFileSync(require("node:path").join(__dirname, "../lib/finance.ts"), "utf8");
+const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+const moduleScope = { exports: {} };
+new Function("require", "exports", compiled)((name) => {
+  if (name === "@/data/mock-data") return { categories: [] };
+  if (name === "@/lib/utils") return { getTodayIso: () => "2026-10-06" };
+  throw new Error(`Unexpected import: ${name}`);
+}, moduleScope.exports);
+const count = moduleScope.exports.countExpenseDaysInMonth;
+const expense = (date) => ({ type: "expense", date, amount: 100 });
+assert.equal(count([], "2026-10"), 5, "Completed zero-spend days count");
+assert.equal(count([expense("2026-10-06")], "2026-10"), 6, "Today counts after expense");
+assert.equal(count([expense("2026-10-04")], "2026-10"), 5, "Backdated expense does not double-count");
+assert.equal(count([expense("2026-10-07")], "2026-10"), 5, "Future expense does not count");
+assert.equal(count([{ type: "income", date: "2026-10-06" }], "2026-10"), 5, "Income does not activate today");
+assert.equal(count([], "2026-10", "2026-10-01"), 0, "First day avoids division by zero");
+assert.equal(count([expense("2026-10-06"), expense("2026-10-06")], "2026-10"), 6, "Multiple expenses count once");
+assert.equal(count([], "2026-10", "2026-10-07"), 6, "Midnight includes yesterday at zero");
+assert.equal(count([], "2026-11"), 0, "Future month excluded");
+assert.equal(count([], "2024-02"), 29, "Completed leap month");
+assert.equal(count([], "2026-13"), 0, "Invalid month excluded");
+assert.equal(600 / count([expense("2026-10-06")], "2026-10"), 100, "Average uses counted days");
+console.log("Daily count: 12 regression checks passed.");

@@ -26,6 +26,7 @@ import {
   buildCategoryExpense,
   buildExpenseTrend,
   buildSummaryRowsFromEntries,
+  countExpenseDaysInMonth,
   filterEntries,
   filterEntriesByReportPeriod,
   summarizeEntries,
@@ -33,6 +34,7 @@ import {
   type SummaryRow,
 } from "@/lib/finance";
 import { displayDate, getTodayIso, taka, takaShort } from "@/lib/utils";
+import { useTodayIso } from "@/lib/use-today-iso";
 import { getStoredIconStyle, getStoredUiTheme, ICON_STYLE_EVENT, ICON_STYLE_STORAGE_KEY, UI_THEME_EVENT, UI_THEME_STORAGE_KEY, type IconStyle, type UiTheme } from "@/lib/personalization";
 import type { Entry, EntryType, PaymentMethod, RecurringExpense, Reminder } from "@/types";
 
@@ -1436,9 +1438,10 @@ export function ProfileDetailsPage() {
   const [statusVisible, setStatusVisible] = useState(true);
   const [idCopied, setIdCopied] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const today = useTodayIso();
+  const expenseEntries = entries.filter((entry) => entry.type === "expense" && entry.date.startsWith(today.slice(0, 7)) && entry.date.slice(0, 10) <= today);
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
-  const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
+  const daysWithExpense = countExpenseDaysInMonth(entries, today.slice(0, 7), today);
   const dailyAverage = daysWithExpense ? totalExpense / daysWithExpense : 0;
   const profilePhoto = user?.photoUrl || localPhoto;
   const dailyHisabId = user ? `DH-${user.id.slice(0, 10).toUpperCase()}` : "";
@@ -1770,9 +1773,10 @@ export function SettingsPage() {
   const [petSpeed, setPetSpeed] = useState<PetSpeed>("normal");
   const [statusVisible, setStatusVisible] = useState(true);
   const summaryRows = buildSummaryRows(entries, hiddenSummaryDates);
-  const expenseEntries = entries.filter((entry) => entry.type === "expense");
+  const today = useTodayIso();
+  const expenseEntries = entries.filter((entry) => entry.type === "expense" && entry.date.startsWith(today.slice(0, 7)) && entry.date.slice(0, 10) <= today);
   const totalExpense = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
-  const daysWithExpense = new Set(expenseEntries.map((entry) => entry.date)).size;
+  const daysWithExpense = countExpenseDaysInMonth(entries, today.slice(0, 7), today);
   const dailyAverage = daysWithExpense > 0 ? totalExpense / daysWithExpense : 0;
   const profileName = user?.name ?? (user?.email ? "Firebase User" : localProfileName);
   const profilePhoto = user?.photoUrl ?? localProfilePhoto;
