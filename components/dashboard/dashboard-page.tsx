@@ -44,6 +44,8 @@ import {
   IceCreamBowl,
   MoreHorizontal,
   MoreVertical,
+  Maximize2,
+  Minimize2,
   Plus,
   PawPrint,
   Pizza,
@@ -595,7 +597,8 @@ function MobileDashboard({
   const [customIconName, setCustomIconName] = useState("shopping");
   const summarySliderRef = useRef<HTMLDivElement>(null);
   const [summarySlideIndex, setSummarySlideIndex] = useState(0);
-  const [statDetails, setStatDetails] = useState<"monthly" | "today" | "average" | null>(null);
+  const [statDetails, setStatDetails] = useState<"monthly" | "today" | "days" | "average" | null>(null);
+  const [statDetailsExpanded, setStatDetailsExpanded] = useState(false);
   const [dailyCategoryManagerOpen, setDailyCategoryManagerOpen] = useState(false);
   const [draggedDailyCategory, setDraggedDailyCategory] = useState<string | null>(null);
   const [dailyNewCategory, setDailyNewCategory] = useState("");
@@ -653,6 +656,13 @@ function MobileDashboard({
   const allIncome = incomeEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const daysWithExpense = countExpenseDaysInMonth(entries, monthPrefix, today);
   const dailyAverage = daysWithExpense > 0 ? monthExpense / daysWithExpense : 0;
+  const dailyExpenseRows = Array.from({ length: daysWithExpense }, (_, index) => {
+    const date = `${monthPrefix}-${String(index + 1).padStart(2, "0")}`;
+    const amount = monthlyExpenseEntries
+      .filter((entry) => entry.date.slice(0, 10) === date)
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    return { date, amount };
+  }).reverse();
   const combinedFamilyDeposits = wallet.familyDepositTotal + family.approvedDepositTotal;
   const familyRemainingBalance = Math.max(0, combinedFamilyDeposits - wallet.familyExpenseTotal);
   const totalDaysLabel = `${daysWithExpense} ${daysWithExpense === 1 ? "Day" : "Days"}`;
@@ -1095,24 +1105,34 @@ function MobileDashboard({
 
       <div className="grid grid-cols-3 gap-3">
         <MobileStatCard onClick={() => setStatDetails("monthly")} icon={<Wallet size={22} />} label={t("dashboard.totalExpense")} value={takaShort(monthExpense)} meta={<><span>{t("dashboard.thisMonth")}</span><br /><span className="font-bold text-[#10b981]">{t("dashboard.tapDetails")}</span></>} />
-        <MobileStatCard onClick={() => setStatDetails("today")} icon={<CalendarCheck size={22} />} label={t("dashboard.totalDays")} value={totalDaysLabel} meta={<><span>{t("dashboard.thisMonth")}</span><br /><span>{t("dashboard.tapDetails")}</span></>} />
+        <MobileStatCard onClick={() => { setStatDetailsExpanded(false); setStatDetails("days"); }} icon={<CalendarCheck size={22} />} label={t("dashboard.totalDays")} value={totalDaysLabel} meta={<><span>{t("dashboard.thisMonth")}</span><br /><span>{t("dashboard.tapDetails")}</span></>} />
         <MobileStatCard onClick={() => setStatDetails("average")} icon={<TrendingUp size={22} />} label={t("dashboard.dailyAverage")} value={takaShort(dailyAverage)} meta={<><span>{t("dashboard.thisMonth")}</span><br /><span className="font-bold text-[#10b981]">{t("dashboard.tapDetails")}</span></>} />
       </div>
 
       {statDetails && (() => {
         const rows = statDetails === "today" ? todayCategoryRows : monthlyCategoryRows;
-        const title = statDetails === "monthly" ? t("dashboard.monthExpenses") : statDetails === "today" ? t("dashboard.todayExpenses") : t("dashboard.averageByCategory");
-        const total = statDetails === "monthly" ? monthExpense : statDetails === "today" ? todayExpenseTotal : dailyAverage;
+        const isDailyList = statDetails === "days";
+        const title = statDetails === "monthly" ? t("dashboard.monthExpenses") : statDetails === "today" ? t("dashboard.todayExpenses") : isDailyList ? "তারিখ অনুযায়ী খরচ" : t("dashboard.averageByCategory");
+        const total = statDetails === "monthly" ? monthExpense : statDetails === "today" ? todayExpenseTotal : isDailyList ? monthExpense : dailyAverage;
+        const closeDetails = () => { setStatDetails(null); setStatDetailsExpanded(false); };
         return (
-          <div className="fixed inset-0 z-[90] flex items-end justify-center bg-[#07122f]/45 p-3" role="presentation">
-            <button type="button" className="absolute inset-0" aria-label={t("dashboard.closeDetails")} onClick={() => setStatDetails(null)} />
-            <section role="dialog" aria-modal="true" aria-label={title} className="stat-sheet relative z-10 max-h-[78vh] w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-[0_28px_80px_rgba(5,15,50,0.30)]">
+          <div className={`fixed inset-0 z-[90] flex justify-center bg-[#07122f]/45 ${statDetailsExpanded ? "items-stretch p-0" : "items-end p-3"}`} role="presentation">
+            <button type="button" className="absolute inset-0" aria-label={t("dashboard.closeDetails")} onClick={closeDetails} />
+            <section role="dialog" aria-modal="true" aria-label={title} className={`stat-sheet relative z-10 flex w-full flex-col overflow-hidden bg-white shadow-[0_28px_80px_rgba(5,15,50,0.30)] transition-all ${statDetailsExpanded ? "h-full max-w-none rounded-none" : "max-h-[62vh] max-w-md rounded-[24px]"}`}>
               <div className="flex items-center justify-between border-b border-[#eef0f8] px-5 py-4">
-                <div><h2 className="font-extrabold text-[#111936]">{title}</h2><p className="mt-0.5 text-xs text-[#69718a]">{t("dashboard.detailsLegend")}</p></div>
-                <button type="button" onClick={() => setStatDetails(null)} aria-label={t("dashboard.close")} className="grid size-9 place-items-center rounded-full bg-[#f2f5fc] text-[#111936]"><X size={18} /></button>
+                <div><h2 className="font-extrabold text-[#111936]">{title}</h2><p className="mt-0.5 text-xs text-[#69718a]">{isDailyList ? `${monthPrefix} • ${daysWithExpense} দিন` : t("dashboard.detailsLegend")}</p></div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setStatDetailsExpanded((value) => !value)} aria-label={statDetailsExpanded ? "Minimize details" : "Open full page"} className="grid size-9 place-items-center rounded-full bg-[#eef3ff] text-[#11298f]">{statDetailsExpanded ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>
+                  <button type="button" onClick={closeDetails} aria-label={t("dashboard.close")} className="grid size-9 place-items-center rounded-full bg-[#f2f5fc] text-[#111936]"><X size={18} /></button>
+                </div>
               </div>
-              <div className="max-h-[56vh] overflow-y-auto px-5">
-                {rows.map((item) => {
+              <div className="min-h-0 flex-1 overflow-y-auto px-5">
+                {isDailyList ? dailyExpenseRows.map((item) => (
+                  <div key={item.date} className="flex items-center justify-between gap-4 border-b border-[#f0f2f8] py-3.5 last:border-0">
+                    <span className="text-sm font-bold text-[#20263a]">{displayDate(item.date)}</span>
+                    <strong className={`whitespace-nowrap text-sm ${item.amount > 0 ? "text-[#11298f]" : "text-[#8b93a8]"}`}>{taka(item.amount)}</strong>
+                  </div>
+                )) : rows.map((item) => {
                   const option = getCategoryIcon(item.category);
                   const Icon = option.icon;
                   const amount = statDetails === "average" ? item.amount / Math.max(daysWithExpense, 1) : item.amount;
@@ -1123,9 +1143,10 @@ function MobileDashboard({
                     <div key={item.category} className="flex items-center gap-3 border-b border-[#f0f2f8] py-3 last:border-0">{row}</div>
                   );
                 })}
-                {rows.length === 0 && <p className="py-10 text-center text-sm font-semibold text-[#69718a]">{t("dashboard.noExpensesToday")}</p>}
+                {isDailyList && dailyExpenseRows.length === 0 && <p className="py-10 text-center text-sm font-semibold text-[#69718a]">এই মাসে এখনো কোনো counted day নেই</p>}
+                {!isDailyList && rows.length === 0 && <p className="py-10 text-center text-sm font-semibold text-[#69718a]">{t("dashboard.noExpensesToday")}</p>}
               </div>
-              <div className="flex items-center justify-between bg-[#f5f7ff] px-5 py-4"><span className="text-sm font-extrabold text-[#20263a]">{statDetails === "average" ? t("dashboard.overallAverage") : t("dashboard.totalExpense")}</span><strong className="text-lg text-[#11298f]">{takaShort(total)}</strong></div>
+              <div className="flex items-center justify-between bg-[#f5f7ff] px-5 py-4"><span className="text-sm font-extrabold text-[#20263a]">{isDailyList ? `মোট ${daysWithExpense} দিন` : statDetails === "average" ? t("dashboard.overallAverage") : t("dashboard.totalExpense")}</span><strong className="text-lg text-[#11298f]">{takaShort(total)}</strong></div>
             </section>
           </div>
         );
