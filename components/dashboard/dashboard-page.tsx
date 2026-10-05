@@ -1127,12 +1127,10 @@ function MobileDashboard({
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5">
-                {isDailyList ? dailyExpenseRows.map((item) => (
-                  <div key={item.date} className="flex items-center justify-between gap-4 border-b border-[#f0f2f8] py-3.5 last:border-0">
-                    <span className="text-sm font-bold text-[#20263a]">{displayDate(item.date)}</span>
-                    <strong className={`whitespace-nowrap text-sm ${item.amount > 0 ? "text-[#11298f]" : "text-[#8b93a8]"}`}>{taka(item.amount)}</strong>
-                  </div>
-                )) : rows.map((item) => {
+                {isDailyList ? dailyExpenseRows.map((item) => {
+                  const content = <><span className="text-sm font-bold text-[#20263a]">{displayDate(item.date)}</span><span className="flex items-center gap-2"><strong className={`whitespace-nowrap text-sm ${item.amount > 0 ? "text-[#11298f]" : "text-[#8b93a8]"}`}>{taka(item.amount)}</strong>{statDetailsExpanded && <ChevronRight size={16} className="text-[#8b93a8]" />}</span></>;
+                  return statDetailsExpanded ? <Link key={item.date} href={`/expenses/date/${item.date}`} className="flex items-center justify-between gap-4 border-b border-[#f0f2f8] py-4 last:border-0 hover:bg-[#f8faff]" onClick={closeDetails}>{content}</Link> : <div key={item.date} className="flex items-center justify-between gap-4 border-b border-[#f0f2f8] py-3.5 last:border-0">{content}</div>;
+                }) : rows.map((item) => {
                   const option = getCategoryIcon(item.category);
                   const Icon = option.icon;
                   const amount = statDetails === "average" ? item.amount / Math.max(daysWithExpense, 1) : item.amount;

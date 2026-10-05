@@ -172,6 +172,25 @@ function fitText(context: CanvasRenderingContext2D, value: string, maxWidth: num
   return `${text}...`;
 }
 
+function wrapCanvasText(context: CanvasRenderingContext2D, value: string, maxWidth: number) {
+  const lines: string[] = [];
+  const paragraphs = (value || "-").replaceAll("\r", "").split("\n");
+  paragraphs.forEach((paragraph) => {
+    let line = "";
+    for (const character of paragraph || " ") {
+      const candidate = line + character;
+      if (line && context.measureText(candidate).width > maxWidth) {
+        lines.push(line.trimEnd());
+        line = character.trimStart();
+      } else {
+        line = candidate;
+      }
+    }
+    lines.push(line.trim() || "-");
+  });
+  return lines;
+}
+
 function createExpensePdf(entries: Entry[], title: string, entryType: Entry["type"] = "expense") {
   const selectedEntries = entries.filter((entry) => entry.type === entryType);
   const typeLabel = entryType === "income" ? "Income" : "Expense";
@@ -179,10 +198,44 @@ function createExpensePdf(entries: Entry[], title: string, entryType: Entry["typ
   const pageWidth = 1240;
   const pageHeight = 1754;
   const margin = 70;
-  const rowHeight = 72;
+  const headerHeight = 72;
+  const minimumRowHeight = 72;
+  const lineHeight = 27;
   const columns = [190, 180, 240, 320, 170];
-  const rowsPerPage = 17;
-  const pages = Math.max(1, Math.ceil(selectedEntries.length / rowsPerPage));
+  const startY = 205;
+  const bodyHeight = pageHeight - margin - startY - headerHeight;
+  const measurementCanvas = document.createElement("canvas");
+  const measurementContext = measurementCanvas.getContext("2d");
+  if (!measurementContext) throw new Error("PDF measurement canvas is unavailable");
+  measurementContext.font = "500 21px 'Noto Sans Bengali', 'Segoe UI', Arial, sans-serif";
+  const maxLinesPerSegment = Math.max(1, Math.floor((bodyHeight - 24) / lineHeight));
+  const rowSegments = selectedEntries.flatMap((entry) => {
+    const descriptionLines = wrapCanvasText(measurementContext, entry.description || "-", columns[3] - 24);
+    const noteLines = wrapCanvasText(measurementContext, entry.note || "-", columns[4] - 24);
+    const segmentCount = Math.max(1, Math.ceil(Math.max(descriptionLines.length, noteLines.length) / maxLinesPerSegment));
+    return Array.from({ length: segmentCount }, (_, segmentIndex) => {
+      const description = descriptionLines.slice(segmentIndex * maxLinesPerSegment, (segmentIndex + 1) * maxLinesPerSegment);
+      const note = noteLines.slice(segmentIndex * maxLinesPerSegment, (segmentIndex + 1) * maxLinesPerSegment);
+      return {
+        entry,
+        continuation: segmentIndex > 0,
+        description,
+        note,
+        height: Math.max(minimumRowHeight, 24 + Math.max(description.length, note.length, 1) * lineHeight),
+      };
+    });
+  });
+  const pageRows: typeof rowSegments[] = [[]];
+  let usedHeight = 0;
+  rowSegments.forEach((row) => {
+    if (usedHeight > 0 && usedHeight + row.height > bodyHeight) {
+      pageRows.push([]);
+      usedHeight = 0;
+    }
+    pageRows.at(-1)?.push(row);
+    usedHeight += row.height;
+  });
+  const pages = Math.max(1, pageRows.length);
   const images: Array<{ bytes: Uint8Array; width: number; height: number }> = [];
 
   for (let page = 0; page < pages; page += 1) {
@@ -201,11 +254,10 @@ function createExpensePdf(entries: Entry[], title: string, entryType: Entry["typ
     context.font = "600 24px 'Noto Sans Bengali', 'Segoe UI', Arial, sans-serif";
     context.fillText(`Total ${typeLabel}: ${total.toFixed(2)} | Page ${page + 1} of ${pages}`, margin, 148);
 
-    const startY = 205;
     const headers = ["Date", "Amount", "Category", "Description", "Note"];
     let x = margin;
     context.fillStyle = "#f3f6ff";
-    context.fillRect(margin, startY, columns.reduce((sum, width) => sum + width, 0), rowHeight);
+    context.fillRect(margin, startY, columns.reduce((sum, width) => sum + width, 0), headerHeight);
     context.font = "700 22px 'Noto Sans Bengali', 'Segoe UI', Arial, sans-serif";
     context.fillStyle = "#111936";
     headers.forEach((header, index) => {
@@ -213,14 +265,16 @@ function createExpensePdf(entries: Entry[], title: string, entryType: Entry["typ
       x += columns[index];
     });
 
-    const pageEntries = selectedEntries.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-    pageEntries.forEach((entry, rowIndex) => {
-      const y = startY + rowHeight * (rowIndex + 1);
+    const rows = pageRows[page] || [];
+    let rowY = startY + headerHeight;
+    rows.forEach((row, rowIndex) => {
+      const { entry } = row;
+      const y = rowY;
       context.fillStyle = rowIndex % 2 === 0 ? "#ffffff" : "#fbfcff";
-      context.fillRect(margin, y, columns.reduce((sum, width) => sum + width, 0), rowHeight);
+      context.fillRect(margin, y, columns.reduce((sum, width) => sum + width, 0), row.height);
       context.strokeStyle = "#d8ddea";
-      context.strokeRect(margin, y, columns.reduce((sum, width) => sum + width, 0), rowHeight);
-      const values = [entry.date, entry.amount.toFixed(2), entry.category, entry.description || "-", entry.note || "-"];
+      context.strokeRect(margin, y, columns.reduce((sum, width) => sum + width, 0), row.height);
+      const values = [row.continuation ? "(continued)" : entry.date, row.continuation ? "" : entry.amount.toFixed(2), row.continuation ? "" : entry.category];
       x = margin;
       context.fillStyle = "#252139";
       context.font = "500 21px 'Noto Sans Bengali', 'Segoe UI', Arial, sans-serif";
@@ -228,12 +282,16 @@ function createExpensePdf(entries: Entry[], title: string, entryType: Entry["typ
         context.fillText(fitText(context, value, columns[index] - 24), x + 12, y + 44);
         x += columns[index];
       });
+      row.description.forEach((line, lineIndex) => context.fillText(line, x + 12, y + 31 + lineIndex * lineHeight));
+      x += columns[3];
+      row.note.forEach((line, lineIndex) => context.fillText(line, x + 12, y + 31 + lineIndex * lineHeight));
+      rowY += row.height;
     });
 
-    if (pageEntries.length === 0) {
+    if (rows.length === 0) {
       context.fillStyle = "#59627a";
       context.font = "500 24px 'Noto Sans Bengali', 'Segoe UI', Arial, sans-serif";
-      context.fillText("No expense data found.", margin + 12, startY + rowHeight + 44);
+      context.fillText("No expense data found.", margin + 12, startY + headerHeight + 44);
     }
 
     images.push({ bytes: dataUrlBytes(canvas.toDataURL("image/jpeg", 0.9)), width: pageWidth, height: pageHeight });

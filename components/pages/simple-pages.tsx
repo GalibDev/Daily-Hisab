@@ -45,7 +45,7 @@ const CURRENCY_STORAGE_KEY = "daily-hisab.currency.v1";
 const PROFILE_STATUS_VISIBLE_KEY = "daily-hisab.profile-status-visible.v1";
 type AppCurrency = "BDT" | "USD";
 
-function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: () => void }>) {
+function EntryForm({ mode, onDone, defaultDate }: Readonly<{ mode: EntryFormMode; onDone?: () => void; defaultDate?: string }>) {
   const { addEntry, categories } = useFinance();
   const { notify } = useToast();
   const isExpense = mode === "expense";
@@ -81,7 +81,7 @@ function EntryForm({ mode, onDone }: Readonly<{ mode: EntryFormMode; onDone?: ()
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-5 md:grid-cols-2">
-      <Field label="Date"><input name="date" type="date" className={inputClass} defaultValue={today} /></Field>
+      <Field label="Date"><input name="date" type="date" className={inputClass} defaultValue={defaultDate || today} /></Field>
       {isExpense ? (
         <>
           <Field label="Category"><CategorySelect defaultValue={categories[0]} /></Field>
@@ -103,8 +103,8 @@ function buildSummaryRows(entries: Entry[], hiddenSummaryDates: string[]) {
   return buildSummaryRowsFromEntries(entries, hiddenSummaryDates);
 }
 
-export function ExpensePage() {
-  return <AppShell><PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" /><EntryTypeSwitch active="expense" /><Card className="max-w-5xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="expense" /></Card></AppShell>;
+export function ExpensePage({ defaultDate }: Readonly<{ defaultDate?: string }>) {
+  return <AppShell><PageTitle title="Add Expense" subtitle="নতুন খরচ দ্রুত সংরক্ষণ করুন" /><EntryTypeSwitch active="expense" /><Card className="max-w-5xl border-0 p-0 shadow-none md:border md:p-6 md:shadow-[0_10px_26px_rgba(47,35,110,0.06)]"><EntryForm mode="expense" defaultDate={defaultDate} /></Card></AppShell>;
 }
 
 export function IncomePage() {
@@ -2131,6 +2131,24 @@ function MobileCalendar({
 
 function PageTitle({ title, subtitle }: Readonly<{ title: string; subtitle: string }>) {
   return <div className="mb-5 hidden md:block"><h1 className="text-2xl font-bold md:text-3xl">{title}</h1><p className="text-[#746d86]">{subtitle}</p></div>;
+}
+
+export function DailyExpenseDetailsPage({ date }: Readonly<{ date: string }>) {
+  const { entries } = useFinance();
+  const expenseEntries = entries.filter((entry) => entry.type === "expense" && entry.date.slice(0, 10) === date);
+  const total = expenseEntries.reduce((sum, entry) => sum + entry.amount, 0);
+
+  return (
+    <AppShell>
+      <div className="mx-auto w-full max-w-5xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div><h1 className="text-2xl font-extrabold text-[#111936]">{displayDate(date)}-এর খরচ</h1><p className="mt-1 text-sm font-semibold text-[#69718a]">মোট {expenseEntries.length}টি খরচ • {taka(total)}</p></div>
+          <Link href={`/add-expense?date=${encodeURIComponent(date)}`} className="flex shrink-0 items-center gap-2 rounded-xl bg-[#11298f] px-4 py-3 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(17,41,143,0.22)]"><Plus size={17} /> খরচ যোগ করুন</Link>
+        </div>
+        <Card className="p-4 md:p-6"><ResponsiveEntries entries={expenseEntries} editable /></Card>
+      </div>
+    </AppShell>
+  );
 }
 
 function Metric({ label, value, tone }: Readonly<{ label: string; value: string; tone: string }>) {
