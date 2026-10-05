@@ -957,6 +957,7 @@ export function ReportsPage() {
   const [customMethod, setCustomMethod] = useState<PaymentMethod | "all">("all");
   const [customMinimum, setCustomMinimum] = useState("");
   const [customMaximum, setCustomMaximum] = useState("");
+  const [customReportReady, setCustomReportReady] = useState(false);
   const [entryType, setEntryType] = useState<EntryType>("expense");
   const [reportMode, setReportMode] = useState<"reports" | "analytics">("reports");
   const periodEntries = useMemo(() => period === "custom"
@@ -964,6 +965,7 @@ export function ReportsPage() {
     : filterEntriesByReportPeriod(entries, period, today), [customEnd, customStart, entries, period, today]);
   const reportEntries = useMemo(() => {
     if (period !== "custom") return periodEntries;
+    if (!customReportReady) return [];
     const minimum = customMinimum === "" ? null : Number(customMinimum);
     const maximum = customMaximum === "" ? null : Number(customMaximum);
     return periodEntries.filter((entry) =>
@@ -971,7 +973,7 @@ export function ReportsPage() {
       (customMethod === "all" || entry.method === customMethod) &&
       (minimum === null || entry.amount >= minimum) &&
       (maximum === null || entry.amount <= maximum));
-  }, [customCategories, customMaximum, customMethod, customMinimum, period, periodEntries]);
+  }, [customCategories, customMaximum, customMethod, customMinimum, customReportReady, period, periodEntries]);
   const reportTypedEntries = useMemo(() => reportEntries.filter((entry) => entry.type === entryType), [entryType, reportEntries]);
   const customCategoryOptions = useMemo(() => Array.from(new Set(entries.filter((entry) => entry.type === entryType).map((entry) => entry.category))).sort(), [entries, entryType]);
   const reportTotal = reportTypedEntries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -982,6 +984,18 @@ export function ReportsPage() {
   async function handlePdfExport() {
     const exported = await exportExpenseSheetPdf(reportEntries, reportTitle, entryType);
     notify(exported ? "PDF downloaded" : "PDF export failed. Please try again.", exported ? "success" : "danger");
+  }
+
+  function createCustomReport() {
+    if (!customStart || !customEnd || customStart > customEnd) {
+      notify("Please select a valid date range.", "danger");
+      return;
+    }
+    if (customMinimum !== "" && customMaximum !== "" && Number(customMinimum) > Number(customMaximum)) {
+      notify("Minimum amount cannot be greater than maximum amount.", "danger");
+      return;
+    }
+    setCustomReportReady(true);
   }
 
   return (
@@ -996,14 +1010,14 @@ export function ReportsPage() {
 
       <div className={reportMode === "analytics" ? "hidden md:block" : ""}>
         <div className="mb-4 grid grid-cols-2 rounded-2xl border border-[#e4e8f2] bg-white p-1 md:max-w-sm">
-          <button type="button" onClick={() => { setEntryType("expense"); setCustomCategories([]); }} className={entryType === "expense" ? "h-11 rounded-xl bg-[#ef4444] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Expense</button>
-          <button type="button" onClick={() => { setEntryType("income"); setCustomCategories([]); }} className={entryType === "income" ? "h-11 rounded-xl bg-[#16a34a] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Income</button>
+          <button type="button" onClick={() => { setEntryType("expense"); setCustomCategories([]); setCustomReportReady(false); }} className={entryType === "expense" ? "h-11 rounded-xl bg-[#ef4444] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Expense</button>
+          <button type="button" onClick={() => { setEntryType("income"); setCustomCategories([]); setCustomReportReady(false); }} className={entryType === "income" ? "h-11 rounded-xl bg-[#16a34a] text-sm font-extrabold text-white" : "h-11 rounded-xl text-sm font-extrabold text-[#59627a]"}>Income</button>
         </div>
         <div id="reports-filter" className="mb-5 grid grid-cols-5 gap-1 border-b border-[#ece8ff] md:flex md:flex-wrap md:border-0">
           {(Object.keys(labels) as Array<ReportPeriod | "custom">).map((item) => (
             <button
               key={item}
-              onClick={() => setPeriod(item)}
+              onClick={() => { setPeriod(item); if (item === "custom") setCustomReportReady(false); }}
               className={period === item ? "border-b-2 border-[#6C4CF1] px-2 py-2 text-xs font-bold text-[#6C4CF1] md:rounded-lg md:border md:bg-[#6C4CF1] md:px-4 md:text-sm md:text-white" : "px-2 py-2 text-xs font-semibold text-[#746d86] md:rounded-lg md:border md:border-[#d8d1ff] md:bg-white md:px-4 md:text-sm md:text-[#6C4CF1]"}
             >
               <span>{labels[item]}</span>
@@ -1011,16 +1025,17 @@ export function ReportsPage() {
           ))}
         </div>
         {period === "custom" && <Card className="mb-5 border-[#dfe5f2] p-4 md:p-5">
-          <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="font-extrabold text-[#111936]">Custom Report Builder</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">তারিখ, category, payment method ও amount দিয়ে নিজের report বানান</p></div><span className="rounded-full bg-[#eef2ff] px-3 py-1 text-xs font-extrabold text-[#11298f]">{reportTypedEntries.length} entries</span></div>
+          <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="font-extrabold text-[#111936]">Custom Report Builder</h2><p className="mt-1 text-xs font-semibold text-[#69718a]">তারিখ, category, payment method ও amount দিয়ে নিজের report বানান</p></div><span className="rounded-full bg-[#eef2ff] px-3 py-1 text-xs font-extrabold text-[#11298f]">{customReportReady ? `${reportTypedEntries.length} entries` : "Not created"}</span></div>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <Field label="From date"><input type="date" className={inputClass} value={customStart} max={customEnd} onChange={(event) => setCustomStart(event.target.value)} /></Field>
-            <Field label="To date"><input type="date" className={inputClass} value={customEnd} min={customStart} max={today} onChange={(event) => setCustomEnd(event.target.value)} /></Field>
-            <Field label="Payment method"><select className={inputClass} value={customMethod} onChange={(event) => setCustomMethod(event.target.value as PaymentMethod | "all")}><option value="all">All methods</option>{paymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></Field>
-            <div className="grid grid-cols-2 gap-2"><Field label="Min amount"><input type="number" min="0" className={inputClass} value={customMinimum} placeholder="0" onChange={(event) => setCustomMinimum(event.target.value)} /></Field><Field label="Max amount"><input type="number" min="0" className={inputClass} value={customMaximum} placeholder="Any" onChange={(event) => setCustomMaximum(event.target.value)} /></Field></div>
+            <Field label="From date"><input type="date" className={inputClass} value={customStart} max={customEnd} onChange={(event) => { setCustomStart(event.target.value); setCustomReportReady(false); }} /></Field>
+            <Field label="To date"><input type="date" className={inputClass} value={customEnd} min={customStart} max={today} onChange={(event) => { setCustomEnd(event.target.value); setCustomReportReady(false); }} /></Field>
+            <Field label="Payment method"><select className={inputClass} value={customMethod} onChange={(event) => { setCustomMethod(event.target.value as PaymentMethod | "all"); setCustomReportReady(false); }}><option value="all">All methods</option>{paymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></Field>
+            <div className="grid grid-cols-2 gap-2"><Field label="Min amount"><input type="number" min="0" className={inputClass} value={customMinimum} placeholder="0" onChange={(event) => { setCustomMinimum(event.target.value); setCustomReportReady(false); }} /></Field><Field label="Max amount"><input type="number" min="0" className={inputClass} value={customMaximum} placeholder="Any" onChange={(event) => { setCustomMaximum(event.target.value); setCustomReportReady(false); }} /></Field></div>
           </div>
-          <div className="mt-4"><div className="mb-2 flex items-center justify-between"><span className="text-sm font-bold text-[#111936]">Categories</span>{customCategories.length > 0 && <button type="button" className="text-xs font-bold text-[#11298f]" onClick={() => setCustomCategories([])}>Select all</button>}</div><div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">{customCategoryOptions.map((category) => { const selected = customCategories.includes(category); return <button type="button" key={category} aria-pressed={selected} onClick={() => setCustomCategories((current) => selected ? current.filter((item) => item !== category) : [...current, category])} className={selected ? "rounded-full bg-[#11298f] px-3 py-2 text-xs font-extrabold text-white" : "rounded-full border border-[#dfe5f2] bg-white px-3 py-2 text-xs font-bold text-[#59627a]"}>{category}</button>; })}</div></div>
+          <div className="mt-4"><div className="mb-2 flex items-center justify-between"><span className="text-sm font-bold text-[#111936]">Categories</span>{customCategories.length > 0 && <button type="button" className="text-xs font-bold text-[#11298f]" onClick={() => { setCustomCategories([]); setCustomReportReady(false); }}>Select all</button>}</div><div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">{customCategoryOptions.map((category) => { const selected = customCategories.includes(category); return <button type="button" key={category} aria-pressed={selected} onClick={() => { setCustomCategories((current) => selected ? current.filter((item) => item !== category) : [...current, category]); setCustomReportReady(false); }} className={selected ? "rounded-full bg-[#11298f] px-3 py-2 text-xs font-extrabold text-white" : "rounded-full border border-[#dfe5f2] bg-white px-3 py-2 text-xs font-bold text-[#59627a]"}>{category}</button>; })}</div></div>
+          <Button type="button" onClick={createCustomReport} className="mt-5 w-full md:w-auto"><FileSpreadsheet size={17} /> Create Custom Report</Button>
         </Card>}
-        <Card className="mb-5 overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
+        {(period !== "custom" || customReportReady) && <Card className="mb-5 overflow-hidden rounded-[18px] border-[#eef0f8] shadow-[0_12px_32px_rgba(20,35,90,0.06)]">
           <div className="grid gap-4 bg-[#11298f] p-5 text-white md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <p className="text-sm font-semibold text-white/78">{reportTitle}</p>
@@ -1080,7 +1095,7 @@ export function ReportsPage() {
               </tfoot>
             </table>
           </div>
-        </Card>
+        </Card>}
       </div>
     </AppShell>
   );

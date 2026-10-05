@@ -38,6 +38,7 @@ import {
   User,
   UsersRound,
   Wallet,
+  X,
   ArrowLeft,
   Calculator,
   HandCoins,
@@ -435,6 +436,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         <div className="fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-label="Main menu">
           <button type="button" aria-label="Close menu" onClick={() => setMobileMenuOpen(false)} className="absolute inset-0 bg-black/20" />
           <aside className="thin-scrollbar relative z-10 flex h-full w-[78vw] max-w-[392px] flex-col overflow-y-auto rounded-r-[22px] bg-white px-8 pb-7 pt-10 shadow-[18px_0_42px_rgba(17,24,39,0.18)]">
+            <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-[#f1f4fa] text-[#111936] shadow-sm"><X size={20} /></button>
             <div className="mb-8 flex items-center gap-4">
               <div className="relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-[#eef2ff] text-[#2563eb]">
                 <User size={48} fill="currentColor" strokeWidth={1.4} />
