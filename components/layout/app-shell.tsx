@@ -278,7 +278,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   ];
 
   return (
-    <div className={cn("daily-hisab-shell min-h-screen bg-[#F8F7FF] text-[#171424]", uiTheme === "aurora" && "ui-theme-aurora")}>
+    <div className={cn("daily-hisab-shell min-h-screen bg-[#F8F7FF] text-[#171424]", `ui-theme-${uiTheme}`)}>
       <div title={syncError ?? syncUi.label} aria-live="polite" className={cn("fixed right-3 top-[76px] z-[75] flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-extrabold shadow-sm ring-1 ring-black/5 transition-all duration-300 lg:right-7 lg:top-[86px]", syncUi.tone, syncIndicatorVisible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0")}>
         <SyncIcon size={14} className={syncUi.spin ? "animate-spin" : ""} />
         <span>{syncUi.label}</span>

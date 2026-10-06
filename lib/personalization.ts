@@ -4,7 +4,7 @@ export const UI_THEME_STORAGE_KEY = "daily-hisab.ui-theme.v1";
 export const UI_THEME_EVENT = "daily-hisab:ui-theme-change";
 
 export type IconStyle = "minimal" | "duotone" | "brand";
-export type UiTheme = "default" | "aurora";
+export type UiTheme = "default" | "aurora" | "mint" | "sunset";
 
 export function getStoredIconStyle(): IconStyle {
   if (typeof window === "undefined") return "duotone";
@@ -14,5 +14,6 @@ export function getStoredIconStyle(): IconStyle {
 
 export function getStoredUiTheme(): UiTheme {
   if (typeof window === "undefined") return "aurora";
-  return window.localStorage.getItem(UI_THEME_STORAGE_KEY) === "default" ? "default" : "aurora";
+  const saved = window.localStorage.getItem(UI_THEME_STORAGE_KEY);
+  return saved === "default" || saved === "mint" || saved === "sunset" ? saved : "aurora";
 }
