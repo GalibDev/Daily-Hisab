@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -98,7 +98,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const [desktopSidebarWidth, setDesktopSidebarWidth] = useState(DESKTOP_SIDEBAR_DEFAULT);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const [desktopSidebarResizing, setDesktopSidebarResizing] = useState(false);
-  const [syncIndicatorVisible, setSyncIndicatorVisible] = useState(true);
+  const [syncIndicatorVisible, setSyncIndicatorVisible] = useState(false);
+  const previousSyncStatus = useRef(syncStatus);
   const [pwaInstall, setPwaInstall] = useState({ available: false, ios: false });
   const [localProfileName, setLocalProfileName] = useState(() => typeof window === "undefined" ? "Guest User" : window.localStorage.getItem("daily-hisab.local-profile-name") || "Guest User");
   const [localProfilePhoto, setLocalProfilePhoto] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("daily-hisab.local-profile-photo") || "");
@@ -185,9 +186,21 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   }, [mobileMenuOpen]);
 
   useEffect(() => {
+    const previousStatus = previousSyncStatus.current;
+    previousSyncStatus.current = syncStatus;
+
+    // AppShell is mounted again on route changes. Do not replay the current
+    // status as a fresh notification unless a real sync transition happened.
+    if (previousStatus === syncStatus) return;
+
+    const syncInProgress = syncStatus === "loading" || syncStatus === "saving";
+    const syncFailed = syncStatus === "error" || syncStatus === "offline";
+    const syncCompleted = (previousStatus === "loading" || previousStatus === "saving") && syncStatus === "synced";
+    if (!syncInProgress && !syncFailed && !syncCompleted) return;
+
     setSyncIndicatorVisible(true);
-    if (syncStatus === "loading" || syncStatus === "saving") return;
-    const timer = window.setTimeout(() => setSyncIndicatorVisible(false), syncStatus === "error" || syncStatus === "offline" ? 4200 : 2600);
+    if (syncInProgress) return;
+    const timer = window.setTimeout(() => setSyncIndicatorVisible(false), syncFailed ? 4200 : 2600);
     return () => window.clearTimeout(timer);
   }, [syncStatus]);
 

@@ -278,6 +278,9 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
           if (hasLocalUserData) {
             await saveCloudFinance(user!.id, { entries, categories, hiddenSummaryDates, recurringExpenses, reminders });
           }
+          // The empty-cloud initialization above is already the authoritative
+          // first sync. Do not immediately schedule the same payload again.
+          skipNextCloudSave.current = true;
         }
         setCloudReadyOwner(user!.id);
         setSyncError(null);
@@ -308,7 +311,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [activeStorageOwner, categories, cloudReadyOwner, entries, hiddenSummaryDates, recurringExpenses, reminders, user]);
+  }, [activeStorageOwner, categories, cloudReadyOwner, entries, hiddenSummaryDates, recurringExpenses, reminders, user?.id]);
 
   useEffect(() => {
     if (hydrated && activeStorageOwner === storageOwner && !authLoading) {
