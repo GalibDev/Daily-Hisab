@@ -167,12 +167,19 @@ export function FamilyAccessProvider({ children }: Readonly<{ children: React.Re
       }
     }
 
-    void syncRemoteState();
-    const intervalId = window.setInterval(syncRemoteState, 8000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void syncRemoteState();
+    };
+    refreshWhenVisible();
+    const intervalId = window.setInterval(refreshWhenVisible, 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [user]);
 
