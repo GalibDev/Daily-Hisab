@@ -35,6 +35,7 @@ const REMINDER_STORAGE_KEY = "daily-hisab.reminders.v1";
 const STORAGE_OWNER_GUEST = "guest";
 
 type FinanceStore = {
+  dataReady: boolean;
   entries: Entry[];
   categories: string[];
   hiddenSummaryDates: string[];
@@ -339,6 +340,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
 
   const value = useMemo<FinanceStore>(
     () => ({
+      dataReady: hydrated && activeStorageOwner === storageOwner && !authLoading,
       entries,
       categories,
       hiddenSummaryDates,
@@ -471,7 +473,7 @@ export function FinanceProvider({ children }: Readonly<{ children: React.ReactNo
         if (Array.isArray(data.reminders)) setReminders(data.reminders);
       },
     }),
-    [canSyncSupabase, categories, entries, hiddenSummaryDates, hydrated, recurringExpenses, reminders, syncError, syncStatus, user],
+    [activeStorageOwner, authLoading, canSyncSupabase, categories, cloudReadyOwner, entries, hiddenSummaryDates, hydrated, recurringExpenses, reminders, storageOwner, syncError, syncStatus, user],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

@@ -1,6 +1,5 @@
 import { getApps, initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getStorage } from "firebase/storage";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
@@ -23,7 +22,6 @@ export const isFirebaseConfigured = Boolean(
 
 export const firebaseApp = isFirebaseConfigured && getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
-export const firebaseStorage = firebaseApp ? getStorage(firebaseApp) : null;
 const databaseUrl =
   process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ||
   (firebaseConfig.projectId

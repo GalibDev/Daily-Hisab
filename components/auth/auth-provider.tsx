@@ -15,9 +15,8 @@ import {
   updatePassword,
   updateProfile,
 } from "firebase/auth";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { createContext, useContext, useEffect, useState } from "react";
-import { firebaseAuth, firebaseStorage, googleProvider, isFirebaseConfigured } from "@/lib/firebase/client";
+import { firebaseApp, firebaseAuth, googleProvider, isFirebaseConfigured } from "@/lib/firebase/client";
 import { syncUserDirectoryProfile } from "@/lib/firebase/admin-data";
 
 export type AppUser = {
@@ -125,11 +124,12 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       setProfileVersion((version) => version + 1);
     },
     uploadProfileImage: async (file) => {
-      if (!firebaseAuth?.currentUser || !firebaseStorage) {
+      if (!firebaseAuth?.currentUser || !firebaseApp) {
         throw new Error("Login required for profile image upload");
       }
 
-      const imageRef = ref(firebaseStorage, `profiles/${firebaseAuth.currentUser.uid}/${Date.now()}-${file.name}`);
+      const { getDownloadURL, getStorage, ref, uploadBytes } = await import("firebase/storage");
+      const imageRef = ref(getStorage(firebaseApp), `profiles/${firebaseAuth.currentUser.uid}/${Date.now()}-${file.name}`);
       await uploadBytes(imageRef, file);
       const photoURL = await getDownloadURL(imageRef);
       await updateProfile(firebaseAuth.currentUser, { photoURL });
