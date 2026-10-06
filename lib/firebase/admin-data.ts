@@ -1,6 +1,5 @@
-import { get, ref, update } from "firebase/database";
 import type { AppUser } from "@/components/auth/auth-provider";
-import { firebaseDatabase } from "@/lib/firebase/client";
+import { getFirebaseDatabase } from "@/lib/firebase/client";
 
 export type AdminUserRow = {
   id: string;
@@ -15,8 +14,10 @@ export type AdminUserRow = {
 };
 
 export async function syncUserDirectoryProfile(user: AppUser) {
-  if (!firebaseDatabase) return;
-  const profileRef = ref(firebaseDatabase, `users/${user.id}/profile`);
+  const database = await getFirebaseDatabase();
+  if (!database) return;
+  const { get, ref, update } = await import("firebase/database");
+  const profileRef = ref(database, `users/${user.id}/profile`);
   const snapshot = await get(profileRef);
   const previous = snapshot.exists() ? snapshot.val() as { createdAt?: number } : {};
   await update(profileRef, {

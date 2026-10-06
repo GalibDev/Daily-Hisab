@@ -1,6 +1,6 @@
 import { getApps, initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getDatabase } from "firebase/database";
+import type { Database } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -27,6 +27,12 @@ const databaseUrl =
   (firebaseConfig.projectId
     ? `https://${firebaseConfig.projectId}-default-rtdb.asia-southeast1.firebasedatabase.app`
     : undefined);
-export const firebaseDatabase = firebaseApp && databaseUrl ? getDatabase(firebaseApp, databaseUrl) : null;
+let databasePromise: Promise<Database | null> | null = null;
+
+export function getFirebaseDatabase() {
+  if (!firebaseApp || !databaseUrl) return Promise.resolve(null);
+  databasePromise ??= import("firebase/database").then(({ getDatabase }) => getDatabase(firebaseApp, databaseUrl));
+  return databasePromise;
+}
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });

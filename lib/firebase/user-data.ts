@@ -1,5 +1,4 @@
-import { get, ref, set } from "firebase/database";
-import { firebaseDatabase } from "@/lib/firebase/client";
+import { getFirebaseDatabase } from "@/lib/firebase/client";
 import type { Entry, Loan, RecurringExpense, Reminder } from "@/types";
 
 export type CloudFinanceData = {
@@ -58,9 +57,11 @@ export function validLoans(value: unknown): Loan[] {
   });
 }
 
-function userDataRef(userId: string, name: "finance" | "wallet" | "loans") {
-  if (!firebaseDatabase) throw new Error("Realtime Database is not configured");
-  return ref(firebaseDatabase, `users/${userId}/appData/${name}`);
+async function databaseTools() {
+  const database = await getFirebaseDatabase();
+  if (!database) throw new Error("Realtime Database is not configured");
+  const { get, ref, set } = await import("firebase/database");
+  return { database, get, ref, set };
 }
 
 function records<T>(value: unknown): T[] {
@@ -97,7 +98,8 @@ export function validReminders(value: unknown): Reminder[] {
 }
 
 export async function loadCloudFinance(userId: string): Promise<CloudFinanceData | null> {
-  const snapshot = await get(userDataRef(userId, "finance"));
+  const { database, get, ref } = await databaseTools();
+  const snapshot = await get(ref(database, `users/${userId}/appData/finance`));
   if (!snapshot.exists()) return null;
   const data = snapshot.val() as Partial<CloudFinanceData>;
   return {
@@ -110,11 +112,13 @@ export async function loadCloudFinance(userId: string): Promise<CloudFinanceData
 }
 
 export async function saveCloudFinance(userId: string, data: CloudFinanceData) {
-  await set(userDataRef(userId, "finance"), { ...data, updatedAt: Date.now() });
+  const { database, ref, set } = await databaseTools();
+  await set(ref(database, `users/${userId}/appData/finance`), { ...data, updatedAt: Date.now() });
 }
 
 export async function loadCloudWallet(userId: string): Promise<CloudWalletData | null> {
-  const snapshot = await get(userDataRef(userId, "wallet"));
+  const { database, get, ref } = await databaseTools();
+  const snapshot = await get(ref(database, `users/${userId}/appData/wallet`));
   if (!snapshot.exists()) return null;
   const data = snapshot.val() as Partial<CloudWalletData>;
   return {
@@ -127,16 +131,19 @@ export async function loadCloudWallet(userId: string): Promise<CloudWalletData |
 }
 
 export async function saveCloudWallet(userId: string, data: CloudWalletData) {
-  await set(userDataRef(userId, "wallet"), { ...data, updatedAt: Date.now() });
+  const { database, ref, set } = await databaseTools();
+  await set(ref(database, `users/${userId}/appData/wallet`), { ...data, updatedAt: Date.now() });
 }
 
 export async function loadCloudLoans(userId: string): Promise<CloudLoanData | null> {
-  const snapshot = await get(userDataRef(userId, "loans"));
+  const { database, get, ref } = await databaseTools();
+  const snapshot = await get(ref(database, `users/${userId}/appData/loans`));
   if (!snapshot.exists()) return null;
   const data = snapshot.val() as Partial<CloudLoanData>;
   return { loans: validLoans(data.loans) };
 }
 
 export async function saveCloudLoans(userId: string, data: CloudLoanData) {
-  await set(userDataRef(userId, "loans"), { ...data, updatedAt: Date.now() });
+  const { database, ref, set } = await databaseTools();
+  await set(ref(database, `users/${userId}/appData/loans`), { ...data, updatedAt: Date.now() });
 }
