@@ -1001,6 +1001,7 @@ export function ReportsPage() {
   return (
     <AppShell>
       <PageTitle title="Reports" subtitle="Daily, weekly, monthly and yearly report" />
+      <Link href="/share-monthly" className="mb-5 inline-flex rounded-xl bg-[#11298f] px-5 py-3 font-semibold text-white">মাসিক হিসাব কার্ড · Share monthly card →</Link>
       <div className="mb-4 grid grid-cols-2 rounded-2xl border border-[#e4e8f2] bg-white p-1 md:hidden">
         <button type="button" onClick={() => setReportMode("reports")} className={reportMode === "reports" ? "h-12 rounded-xl bg-[#11298f] text-sm font-extrabold text-white" : "h-12 rounded-xl text-sm font-extrabold text-[#111936]"}>Reports</button>
         <button type="button" onClick={() => setReportMode("analytics")} className={reportMode === "analytics" ? "h-12 rounded-xl bg-[#11298f] text-sm font-extrabold text-white" : "h-12 rounded-xl text-sm font-extrabold text-[#111936]"}>Analytics</button>
